@@ -4,7 +4,15 @@
   "version": "2.0.6",
   "agent": {
     "description": "Manages restaurant floor plan zones, tables, and table sessions: create/update/delete zones and tables, open/close/transfer sessions, and bulk-create tables.",
-    "keywords": ["table", "zone", "floor plan", "session", "restaurant", "seating", "dining"]
+    "keywords": [
+      "table",
+      "zone",
+      "floor plan",
+      "session",
+      "restaurant",
+      "seating",
+      "dining"
+    ]
   },
   "depends_on": [],
   "permissions": [
@@ -86,23 +94,167 @@
     "tables.zones.list": {
       "permission": "tables.view_zone",
       "sql": "queries/zones_list.sql",
-      "ai": { "description": "Lists all floor plan zones (dining room, terrace, bar, etc.)" }
+      "list": {
+        "search": [
+          "name"
+        ],
+        "sort": [
+          "id",
+          "name",
+          "color",
+          "sort_order",
+          "is_active"
+        ],
+        "default_sort": "name",
+        "default_dir": "asc",
+        "filters": {
+          "name": {
+            "op": "eq"
+          },
+          "color": {
+            "op": "eq"
+          },
+          "sort_order": {
+            "op": "eq"
+          },
+          "is_active": {
+            "op": "eq"
+          }
+        },
+        "page_size": 50
+      },
+      "ai": {
+        "description": "Lists all floor plan zones (dining room, terrace, bar, etc.)"
+      }
     },
     "tables.zones.get": {
       "permission": "tables.view_zone",
       "sql": "queries/zone_get.sql",
       "schema": "schemas/zone_get.json",
-      "ai": { "description": "Gets the details of a specific zone by its identifier" }
+      "ai": {
+        "description": "Gets the details of a specific zone by its identifier"
+      }
     },
     "tables.tables.list": {
       "permission": "tables.view_table",
       "sql": "queries/tables_list.sql",
-      "ai": { "description": "Lists all available tables with their current status" }
+      "list": {
+        "search": [
+          "number",
+          "name"
+        ],
+        "sort": [
+          "id",
+          "number",
+          "name",
+          "capacity",
+          "shape",
+          "status",
+          "is_active",
+          "position_x",
+          "position_y",
+          "width",
+          "height",
+          "zone_id",
+          "zone"
+        ],
+        "default_sort": "name",
+        "default_dir": "asc",
+        "filters": {
+          "number": {
+            "op": "eq"
+          },
+          "name": {
+            "op": "eq"
+          },
+          "capacity": {
+            "op": "eq"
+          },
+          "shape": {
+            "op": "eq"
+          },
+          "status": {
+            "op": "eq"
+          },
+          "is_active": {
+            "op": "eq"
+          },
+          "position_x": {
+            "op": "eq"
+          },
+          "position_y": {
+            "op": "eq"
+          },
+          "width": {
+            "op": "eq"
+          },
+          "height": {
+            "op": "eq"
+          },
+          "zone_id": {
+            "op": "eq"
+          },
+          "zone": {
+            "op": "eq"
+          }
+        },
+        "page_size": 50
+      },
+      "ai": {
+        "description": "Lists all available tables with their current status"
+      }
     },
     "tables.sessions.list": {
       "permission": "tables.view_tablesession",
       "sql": "queries/sessions_list.sql",
-      "ai": { "description": "Lists active or historical table sessions" }
+      "list": {
+        "search": [
+          "table_number"
+        ],
+        "sort": [
+          "id",
+          "table_id",
+          "table_number",
+          "guests_count",
+          "status",
+          "waiter_id",
+          "opened_at",
+          "closed_at",
+          "notes"
+        ],
+        "default_sort": "id",
+        "default_dir": "asc",
+        "filters": {
+          "table_id": {
+            "op": "eq"
+          },
+          "table_number": {
+            "op": "eq"
+          },
+          "guests_count": {
+            "op": "range"
+          },
+          "status": {
+            "op": "eq"
+          },
+          "waiter_id": {
+            "op": "eq"
+          },
+          "opened_at": {
+            "op": "range"
+          },
+          "closed_at": {
+            "op": "range"
+          },
+          "notes": {
+            "op": "eq"
+          }
+        },
+        "page_size": 50
+      },
+      "ai": {
+        "description": "Lists active or historical table sessions"
+      }
     }
   },
   "commands": {
@@ -115,7 +267,9 @@
       "emit": [
         "tables.zone.created"
       ],
-      "ai": { "description": "Creates a new zone in the floor plan" }
+      "ai": {
+        "description": "Creates a new zone in the floor plan"
+      }
     },
     "tables.zones.update": {
       "permission": "tables.change_zone",
@@ -126,7 +280,9 @@
       "emit": [
         "tables.zone.updated"
       ],
-      "ai": { "description": "Updates the name or configuration of an existing zone" }
+      "ai": {
+        "description": "Updates the name or configuration of an existing zone"
+      }
     },
     "tables.zones.delete": {
       "permission": "tables.delete_zone",
@@ -138,7 +294,9 @@
       "emit": [
         "tables.zone.deleted"
       ],
-      "ai": { "description": "Deletes a zone and all its associated tables (destructive)" }
+      "ai": {
+        "description": "Deletes a zone and all its associated tables (destructive)"
+      }
     },
     "tables.tables.create": {
       "permission": "tables.add_table",
@@ -149,7 +307,9 @@
       "emit": [
         "tables.table.created"
       ],
-      "ai": { "description": "Creates a new table inside a zone" }
+      "ai": {
+        "description": "Creates a new table inside a zone"
+      }
     },
     "tables.tables.update": {
       "permission": "tables.change_table",
@@ -160,7 +320,9 @@
       "emit": [
         "tables.table.updated"
       ],
-      "ai": { "description": "Updates a table's data (name, capacity, position)" }
+      "ai": {
+        "description": "Updates a table's data (name, capacity, position)"
+      }
     },
     "tables.tables.delete": {
       "permission": "tables.delete_table",
@@ -172,7 +334,9 @@
       "emit": [
         "tables.table.deleted"
       ],
-      "ai": { "description": "Deletes a table from the system (destructive)" }
+      "ai": {
+        "description": "Deletes a table from the system (destructive)"
+      }
     },
     "tables.tables.bulk_create": {
       "permission": "tables.add_table",
@@ -184,7 +348,9 @@
       "emit": [
         "tables.table.created"
       ],
-      "ai": { "description": "Creates multiple tables at once within a zone" }
+      "ai": {
+        "description": "Creates multiple tables at once within a zone"
+      }
     },
     "tables.sessions.open": {
       "permission": "tables.add_tablesession",
@@ -196,7 +362,9 @@
       "emit": [
         "tables.session.opened"
       ],
-      "ai": { "description": "Opens a session on a table to begin serving guests" }
+      "ai": {
+        "description": "Opens a session on a table to begin serving guests"
+      }
     },
     "tables.sessions.close": {
       "permission": "tables.change_tablesession",
@@ -208,7 +376,9 @@
       "emit": [
         "tables.session.closed"
       ],
-      "ai": { "description": "Closes the active session on a table after payment" }
+      "ai": {
+        "description": "Closes the active session on a table after payment"
+      }
     },
     "tables.sessions.transfer": {
       "permission": "tables.change_tablesession",
@@ -220,7 +390,9 @@
       "emit": [
         "tables.session.transferred"
       ],
-      "ai": { "description": "Transfers the active session from one table to another" }
+      "ai": {
+        "description": "Transfers the active session from one table to another"
+      }
     },
     "tables.sessions.delete": {
       "permission": "tables.delete_tablesession",
@@ -232,7 +404,9 @@
       "emit": [
         "tables.session.deleted"
       ],
-      "ai": { "description": "Deletes a table session (destructive, requires delete permission)" }
+      "ai": {
+        "description": "Deletes a table session (destructive, requires delete permission)"
+      }
     }
   },
   "ui": {

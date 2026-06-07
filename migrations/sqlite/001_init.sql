@@ -1,6 +1,6 @@
 -- Tables · esquema inicial (SQLite). Portado fielmente de old_modules/m_tables/models.py.
 -- Modelos: Zone, Table, TableSession (gestión del plano de sala de restaurante).
--- Contrato de fila estándar de hub-next (§2.5): hub_id + soft-delete + auditoría.
+-- Contrato de fila estándar de hub (§2.5): hub_id + soft-delete + auditoría.
 
 -- Zona / área (p.ej. Salón Principal, Terraza, VIP).
 CREATE TABLE IF NOT EXISTS tables_zone (

@@ -6,4 +6,3 @@ SELECT t.id, t.number, t.name, t.capacity, t.shape, t.status, t.is_active,
 FROM tables_table t
 LEFT JOIN tables_zone z ON z.id = t.zone_id AND z.is_deleted = 0
 WHERE t.hub_id = :hub_id AND t.is_deleted = 0
-ORDER BY t.number ASC;
