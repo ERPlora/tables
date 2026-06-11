@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tables.zones.create payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "description", "color", "sort_order"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Nombre de la zona (Salón Principal, Terraza…)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Descripción libre de la zona (puede ser vacía)"
+    },
+    "color": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Color de la zona en el plano (token de tema, def. `primary`)"
+    },
+    "sort_order": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Orden de presentación de la zona"
+    }
+  }
+}

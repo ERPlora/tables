@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tables.tables.delete payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["table_id"],
+  "properties": {
+    "table_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "UUID de la mesa a borrar (rechaza con `active_sessions` si tiene sesión activa)"
+    }
+  }
+}

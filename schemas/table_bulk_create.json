@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tables.tables.bulk_create payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["zone_id", "count"],
+  "properties": {
+    "zone_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "UUID de la zona destino (debe existir; si no, el lote completo se revierte)"
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "description": "Número de mesas a crear en el lote"
+    },
+    "prefix": {
+      "type": "string",
+      "description": "Prefijo del número de mesa: number = {prefix}{start_number + i}"
+    },
+    "start_number": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Número inicial de la serie (def. 1)"
+    },
+    "capacity": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Aforo de cada mesa del lote (def. 4)"
+    },
+    "shape": {
+      "type": "string",
+      "enum": ["square", "round", "rectangle"],
+      "description": "Forma de las mesas del lote (def. square)"
+    }
+  }
+}

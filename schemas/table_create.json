@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tables.tables.create payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["zone_id", "number", "name", "capacity", "position_x", "position_y", "width", "height", "shape"],
+  "properties": {
+    "zone_id": {
+      "type": ["string", "null"],
+      "description": "UUID de la zona contenedora (null = mesa sin zona)"
+    },
+    "number": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Número/código visible de la mesa"
+    },
+    "name": {
+      "type": "string",
+      "description": "Nombre descriptivo de la mesa (puede ser vacío)"
+    },
+    "capacity": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Aforo de la mesa (def. 4; `capacity <= 0` inválido)"
+    },
+    "position_x": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Posición X en el plano"
+    },
+    "position_y": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Posición Y en el plano"
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Ancho de la mesa en el plano (def. 10)"
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Alto de la mesa en el plano (def. 10)"
+    },
+    "shape": {
+      "type": "string",
+      "enum": ["square", "round", "rectangle"],
+      "description": "Forma de la mesa"
+    }
+  }
+}

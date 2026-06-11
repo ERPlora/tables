@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tables.sessions.open payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["table_id"],
+  "properties": {
+    "table_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "UUID de la mesa (debe estar `available`; si no → not_available)"
+    },
+    "guests_count": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Comensales (def. 1; si supera el aforo es warning de UI, no bloquea)"
+    },
+    "waiter_id": {
+      "type": ["string", "null"],
+      "description": "UUID del camarero asignado (opcional)"
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Notas iniciales de la sesión (opcional)"
+    }
+  }
+}

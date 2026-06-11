@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tables.sessions.transfer payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["session_id", "target_table_id"],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "UUID de la sesión origen (debe estar `active`)"
+    },
+    "target_table_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "UUID de la mesa destino (debe estar `available`)"
+    }
+  }
+}
