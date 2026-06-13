@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tables.tables.move payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["table_id", "position_x", "position_y", "width", "height"],
+  "properties": {
+    "table_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "UUID de la mesa a reposicionar"
+    },
+    "position_x": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Posición X (px) de la esquina superior izquierda en el plano"
+    },
+    "position_y": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Posición Y (px) de la esquina superior izquierda en el plano"
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Ancho (px) de la mesa en el plano"
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Alto (px) de la mesa en el plano"
+    }
+  }
+}

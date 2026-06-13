@@ -9,7 +9,7 @@ var __decorateClass = (decorators, target, key, kind) => {
   return result;
 };
 
-// ../module-toolkit/node_modules/@lit-labs/ssr-dom-shim/lib/element-internals.js
+// node_modules/@lit-labs/ssr-dom-shim/lib/element-internals.js
 var ElementInternalsShim = class ElementInternals {
   get shadowRoot() {
     return this.__host.__shadowRoot;
@@ -88,7 +88,7 @@ var ElementInternalsShim = class ElementInternals {
   }
 };
 
-// ../module-toolkit/node_modules/@lit-labs/ssr-dom-shim/lib/events.js
+// node_modules/@lit-labs/ssr-dom-shim/lib/events.js
 var __classPrivateFieldSet = function(receiver, state, value, kind, f3) {
   if (kind === "m") throw new TypeError("Private method is not writable");
   if (kind === "a" && !f3) throw new TypeError("Private accessor was defined without a setter");
@@ -246,7 +246,7 @@ Object.defineProperties(CustomEventShim.prototype, {
 var EventShimWithRealType = EventShim;
 var CustomEventShimWithRealType = CustomEventShim;
 
-// ../module-toolkit/node_modules/@lit-labs/ssr-dom-shim/lib/css.js
+// node_modules/@lit-labs/ssr-dom-shim/lib/css.js
 var _a2;
 var CSSRuleShim = (_a2 = class CSSRule {
   constructor() {
@@ -277,7 +277,7 @@ var CSSRuleShim = (_a2 = class CSSRule {
   }
 }, _a2.STYLE_RULE = 1, _a2.CHARSET_RULE = 2, _a2.IMPORT_RULE = 3, _a2.MEDIA_RULE = 4, _a2.FONT_FACE_RULE = 5, _a2.PAGE_RULE = 6, _a2.NAMESPACE_RULE = 10, _a2.KEYFRAMES_RULE = 7, _a2.KEYFRAME_RULE = 8, _a2.SUPPORTS_RULE = 12, _a2.COUNTER_STYLE_RULE = 11, _a2.FONT_FEATURE_VALUES_RULE = 14, _a2.MARGIN_RULE = 9, _a2);
 
-// ../module-toolkit/node_modules/@lit-labs/ssr-dom-shim/index.js
+// node_modules/@lit-labs/ssr-dom-shim/index.js
 globalThis.Event ??= EventShimWithRealType;
 globalThis.CustomEvent ??= CustomEventShimWithRealType;
 var constructionToken = Symbol();
@@ -674,7 +674,7 @@ var CustomElementRegistryShimWithRealType = CustomElementRegistry;
 var customElements2 = new CustomElementRegistryShimWithRealType();
 var windowShim = new WindowShim(constructionToken);
 
-// ../module-toolkit/node_modules/@lit/reactive-element/node/css-tag.js
+// node_modules/@lit/reactive-element/node/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
 var s = Symbol();
@@ -719,7 +719,7 @@ var c = e || void 0 === t.CSSStyleSheet ? (t5) => t5 : (t5) => t5 instanceof CSS
   return r(e5);
 })(t5) : t5;
 
-// ../module-toolkit/node_modules/@lit/reactive-element/node/reactive-element.js
+// node_modules/@lit/reactive-element/node/reactive-element.js
 var { is: h, defineProperty: r2, getOwnPropertyDescriptor: o2, getOwnPropertyNames: n2, getOwnPropertySymbols: a, getPrototypeOf: c2 } = Object;
 var l = globalThis;
 l.customElements ??= customElements2;
@@ -942,7 +942,7 @@ var g = class extends (globalThis.HTMLElement ?? HTMLElementShimWithRealType) {
 };
 g.elementStyles = [], g.shadowRootOptions = { mode: "open" }, g[f("elementProperties")] = /* @__PURE__ */ new Map(), g[f("finalized")] = /* @__PURE__ */ new Map(), u?.({ ReactiveElement: g }), (l.reactiveElementVersions ??= []).push("2.1.2");
 
-// ../module-toolkit/node_modules/lit-html/lit-html.js
+// node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i2 = (t5) => t5;
 var s2 = t2.trustedTypes;
@@ -1197,7 +1197,7 @@ var D = (t5, i7, s5) => {
   return h4._$AI(t5), h4;
 };
 
-// ../module-toolkit/node_modules/lit-element/lit-element.js
+// node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i3 = class extends g {
   constructor() {
@@ -1226,7 +1226,7 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i3 });
 (s3.litElementVersions ??= []).push("4.2.2");
 
-// ../module-toolkit/node_modules/@lit/reactive-element/node/decorators/property.js
+// node_modules/@lit/reactive-element/node/decorators/property.js
 var o5 = { attribute: true, type: String, converter: b, reflect: false, hasChanged: m };
 var r4 = (t5 = o5, e5, r6) => {
   const { kind: n6, metadata: i7 } = r6;
@@ -1256,7 +1256,7 @@ function n4(t5) {
   })(t5, e5, o7);
 }
 
-// ../module-toolkit/node_modules/@lit/reactive-element/node/decorators/state.js
+// node_modules/@lit/reactive-element/node/decorators/state.js
 function r5(r6) {
   return n4({ ...r6, state: true, attribute: false });
 }
@@ -1268,7 +1268,479 @@ function define(tag, ctor) {
   }
 }
 
-// ../module-toolkit/node_modules/lit-html/directive.js
+// ../modules-workspace/modules/tables/ui/components/erp-tables-canvas/erp-tables-canvas.ts
+var BOX = 72;
+var DRAG_THRESHOLD = 5;
+var SHAPES = ["square", "round", "rectangle"];
+var STATUSES = ["available", "occupied", "reserved", "blocked"];
+var STATUS_LABEL = {
+  available: "Disponible",
+  occupied: "Ocupada",
+  reserved: "Reservada",
+  blocked: "Bloqueada"
+};
+var SHAPE_LABEL = { square: "Cuadrada", round: "Redonda", rectangle: "Rectangular" };
+var STATUS_COLOR = {
+  available: "#2f9e44",
+  occupied: "#d9480f",
+  reserved: "#f08c00",
+  blocked: "#868e96"
+};
+function erplora() {
+  const c5 = globalThis.erplora;
+  if (!c5) throw new Error("erplora SDK no inicializado por el shell");
+  return c5;
+}
+function rows(r6) {
+  if (Array.isArray(r6)) return r6;
+  if (r6 && typeof r6 === "object" && Array.isArray(r6.rows)) return r6.rows;
+  return [];
+}
+var ErpTablesCanvas = class extends i3 {
+  constructor() {
+    super(...arguments);
+    this.zones = [];
+    this.tables = [];
+    this.activeZone = "";
+    this.newZoneName = "";
+    this.error = "";
+    this.loading = true;
+    this.saving = false;
+    this.dragDX = 0;
+    this.dragDY = 0;
+    this.dragStartX = 0;
+    this.dragStartY = 0;
+    this.dragMoved = false;
+  }
+  static {
+    this.styles = i`
+    :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
+    header { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:.6rem; }
+    h2 { margin:0; font-size:1.15rem; flex:1; }
+    .newzone { display:flex; gap:.4rem; align-items:center; }
+    .newzone ion-input { --background:var(--surface-2,#f7f4ec); border:1px solid var(--line,#e7e2d6); border-radius:8px; min-width:9rem; }
+    .zonebar { display:flex; gap:.5rem; align-items:center; margin-bottom:.6rem; }
+    .zonebar ion-segment { flex:1; }
+    .legend { display:flex; gap:.8rem; flex-wrap:wrap; margin:.2rem 0 .6rem; font-size:.75rem; color:#8b897f; }
+    .legend span { display:inline-flex; align-items:center; gap:.3rem; }
+    .dot { width:.7rem; height:.7rem; border-radius:50%; display:inline-block; }
+    .canvas { position:relative; height:60vh; min-height:22rem; border:1px dashed var(--ion-border-color,#cfcabd); border-radius:14px; background:
+        repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px),
+        repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px);
+      overflow:hidden; touch-action:none; }
+    .mesa { position:absolute; width:${BOX}px; height:${BOX}px; border:2px solid; border-radius:12px;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:grab;
+      background:var(--ion-background-color,#fff); user-select:none; box-shadow:0 1px 4px rgba(0,0,0,.12); }
+    .mesa.round { border-radius:50%; }
+    .mesa.dragging { cursor:grabbing; opacity:.85; box-shadow:0 6px 18px rgba(0,0,0,.28); z-index:5; }
+    .mesa .n { font-weight:700; font-size:1.05rem; }
+    .mesa .c { font-size:.7rem; color:#8b897f; }
+    .hint { color:#8b897f; font-size:.85rem; margin:.5rem 0 0; }
+    .err { color:#d9480f; font-weight:600; }
+    .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#8b897f; text-align:center; padding:1rem; }
+    /* Sheet de edición (en el shadow → conserva estilos) */
+    .scrim { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:60; }
+    .sheet { background:var(--ion-background-color,#fff); border-radius:16px; padding:1rem; width:min(94vw,26rem); max-height:90vh; overflow:auto; box-shadow:0 12px 48px rgba(0,0,0,.35); }
+    .sheet-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; }
+    .sheet-h .t { font-size:1.2rem; font-weight:700; }
+    .x { background:none; border:none; font-size:1.3rem; cursor:pointer; color:#8b897f; }
+    .field { display:flex; flex-direction:column; gap:.25rem; margin-bottom:.7rem; }
+    .field label { font-size:.8rem; color:#8b897f; }
+    .field ion-input, .field ion-select { --background:var(--surface-2,#f7f4ec); border:1px solid var(--line,#e7e2d6); border-radius:8px; }
+    .row2 { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
+    .sheet-foot { display:flex; justify-content:space-between; gap:.5rem; margin-top:1rem; }
+  `;
+  }
+  async connectedCallback() {
+    super.connectedCallback();
+    await this.reload();
+    try {
+      const evs = ["tables.table.created", "tables.table.updated", "tables.table.deleted", "tables.zone.created", "tables.zone.updated", "tables.zone.deleted"];
+      const offs = evs.map((e5) => erplora().on?.(e5, () => this.reload())).filter(Boolean);
+      this.unsub = () => offs.forEach((o7) => o7());
+    } catch {
+    }
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.unsub?.();
+  }
+  async reload() {
+    this.loading = true;
+    try {
+      const [z2, t5] = await Promise.all([
+        erplora().query("tables.zones.list", { page_size: 100, sort: "sort_order", dir: "asc" }).catch(() => []),
+        erplora().query("tables.tables.list", { page_size: 300, sort: "number", dir: "asc" }).catch(() => [])
+      ]);
+      this.zones = rows(z2);
+      this.tables = rows(t5).map((m4) => ({
+        ...m4,
+        capacity: Number(m4.capacity) || 1,
+        is_active: Number(m4.is_active),
+        position_x: Number(m4.position_x) || 0,
+        position_y: Number(m4.position_y) || 0,
+        width: Number(m4.width) || BOX,
+        height: Number(m4.height) || BOX
+      }));
+      if (!this.activeZone || !this.zones.some((zo) => zo.id === this.activeZone)) {
+        this.activeZone = this.zones[0]?.id ?? "";
+      }
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : "No se pudo cargar el plano";
+    } finally {
+      this.loading = false;
+    }
+  }
+  get tablesInZone() {
+    if (!this.activeZone) return this.tables;
+    return this.tables.filter((t5) => t5.zone_id === this.activeZone);
+  }
+  get activeZoneObj() {
+    return this.zones.find((z2) => z2.id === this.activeZone);
+  }
+  canvasEl() {
+    return this.renderRoot.querySelector(".canvas");
+  }
+  // ── Drag + clic-para-editar (pointer events) ────────────────────────────────────────────────
+  onPointerDown(t5, e5) {
+    const canvas = this.canvasEl();
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    this.dragId = t5.id;
+    this.dragDX = e5.clientX - rect.left - t5.position_x;
+    this.dragDY = e5.clientY - rect.top - t5.position_y;
+    this.dragStartX = e5.clientX;
+    this.dragStartY = e5.clientY;
+    this.dragMoved = false;
+    e5.target.setPointerCapture?.(e5.pointerId);
+    e5.preventDefault();
+  }
+  onPointerMove(e5) {
+    if (!this.dragId) return;
+    if (Math.abs(e5.clientX - this.dragStartX) > DRAG_THRESHOLD || Math.abs(e5.clientY - this.dragStartY) > DRAG_THRESHOLD) {
+      this.dragMoved = true;
+    }
+    const canvas = this.canvasEl();
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const maxX = Math.max(0, rect.width - BOX);
+    const maxY = Math.max(0, rect.height - BOX);
+    const x2 = Math.min(maxX, Math.max(0, e5.clientX - rect.left - this.dragDX));
+    const y3 = Math.min(maxY, Math.max(0, e5.clientY - rect.top - this.dragDY));
+    this.tables = this.tables.map((t5) => t5.id === this.dragId ? { ...t5, position_x: x2, position_y: y3 } : t5);
+  }
+  async onPointerUp() {
+    const id = this.dragId;
+    this.dragId = void 0;
+    if (!id) return;
+    const t5 = this.tables.find((m4) => m4.id === id);
+    if (!t5) return;
+    if (!this.dragMoved) {
+      this.edit = { ...t5 };
+      return;
+    }
+    try {
+      await erplora().command("tables.tables.move", {
+        table_id: t5.id,
+        position_x: Math.round(t5.position_x),
+        position_y: Math.round(t5.position_y),
+        width: BOX,
+        height: BOX
+      });
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : "No se pudo guardar la posici\xF3n";
+    }
+  }
+  // ── Altas ───────────────────────────────────────────────────────────────────────────────────
+  async addTable() {
+    this.error = "";
+    const next = this.tablesInZone.length + 1;
+    try {
+      await erplora().command("tables.tables.create", {
+        zone_id: this.activeZone || null,
+        number: String(next),
+        name: "",
+        capacity: 4,
+        position_x: 20 + next * 16 % 200,
+        position_y: 20 + next * 12 % 160,
+        width: BOX,
+        height: BOX,
+        shape: "square"
+      });
+      await this.reload();
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : "No se pudo crear la mesa";
+    }
+  }
+  async addZone() {
+    const name = this.newZoneName.trim();
+    if (!name) return;
+    this.error = "";
+    try {
+      await erplora().command("tables.zones.create", {
+        name,
+        description: "",
+        color: "primary",
+        sort_order: this.zones.length
+      });
+      this.newZoneName = "";
+      await this.reload();
+      const created = this.zones.find((z2) => z2.name === name);
+      if (created) this.activeZone = created.id;
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : "No se pudo crear la zona";
+    }
+  }
+  // ── Edición / borrado de mesa ────────────────────────────────────────────────────────────────
+  patchEdit(p4) {
+    if (this.edit) this.edit = { ...this.edit, ...p4 };
+  }
+  async saveTable() {
+    if (!this.edit) return;
+    const t5 = this.edit;
+    if (!String(t5.number).trim()) {
+      this.error = "El n\xFAmero de mesa es obligatorio";
+      return;
+    }
+    this.saving = true;
+    this.error = "";
+    try {
+      await erplora().command("tables.tables.update", {
+        table_id: t5.id,
+        number: String(t5.number).trim(),
+        name: t5.name ?? "",
+        capacity: Math.max(1, Number(t5.capacity) || 1),
+        zone_id: t5.zone_id ?? null,
+        shape: t5.shape,
+        status: t5.status,
+        is_active: Number(t5.is_active) ? 1 : 0
+      });
+      this.edit = void 0;
+      await this.reload();
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : "No se pudo guardar la mesa";
+    } finally {
+      this.saving = false;
+    }
+  }
+  async deleteTable() {
+    if (!this.edit) return;
+    this.saving = true;
+    this.error = "";
+    try {
+      await erplora().command("tables.tables.delete", { table_id: this.edit.id });
+      this.edit = void 0;
+      await this.reload();
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : "No se pudo borrar la mesa";
+    } finally {
+      this.saving = false;
+    }
+  }
+  // ── Edición / borrado de zona ────────────────────────────────────────────────────────────────
+  async openZoneEdit() {
+    const z2 = this.activeZoneObj;
+    if (!z2) return;
+    this.error = "";
+    try {
+      const full = await erplora().query("tables.zones.get", { zone_id: z2.id });
+      const zo = Array.isArray(full) ? full[0] : full;
+      this.zoneEdit = { ...z2, ...zo || {} };
+    } catch {
+      this.zoneEdit = { ...z2 };
+    }
+  }
+  async saveZone() {
+    if (!this.zoneEdit) return;
+    const z2 = this.zoneEdit;
+    if (!z2.name.trim()) {
+      this.error = "El nombre de la zona es obligatorio";
+      return;
+    }
+    this.saving = true;
+    this.error = "";
+    try {
+      await erplora().command("tables.zones.update", {
+        zone_id: z2.id,
+        name: z2.name.trim(),
+        description: z2.description ?? "",
+        color: z2.color ?? "primary",
+        sort_order: Number(z2.sort_order) || 0,
+        is_active: Number(z2.is_active) ? 1 : 0
+      });
+      this.zoneEdit = void 0;
+      await this.reload();
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : "No se pudo guardar la zona";
+    } finally {
+      this.saving = false;
+    }
+  }
+  async deleteZone() {
+    if (!this.zoneEdit) return;
+    this.saving = true;
+    this.error = "";
+    try {
+      await erplora().command("tables.zones.delete", { zone_id: this.zoneEdit.id });
+      this.zoneEdit = void 0;
+      this.activeZone = "";
+      await this.reload();
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : "No se pudo borrar la zona (\xBFtiene mesas?)";
+    } finally {
+      this.saving = false;
+    }
+  }
+  render() {
+    return b2`
+      <header>
+        <h2>Plano de sala</h2>
+        <div class="newzone">
+          <ion-input placeholder="Nueva zona…" .value=${this.newZoneName}
+            @ionInput=${(e5) => {
+      this.newZoneName = e5.target.value || "";
+    }}></ion-input>
+          <ion-button size="small" fill="outline" ?disabled=${!this.newZoneName.trim()} @click=${() => this.addZone()}>Añadir zona</ion-button>
+        </div>
+        <ion-button size="small" ?disabled=${!this.zones.length} @click=${() => this.addTable()}>Añadir mesa</ion-button>
+      </header>
+
+      ${this.error ? b2`<p class="err">${this.error}</p>` : A}
+
+      ${this.zones.length ? b2`<div class="zonebar">
+            <ion-segment scrollable value=${this.activeZone}
+              @ionChange=${(e5) => {
+      this.activeZone = e5.detail.value;
+    }}>
+              ${this.zones.map((z2) => b2`<ion-segment-button value=${z2.id}><ion-label>${z2.name}</ion-label></ion-segment-button>`)}
+            </ion-segment>
+            <ion-button size="small" fill="clear" ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}>Editar zona</ion-button>
+          </div>` : A}
+
+      <div class="legend">
+        ${STATUSES.map((s5) => b2`<span><i class="dot" style=${`background:${STATUS_COLOR[s5]}`}></i>${STATUS_LABEL[s5]}</span>`)}
+      </div>
+
+      <div class="canvas"
+        @pointermove=${(e5) => this.onPointerMove(e5)}
+        @pointerup=${() => this.onPointerUp()}
+        @pointercancel=${() => this.onPointerUp()}>
+        ${this.tablesInZone.map((t5) => b2`
+          <div class=${`mesa ${t5.shape === "round" ? "round" : ""} ${t5.id === this.dragId && this.dragMoved ? "dragging" : ""}`}
+            style=${`left:${t5.position_x}px; top:${t5.position_y}px; border-color:${STATUS_COLOR[t5.status] ?? "#d9d6cf"}`}
+            title=${`${STATUS_LABEL[t5.status] ?? t5.status} \xB7 ${t5.capacity} pax (clic para editar)`}
+            @pointerdown=${(e5) => this.onPointerDown(t5, e5)}>
+            <div class="n">${t5.number}</div>
+            <div class="c">${t5.capacity} pax</div>
+          </div>`)}
+        ${!this.loading && !this.zones.length ? b2`<div class="empty">Crea una zona para empezar a colocar mesas.</div>` : A}
+        ${!this.loading && this.zones.length && !this.tablesInZone.length ? b2`<div class="empty">Sin mesas en esta zona. Pulsa «Añadir mesa».</div>` : A}
+        ${this.loading ? b2`<div class="empty">Cargando…</div>` : A}
+      </div>
+      <p class="hint">Arrastra para colocar · clic en una mesa para editarla o borrarla. Los cambios se guardan al momento.</p>
+
+      ${this.edit ? this.renderTableSheet(this.edit) : A}
+      ${this.zoneEdit ? this.renderZoneSheet(this.zoneEdit) : A}
+    `;
+  }
+  renderTableSheet(t5) {
+    return b2`<div class="scrim" @click=${(e5) => {
+      if (e5.target.classList.contains("scrim")) this.edit = void 0;
+    }}>
+      <div class="sheet">
+        <div class="sheet-h">
+          <span class="t">Editar mesa</span>
+          <button class="x" @click=${() => {
+      this.edit = void 0;
+    }}>✕</button>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Número</label>
+            <ion-input .value=${t5.number} @ionInput=${(e5) => this.patchEdit({ number: e5.target.value || "" })}></ion-input></div>
+          <div class="field"><label>Aforo</label>
+            <ion-input type="number" min="1" .value=${String(t5.capacity)} @ionInput=${(e5) => this.patchEdit({ capacity: Number(e5.target.value) || 1 })}></ion-input></div>
+        </div>
+        <div class="field"><label>Nombre (opcional)</label>
+          <ion-input .value=${t5.name} @ionInput=${(e5) => this.patchEdit({ name: e5.target.value || "" })}></ion-input></div>
+        <div class="row2">
+          <div class="field"><label>Forma</label>
+            <ion-select .value=${t5.shape} interface="popover" @ionChange=${(e5) => this.patchEdit({ shape: e5.detail.value })}>
+              ${SHAPES.map((s5) => b2`<ion-select-option value=${s5}>${SHAPE_LABEL[s5]}</ion-select-option>`)}
+            </ion-select></div>
+          <div class="field"><label>Estado</label>
+            <ion-select .value=${t5.status} interface="popover" @ionChange=${(e5) => this.patchEdit({ status: e5.detail.value })}>
+              ${STATUSES.map((s5) => b2`<ion-select-option value=${s5}>${STATUS_LABEL[s5]}</ion-select-option>`)}
+            </ion-select></div>
+        </div>
+        <div class="field"><label>Zona</label>
+          <ion-select .value=${t5.zone_id ?? ""} interface="popover" @ionChange=${(e5) => this.patchEdit({ zone_id: e5.detail.value || null })}>
+            <ion-select-option value="">Sin zona</ion-select-option>
+            ${this.zones.map((z2) => b2`<ion-select-option value=${z2.id}>${z2.name}</ion-select-option>`)}
+          </ion-select></div>
+        <div class="sheet-foot">
+          <ion-button color="danger" fill="outline" size="small" ?disabled=${this.saving} @click=${() => this.deleteTable()}>Borrar</ion-button>
+          <ion-button ?disabled=${this.saving} @click=${() => this.saveTable()}>${this.saving ? "Guardando\u2026" : "Guardar"}</ion-button>
+        </div>
+      </div>
+    </div>`;
+  }
+  renderZoneSheet(z2) {
+    return b2`<div class="scrim" @click=${(e5) => {
+      if (e5.target.classList.contains("scrim")) this.zoneEdit = void 0;
+    }}>
+      <div class="sheet">
+        <div class="sheet-h">
+          <span class="t">Editar zona</span>
+          <button class="x" @click=${() => {
+      this.zoneEdit = void 0;
+    }}>✕</button>
+        </div>
+        <div class="field"><label>Nombre</label>
+          <ion-input .value=${z2.name} @ionInput=${(e5) => {
+      this.zoneEdit = { ...z2, name: e5.target.value || "" };
+    }}></ion-input></div>
+        <div class="field"><label>Descripción (opcional)</label>
+          <ion-input .value=${z2.description ?? ""} @ionInput=${(e5) => {
+      this.zoneEdit = { ...z2, description: e5.target.value || "" };
+    }}></ion-input></div>
+        <div class="sheet-foot">
+          <ion-button color="danger" fill="outline" size="small" ?disabled=${this.saving} @click=${() => this.deleteZone()}>Borrar zona</ion-button>
+          <ion-button ?disabled=${this.saving} @click=${() => this.saveZone()}>${this.saving ? "Guardando\u2026" : "Guardar"}</ion-button>
+        </div>
+      </div>
+    </div>`;
+  }
+};
+__decorateClass([
+  r5()
+], ErpTablesCanvas.prototype, "zones", 2);
+__decorateClass([
+  r5()
+], ErpTablesCanvas.prototype, "tables", 2);
+__decorateClass([
+  r5()
+], ErpTablesCanvas.prototype, "activeZone", 2);
+__decorateClass([
+  r5()
+], ErpTablesCanvas.prototype, "newZoneName", 2);
+__decorateClass([
+  r5()
+], ErpTablesCanvas.prototype, "error", 2);
+__decorateClass([
+  r5()
+], ErpTablesCanvas.prototype, "loading", 2);
+__decorateClass([
+  r5()
+], ErpTablesCanvas.prototype, "edit", 2);
+__decorateClass([
+  r5()
+], ErpTablesCanvas.prototype, "zoneEdit", 2);
+__decorateClass([
+  r5()
+], ErpTablesCanvas.prototype, "saving", 2);
+define("erp-tables-canvas", ErpTablesCanvas);
+
+// node_modules/lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t5) => (...e5) => ({ _$litDirective$: t5, values: e5 });
 var i4 = class {
@@ -1288,7 +1760,7 @@ var i4 = class {
   }
 };
 
-// ../module-toolkit/node_modules/lit-html/directive-helpers.js
+// node_modules/lit-html/directive-helpers.js
 var { I: t4 } = j;
 var i5 = (o7) => o7;
 var s4 = () => document.createComment("");
@@ -1321,7 +1793,7 @@ var h3 = (o7) => {
   o7._$AR(), o7._$AA.remove();
 };
 
-// ../module-toolkit/node_modules/lit-html/directives/repeat.js
+// node_modules/lit-html/directives/repeat.js
 var u4 = (e5, s5, t5) => {
   const r6 = /* @__PURE__ */ new Map();
   for (let l3 = s5; l3 <= t5; l3++) r6.set(e5[l3], l3);
@@ -1374,7 +1846,7 @@ var c4 = e4(class extends i4 {
   }
 });
 
-// ../module-toolkit/node_modules/lit-html/directives/style-map.js
+// node_modules/lit-html/directives/style-map.js
 var n5 = "important";
 var i6 = " !" + n5;
 var o6 = e4(class extends i4 {
@@ -1827,17 +2299,17 @@ var OkDataTable = class extends i3 {
       out.push(row);
     }
     const headers = out.shift() ?? [];
-    const rows = out.map((r6) => Object.fromEntries(headers.map((h4, i7) => [h4, r6[i7] ?? ""])));
-    return { headers, rows };
+    const rows3 = out.map((r6) => Object.fromEntries(headers.map((h4, i7) => [h4, r6[i7] ?? ""])));
+    return { headers, rows: rows3 };
   }
   async onImportFile(ev) {
     const input = ev.target;
     const file = input.files?.[0];
     if (!file) return;
     const text = await file.text();
-    const { headers, rows } = this.parseCsv(text);
-    this.emit("csvImport", { headers, rows });
-    this.emit("import", { headers, rows });
+    const { headers, rows: rows3 } = this.parseCsv(text);
+    this.emit("csvImport", { headers, rows: rows3 });
+    this.emit("import", { headers, rows: rows3 });
     input.value = "";
   }
   toggle(p4) {
@@ -2788,14 +3260,14 @@ function createListController(client, queryName, onChange = () => {
   return new ListController(client, queryName, onChange, opts);
 }
 
-// modules/tables/ui/components/erp-tables-floor-plan/erp-tables-floor-plan.ts
+// ../modules-workspace/modules/tables/ui/components/erp-tables-floor-plan/erp-tables-floor-plan.ts
 var STATUS_LABELS = {
   available: "Disponible",
   occupied: "Ocupada",
   reserved: "Reservada",
   blocked: "Bloqueada"
 };
-function erplora() {
+function erplora2() {
   const c5 = globalThis.erplora;
   if (!c5) throw new Error("erplora SDK no inicializado por el shell");
   return c5;
@@ -2839,7 +3311,7 @@ var ErpTablesFloorPlan = class extends i3 {
   // sola vez tras el primer render, considera firstUpdated() en su lugar.
   async connectedCallback() {
     super.connectedCallback();
-    this.ctrl = createListController(erplora(), "tables.tables.list", () => this.requestUpdate(), {
+    this.ctrl = createListController(erplora2(), "tables.tables.list", () => this.requestUpdate(), {
       pageSize: 50,
       sort: "name",
       dir: "asc"
@@ -2847,12 +3319,12 @@ var ErpTablesFloorPlan = class extends i3 {
     await this.ctrl.load();
     try {
       const offs = [
-        erplora().on("tables.table.created", () => this.ctrl.load()),
-        erplora().on("tables.table.updated", () => this.ctrl.load()),
-        erplora().on("tables.table.deleted", () => this.ctrl.load()),
-        erplora().on("tables.session.opened", () => this.ctrl.load()),
-        erplora().on("tables.session.closed", () => this.ctrl.load()),
-        erplora().on("tables.session.transferred", () => this.ctrl.load())
+        erplora2().on("tables.table.created", () => this.ctrl.load()),
+        erplora2().on("tables.table.updated", () => this.ctrl.load()),
+        erplora2().on("tables.table.deleted", () => this.ctrl.load()),
+        erplora2().on("tables.session.opened", () => this.ctrl.load()),
+        erplora2().on("tables.session.closed", () => this.ctrl.load()),
+        erplora2().on("tables.session.transferred", () => this.ctrl.load())
       ];
       this.unsub = () => offs.forEach((o7) => o7());
     } catch {
@@ -2868,7 +3340,7 @@ var ErpTablesFloorPlan = class extends i3 {
     this.saving = true;
     this.formError = "";
     try {
-      await erplora().command("tables.tables.create", {
+      await erplora2().command("tables.tables.create", {
         number: this.newNumber.trim(),
         name: "",
         capacity: Number(this.newCapacity) || 4,
@@ -2920,6 +3392,230 @@ __decorateClass([
   r5()
 ], ErpTablesFloorPlan.prototype, "tick", 2);
 define("erp-tables-floor-plan", ErpTablesFloorPlan);
-export {
-  ErpTablesFloorPlan
+
+// ../modules-workspace/modules/tables/ui/components/erp-tables-pos-zones/erp-tables-pos-zones.ts
+var STATUS_COLOR2 = {
+  available: "#2f9e44",
+  occupied: "#d9480f",
+  reserved: "#f08c00",
+  blocked: "#868e96"
 };
+function erplora3() {
+  const c5 = globalThis.erplora;
+  if (!c5) throw new Error("erplora SDK no inicializado por el shell");
+  return c5;
+}
+function rows2(r6) {
+  if (Array.isArray(r6)) return r6;
+  if (r6 && typeof r6 === "object" && Array.isArray(r6.rows)) return r6.rows;
+  return [];
+}
+var ErpTablesPosZones = class extends i3 {
+  constructor() {
+    super(...arguments);
+    this.open = false;
+    this.zones = [];
+    this.tables = [];
+    this.activeZone = "";
+    this.selectedLabel = "";
+    this.loading = false;
+    this.error = "";
+    // Tras cobrar, el POS dispara este reset: la mesa queda pagada → cerramos su sesión (la libera).
+    this.onReset = () => {
+      const sid = this.sessionId;
+      this.selectedId = void 0;
+      this.selectedLabel = "";
+      this.sessionId = void 0;
+      if (sid) void this.closeSession(sid);
+    };
+  }
+  static {
+    this.styles = i`
+    :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
+    .open { width:100%; }
+    .scrim { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:60; }
+    .sheet { background:var(--ion-background-color,#fff); border-radius:16px; padding:1rem; width:min(94vw,32rem); max-height:90vh; overflow:auto; box-shadow:0 12px 48px rgba(0,0,0,.35); }
+    .sheet-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; }
+    .sheet-h .t { font-size:1.2rem; font-weight:700; }
+    .x { background:none; border:none; font-size:1.3rem; cursor:pointer; color:#8b897f; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr)); gap:.6rem; margin-top:.8rem; }
+    .mesa { border:2px solid; border-radius:12px; padding:.6rem .4rem; cursor:pointer; text-align:center; background:var(--ion-background-color,#fff); transition:transform .05s; }
+    .mesa:active { transform:scale(.96); }
+    .mesa[aria-pressed=true] { outline:3px solid var(--ion-color-primary,#0091ce); outline-offset:1px; }
+    .mesa .n { font-weight:700; font-size:1.05rem; }
+    .mesa .c { font-size:.75rem; color:#8b897f; }
+    .mesa .s { font-size:.65rem; text-transform:uppercase; letter-spacing:.03em; font-weight:600; }
+    .empty { color:#8b897f; text-align:center; padding:1.5rem 0; }
+    .foot { display:flex; justify-content:space-between; align-items:center; margin-top:1rem; }
+  `;
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    this.addEventListener("erp:order-context-reset", this.onReset);
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.removeEventListener("erp:order-context-reset", this.onReset);
+  }
+  async openPicker() {
+    this.open = true;
+    this.loading = true;
+    this.error = "";
+    try {
+      const [z2, t5] = await Promise.all([
+        erplora3().query("tables.zones.list", { page_size: 100, sort: "sort_order", dir: "asc" }).catch(() => []),
+        erplora3().query("tables.tables.list", { page_size: 200, sort: "number", dir: "asc" }).catch(() => [])
+      ]);
+      this.zones = rows2(z2);
+      this.tables = rows2(t5);
+      if (!this.activeZone) this.activeZone = this.zones[0]?.id ?? "";
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : "No se pudieron cargar las mesas";
+    } finally {
+      this.loading = false;
+    }
+  }
+  emit(table_id, label) {
+    this.dispatchEvent(new CustomEvent("erp:order-context", {
+      detail: { table_id, label },
+      bubbles: true,
+      composed: true
+    }));
+  }
+  /** Id de la sesión `active` de una mesa (para reanudar/cerrar), o undefined si no hay. */
+  async activeSessionFor(tableId) {
+    try {
+      const r6 = await erplora3().query("tables.sessions.list", { f_table_id: tableId, f_status: "active", page_size: 1 });
+      return rows2(r6)[0]?.id;
+    } catch {
+      return void 0;
+    }
+  }
+  async closeSession(id) {
+    try {
+      await erplora3().command("tables.sessions.close", { session_id: id });
+    } catch {
+    }
+  }
+  /** Recarga el estado de las mesas (colores ocupada/libre) tras abrir/cerrar una sesión. */
+  async refreshTables() {
+    try {
+      const t5 = await erplora3().query("tables.tables.list", { page_size: 200, sort: "number", dir: "asc" });
+      this.tables = rows2(t5);
+    } catch {
+    }
+  }
+  async pick(t5) {
+    if (t5.id === this.selectedId) {
+      this.open = false;
+      return;
+    }
+    this.error = "";
+    if (this.sessionId && this.selectedId && this.selectedId !== t5.id) {
+      await this.closeSession(this.sessionId);
+      this.sessionId = void 0;
+    }
+    let sessionId;
+    if (t5.status === "available") {
+      try {
+        await erplora3().command("tables.sessions.open", { table_id: t5.id });
+        sessionId = await this.activeSessionFor(t5.id);
+      } catch (e5) {
+        this.error = e5 instanceof Error ? e5.message : "No se pudo ocupar la mesa";
+      }
+    } else {
+      sessionId = await this.activeSessionFor(t5.id);
+    }
+    this.sessionId = sessionId;
+    this.selectedId = t5.id;
+    this.selectedLabel = `Mesa ${t5.number}`;
+    this.emit(t5.id, this.selectedLabel);
+    this.open = false;
+    void this.refreshTables();
+  }
+  async clear() {
+    if (this.sessionId) {
+      await this.closeSession(this.sessionId);
+      this.sessionId = void 0;
+    }
+    this.selectedId = void 0;
+    this.selectedLabel = "";
+    this.emit(null, "");
+    this.open = false;
+    void this.refreshTables();
+  }
+  get tablesInZone() {
+    if (!this.activeZone) return this.tables;
+    return this.tables.filter((t5) => t5.zone_id === this.activeZone);
+  }
+  render() {
+    return b2`
+      <ion-button class="open" fill=${this.selectedId ? "solid" : "outline"} size="small" @click=${() => this.openPicker()}>
+        ${this.selectedLabel || "Asignar mesa"}
+      </ion-button>
+
+      ${this.open ? b2`<div class="scrim" @click=${(e5) => {
+      if (e5.target.classList.contains("scrim")) this.open = false;
+    }}>
+            <div class="sheet">
+              <div class="sheet-h">
+                <span class="t">Elegir mesa</span>
+                <button class="x" @click=${() => {
+      this.open = false;
+    }}>✕</button>
+              </div>
+
+              ${this.error ? b2`<p style="color:#d9480f">${this.error}</p>` : A}
+
+              ${this.zones.length ? b2`<ion-segment scrollable value=${this.activeZone}
+                    @ionChange=${(e5) => {
+      this.activeZone = e5.detail.value;
+    }}>
+                    ${this.zones.map((z2) => b2`<ion-segment-button value=${z2.id}><ion-label>${z2.name}</ion-label></ion-segment-button>`)}
+                  </ion-segment>` : A}
+
+              <div class="grid">
+                ${this.tablesInZone.map((t5) => b2`
+                  <button class="mesa" aria-pressed=${this.selectedId === t5.id}
+                    style=${`border-color:${STATUS_COLOR2[t5.status] ?? "#d9d6cf"}`} @click=${() => this.pick(t5)}>
+                    <div class="n">${t5.number}</div>
+                    <div class="c">${t5.capacity} pax</div>
+                    <div class="s" style=${`color:${STATUS_COLOR2[t5.status] ?? "#868e96"}`}>${t5.status}</div>
+                  </button>`)}
+                ${!this.loading && !this.tablesInZone.length ? b2`<div class="empty">Sin mesas en esta zona.</div>` : A}
+                ${this.loading ? b2`<div class="empty">Cargando…</div>` : A}
+              </div>
+
+              <div class="foot">
+                <ion-button fill="clear" size="small" ?disabled=${!this.selectedId} @click=${() => this.clear()}>Quitar mesa</ion-button>
+              </div>
+            </div>
+          </div>` : A}
+    `;
+  }
+};
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "open", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "zones", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "tables", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "activeZone", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "selectedId", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "selectedLabel", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "loading", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "error", 2);
+define("erp-tables-pos-zones", ErpTablesPosZones);
