@@ -9,7 +9,7 @@ var __decorateClass = (decorators, target, key, kind) => {
   return result;
 };
 
-// node_modules/@lit-labs/ssr-dom-shim/lib/element-internals.js
+// node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/element-internals.js
 var ElementInternalsShim = class ElementInternals {
   get shadowRoot() {
     return this.__host.__shadowRoot;
@@ -88,7 +88,7 @@ var ElementInternalsShim = class ElementInternals {
   }
 };
 
-// node_modules/@lit-labs/ssr-dom-shim/lib/events.js
+// node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/events.js
 var __classPrivateFieldSet = function(receiver, state, value, kind, f3) {
   if (kind === "m") throw new TypeError("Private method is not writable");
   if (kind === "a" && !f3) throw new TypeError("Private accessor was defined without a setter");
@@ -246,7 +246,7 @@ Object.defineProperties(CustomEventShim.prototype, {
 var EventShimWithRealType = EventShim;
 var CustomEventShimWithRealType = CustomEventShim;
 
-// node_modules/@lit-labs/ssr-dom-shim/lib/css.js
+// node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/css.js
 var _a2;
 var CSSRuleShim = (_a2 = class CSSRule {
   constructor() {
@@ -277,7 +277,7 @@ var CSSRuleShim = (_a2 = class CSSRule {
   }
 }, _a2.STYLE_RULE = 1, _a2.CHARSET_RULE = 2, _a2.IMPORT_RULE = 3, _a2.MEDIA_RULE = 4, _a2.FONT_FACE_RULE = 5, _a2.PAGE_RULE = 6, _a2.NAMESPACE_RULE = 10, _a2.KEYFRAMES_RULE = 7, _a2.KEYFRAME_RULE = 8, _a2.SUPPORTS_RULE = 12, _a2.COUNTER_STYLE_RULE = 11, _a2.FONT_FEATURE_VALUES_RULE = 14, _a2.MARGIN_RULE = 9, _a2);
 
-// node_modules/@lit-labs/ssr-dom-shim/index.js
+// node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/index.js
 globalThis.Event ??= EventShimWithRealType;
 globalThis.CustomEvent ??= CustomEventShimWithRealType;
 var constructionToken = Symbol();
@@ -674,7 +674,7 @@ var CustomElementRegistryShimWithRealType = CustomElementRegistry;
 var customElements2 = new CustomElementRegistryShimWithRealType();
 var windowShim = new WindowShim(constructionToken);
 
-// node_modules/@lit/reactive-element/node/css-tag.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
 var s = Symbol();
@@ -719,7 +719,7 @@ var c = e || void 0 === t.CSSStyleSheet ? (t5) => t5 : (t5) => t5 instanceof CSS
   return r(e5);
 })(t5) : t5;
 
-// node_modules/@lit/reactive-element/node/reactive-element.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/reactive-element.js
 var { is: h, defineProperty: r2, getOwnPropertyDescriptor: o2, getOwnPropertyNames: n2, getOwnPropertySymbols: a, getPrototypeOf: c2 } = Object;
 var l = globalThis;
 l.customElements ??= customElements2;
@@ -942,7 +942,7 @@ var g = class extends (globalThis.HTMLElement ?? HTMLElementShimWithRealType) {
 };
 g.elementStyles = [], g.shadowRootOptions = { mode: "open" }, g[f("elementProperties")] = /* @__PURE__ */ new Map(), g[f("finalized")] = /* @__PURE__ */ new Map(), u?.({ ReactiveElement: g }), (l.reactiveElementVersions ??= []).push("2.1.2");
 
-// node_modules/lit-html/lit-html.js
+// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i2 = (t5) => t5;
 var s2 = t2.trustedTypes;
@@ -1197,7 +1197,7 @@ var D = (t5, i7, s5) => {
   return h4._$AI(t5), h4;
 };
 
-// node_modules/lit-element/lit-element.js
+// node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i3 = class extends g {
   constructor() {
@@ -1226,7 +1226,7 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i3 });
 (s3.litElementVersions ??= []).push("4.2.2");
 
-// node_modules/@lit/reactive-element/node/decorators/property.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/decorators/property.js
 var o5 = { attribute: true, type: String, converter: b, reflect: false, hasChanged: m };
 var r4 = (t5 = o5, e5, r6) => {
   const { kind: n6, metadata: i7 } = r6;
@@ -1256,19 +1256,19 @@ function n4(t5) {
   })(t5, e5, o7);
 }
 
-// node_modules/@lit/reactive-element/node/decorators/state.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/decorators/state.js
 function r5(r6) {
   return n4({ ...r6, state: true, attribute: false });
 }
 
-// ../outfitkit/dist/define.js
+// node_modules/.pnpm/@outfitkit+core@file+..+outfitkit/node_modules/@outfitkit/core/dist/define.js
 function define(tag, ctor) {
   if (typeof customElements !== "undefined" && !customElements.get(tag)) {
     customElements.define(tag, ctor);
   }
 }
 
-// ../modules-workspace/modules/tables/locales/es.json
+// modules/tables/locales/es.json
 var es_default = {
   name: "Mesas",
   navigation: {
@@ -1341,7 +1341,7 @@ var es_default = {
   }
 };
 
-// ../modules-workspace/modules/tables/locales/en.json
+// modules/tables/locales/en.json
 var en_default = {
   name: "Tables",
   navigation: {
@@ -1414,7 +1414,7 @@ var en_default = {
   }
 };
 
-// ../modules-workspace/modules/tables/ui/components/erp-tables-canvas/erp-tables-canvas.ts
+// modules/tables/ui/components/erp-tables-canvas/erp-tables-canvas.ts
 var CATALOG = { es: es_default, en: en_default };
 var BOX = 72;
 var DRAG_THRESHOLD = 5;
@@ -1467,8 +1467,8 @@ var ErpTablesCanvas = class extends i3 {
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
     header { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:.6rem; }
     h2 { margin:0; font-size:1.15rem; flex:1; }
-    .newzone { display:flex; gap:.4rem; align-items:center; }
-    .newzone ion-input { --background:var(--surface-2,#f7f4ec); border:1px solid var(--line,#e7e2d6); border-radius:8px; min-width:9rem; }
+    .newzone { display:flex; gap:.75rem; align-items:end; }
+    .newzone ion-input { flex:1 1 11rem; min-width:9rem; }
     .zonebar { display:flex; gap:.5rem; align-items:center; margin-bottom:.6rem; }
     .zonebar ion-segment { flex:1; }
     .legend { display:flex; gap:.8rem; flex-wrap:wrap; margin:.2rem 0 .6rem; font-size:.75rem; color:#8b897f; }
@@ -1495,8 +1495,7 @@ var ErpTablesCanvas = class extends i3 {
     .sheet-h .t { font-size:1.2rem; font-weight:700; }
     .x { background:none; border:none; font-size:1.3rem; cursor:pointer; color:#8b897f; }
     .field { display:flex; flex-direction:column; gap:.25rem; margin-bottom:.7rem; }
-    .field label { font-size:.8rem; color:#8b897f; }
-    .field ion-input, .field ion-select { --background:var(--surface-2,#f7f4ec); border:1px solid var(--line,#e7e2d6); border-radius:8px; }
+    .field ion-input, .field ion-select { flex:1 1 11rem; min-width:9rem; }
     .row2 { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
     .sheet-foot { display:flex; justify-content:space-between; gap:.5rem; margin-top:1rem; }
   `;
@@ -1749,7 +1748,7 @@ var ErpTablesCanvas = class extends i3 {
       <header>
         <h2>${t5("ui.floorPlan")}</h2>
         <div class="newzone">
-          <ion-input placeholder=${t5("ui.newZonePlaceholder")} .value=${this.newZoneName}
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.colZone")} placeholder=${t5("ui.newZonePlaceholder")} .value=${this.newZoneName}
             @ionInput=${(e5) => {
       this.newZoneName = e5.target.value || "";
     }}></ion-input>
@@ -1809,25 +1808,25 @@ var ErpTablesCanvas = class extends i3 {
     }}>✕</button>
         </div>
         <div class="row2">
-          <div class="field"><label>${t5("ui.fieldNumber")}</label>
-            <ion-input .value=${table.number} @ionInput=${(e5) => this.patchEdit({ number: e5.target.value || "" })}></ion-input></div>
-          <div class="field"><label>${t5("ui.fieldCapacity")}</label>
-            <ion-input type="number" min="1" .value=${String(table.capacity)} @ionInput=${(e5) => this.patchEdit({ capacity: Number(e5.target.value) || 1 })}></ion-input></div>
+          <div class="field">
+            <ion-input fill="outline" label-placement="floating" label=${t5("ui.fieldNumber")} .value=${table.number} @ionInput=${(e5) => this.patchEdit({ number: e5.target.value || "" })}></ion-input></div>
+          <div class="field">
+            <ion-input fill="outline" label-placement="floating" label=${t5("ui.fieldCapacity")} type="number" min="1" .value=${String(table.capacity)} @ionInput=${(e5) => this.patchEdit({ capacity: Number(e5.target.value) || 1 })}></ion-input></div>
         </div>
-        <div class="field"><label>${t5("ui.fieldNameOptional")}</label>
-          <ion-input .value=${table.name} @ionInput=${(e5) => this.patchEdit({ name: e5.target.value || "" })}></ion-input></div>
+        <div class="field">
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.fieldNameOptional")} .value=${table.name} @ionInput=${(e5) => this.patchEdit({ name: e5.target.value || "" })}></ion-input></div>
         <div class="row2">
-          <div class="field"><label>${t5("ui.fieldShape")}</label>
-            <ion-select .value=${table.shape} interface="popover" @ionChange=${(e5) => this.patchEdit({ shape: e5.detail.value })}>
+          <div class="field">
+            <ion-select fill="outline" label-placement="floating" label=${t5("ui.fieldShape")} .value=${table.shape} interface="popover" @ionChange=${(e5) => this.patchEdit({ shape: e5.detail.value })}>
               ${SHAPES.map((s5) => b2`<ion-select-option value=${s5}>${t5(SHAPE_KEY[s5] ?? s5)}</ion-select-option>`)}
             </ion-select></div>
-          <div class="field"><label>${t5("ui.fieldStatus")}</label>
-            <ion-select .value=${table.status} interface="popover" @ionChange=${(e5) => this.patchEdit({ status: e5.detail.value })}>
+          <div class="field">
+            <ion-select fill="outline" label-placement="floating" label=${t5("ui.fieldStatus")} .value=${table.status} interface="popover" @ionChange=${(e5) => this.patchEdit({ status: e5.detail.value })}>
               ${STATUSES.map((s5) => b2`<ion-select-option value=${s5}>${t5(STATUS_KEY[s5] ?? s5)}</ion-select-option>`)}
             </ion-select></div>
         </div>
-        <div class="field"><label>${t5("ui.fieldZone")}</label>
-          <ion-select .value=${table.zone_id ?? ""} interface="popover" @ionChange=${(e5) => this.patchEdit({ zone_id: e5.detail.value || null })}>
+        <div class="field">
+          <ion-select fill="outline" label-placement="floating" label=${t5("ui.fieldZone")} .value=${table.zone_id ?? ""} interface="popover" @ionChange=${(e5) => this.patchEdit({ zone_id: e5.detail.value || null })}>
             <ion-select-option value="">${t5("ui.noZone")}</ion-select-option>
             ${this.zones.map((z2) => b2`<ion-select-option value=${z2.id}>${z2.name}</ion-select-option>`)}
           </ion-select></div>
@@ -1850,12 +1849,12 @@ var ErpTablesCanvas = class extends i3 {
       this.zoneEdit = void 0;
     }}>✕</button>
         </div>
-        <div class="field"><label>${t5("ui.colName")}</label>
-          <ion-input .value=${z2.name} @ionInput=${(e5) => {
+        <div class="field">
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.colName")} .value=${z2.name} @ionInput=${(e5) => {
       this.zoneEdit = { ...z2, name: e5.target.value || "" };
     }}></ion-input></div>
-        <div class="field"><label>${t5("ui.fieldDescriptionOptional")}</label>
-          <ion-input .value=${z2.description ?? ""} @ionInput=${(e5) => {
+        <div class="field">
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.fieldDescriptionOptional")} .value=${z2.description ?? ""} @ionInput=${(e5) => {
       this.zoneEdit = { ...z2, description: e5.target.value || "" };
     }}></ion-input></div>
         <div class="sheet-foot">
@@ -1895,7 +1894,7 @@ __decorateClass([
 ], ErpTablesCanvas.prototype, "saving", 2);
 define("erp-tables-canvas", ErpTablesCanvas);
 
-// node_modules/lit-html/directive.js
+// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t5) => (...e5) => ({ _$litDirective$: t5, values: e5 });
 var i4 = class {
@@ -1915,7 +1914,7 @@ var i4 = class {
   }
 };
 
-// node_modules/lit-html/directive-helpers.js
+// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive-helpers.js
 var { I: t4 } = j;
 var i5 = (o7) => o7;
 var s4 = () => document.createComment("");
@@ -1948,7 +1947,7 @@ var h3 = (o7) => {
   o7._$AR(), o7._$AA.remove();
 };
 
-// node_modules/lit-html/directives/repeat.js
+// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/repeat.js
 var u4 = (e5, s5, t5) => {
   const r6 = /* @__PURE__ */ new Map();
   for (let l3 = s5; l3 <= t5; l3++) r6.set(e5[l3], l3);
@@ -2001,7 +2000,7 @@ var c4 = e4(class extends i4 {
   }
 });
 
-// node_modules/lit-html/directives/style-map.js
+// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/style-map.js
 var n5 = "important";
 var i6 = " !" + n5;
 var o6 = e4(class extends i4 {
@@ -2030,7 +2029,7 @@ var o6 = e4(class extends i4 {
   }
 });
 
-// ../outfitkit/dist/ok-data-table.js
+// node_modules/.pnpm/@outfitkit+core@file+..+outfitkit/node_modules/@outfitkit/core/dist/ok-data-table.js
 var __defProp2 = Object.defineProperty;
 var __decorateClass2 = (decorators, target, key, kind) => {
   var result = void 0;
@@ -3308,7 +3307,7 @@ __decorateClass2([
 ], OkDataTable.prototype, "menuOpen");
 define("ok-data-table", OkDataTable);
 
-// ../hub/packages/module-sdk/src/index.ts
+// node_modules/.pnpm/@erplora+module-sdk@file+..+hub+packages+module-sdk/node_modules/@erplora/module-sdk/src/index.ts
 function isEmpty(v3) {
   return v3 === null || v3 === void 0 || v3 === "";
 }
@@ -3426,7 +3425,7 @@ function createListController(client, queryName, onChange = () => {
   return new ListController(client, queryName, onChange, opts);
 }
 
-// ../modules-workspace/modules/tables/ui/components/erp-tables-floor-plan/erp-tables-floor-plan.ts
+// modules/tables/ui/components/erp-tables-floor-plan/erp-tables-floor-plan.ts
 var CATALOG2 = { es: es_default, en: en_default };
 var STATUS_KEY2 = {
   available: "ui.statusAvailable",
@@ -3456,8 +3455,8 @@ var ErpTablesFloorPlan = class extends i3 {
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color, #1c1b18); }
     header { display:flex; gap:.5rem; align-items:center; margin-bottom:.75rem; }
     h2 { margin:0; font-size:1.15rem; flex:1; }
-    .form { display:flex; gap:.5rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem; }
-    .form ion-input { --background:var(--surface-2,#f7f4ec); border:1px solid var(--line,#e7e2d6); border-radius:8px; min-width:8rem; }
+    .form { display:flex; gap:.75rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem; }
+    .form ion-input { flex:1 1 11rem; min-width:9rem; }
     .err { color:#d9480f; font-weight:600; }
   `;
   }
@@ -3544,8 +3543,8 @@ var ErpTablesFloorPlan = class extends i3 {
           <h2>${t5("ui.floorPlan")}</h2>
         </header>
         <form class="form" @submit=${(e5) => this.createTable(e5)}>
-          <ion-input placeholder=${t5("ui.placeholderNumber")} .value=${this.newNumber} @ionInput=${(e5) => this.newNumber = e5.target.value}></ion-input>
-          <ion-input type="number" min="1" placeholder=${t5("ui.placeholderCapacity")} .value=${this.newCapacity} @ionInput=${(e5) => this.newCapacity = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.colNumber")} .value=${this.newNumber} @ionInput=${(e5) => this.newNumber = e5.target.value}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.colCapacity")} type="number" min="1" .value=${this.newCapacity} @ionInput=${(e5) => this.newCapacity = e5.target.value}></ion-input>
           <ion-button type="submit" size="small" ?disabled=${this.saving || !this.newNumber}>${this.saving ? t5("ui.saving") : t5("ui.addTable")}</ion-button>
         </form>
         ${this.formError ? b2`<p class="err">${this.formError}</p>` : A}
@@ -3571,7 +3570,7 @@ __decorateClass([
 ], ErpTablesFloorPlan.prototype, "tick", 2);
 define("erp-tables-floor-plan", ErpTablesFloorPlan);
 
-// ../modules-workspace/modules/tables/ui/components/erp-tables-pos-zones/erp-tables-pos-zones.ts
+// modules/tables/ui/components/erp-tables-pos-zones/erp-tables-pos-zones.ts
 var CATALOG3 = { es: es_default, en: en_default };
 var STATUS_COLOR2 = {
   available: "#2f9e44",

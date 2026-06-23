@@ -62,8 +62,8 @@ export class ErpTablesCanvas extends LitElement {
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
     header { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:.6rem; }
     h2 { margin:0; font-size:1.15rem; flex:1; }
-    .newzone { display:flex; gap:.4rem; align-items:center; }
-    .newzone ion-input { --background:var(--surface-2,#f7f4ec); border:1px solid var(--line,#e7e2d6); border-radius:8px; min-width:9rem; }
+    .newzone { display:flex; gap:.75rem; align-items:end; }
+    .newzone ion-input { flex:1 1 11rem; min-width:9rem; }
     .zonebar { display:flex; gap:.5rem; align-items:center; margin-bottom:.6rem; }
     .zonebar ion-segment { flex:1; }
     .legend { display:flex; gap:.8rem; flex-wrap:wrap; margin:.2rem 0 .6rem; font-size:.75rem; color:#8b897f; }
@@ -90,8 +90,7 @@ export class ErpTablesCanvas extends LitElement {
     .sheet-h .t { font-size:1.2rem; font-weight:700; }
     .x { background:none; border:none; font-size:1.3rem; cursor:pointer; color:#8b897f; }
     .field { display:flex; flex-direction:column; gap:.25rem; margin-bottom:.7rem; }
-    .field label { font-size:.8rem; color:#8b897f; }
-    .field ion-input, .field ion-select { --background:var(--surface-2,#f7f4ec); border:1px solid var(--line,#e7e2d6); border-radius:8px; }
+    .field ion-input, .field ion-select { flex:1 1 11rem; min-width:9rem; }
     .row2 { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
     .sheet-foot { display:flex; justify-content:space-between; gap:.5rem; margin-top:1rem; }
   `;
@@ -371,7 +370,7 @@ export class ErpTablesCanvas extends LitElement {
       <header>
         <h2>${t('ui.floorPlan')}</h2>
         <div class="newzone">
-          <ion-input placeholder=${t('ui.newZonePlaceholder')} .value=${this.newZoneName}
+          <ion-input fill="outline" label-placement="floating" label=${t('ui.colZone')} placeholder=${t('ui.newZonePlaceholder')} .value=${this.newZoneName}
             @ionInput=${(e: CustomEvent) => { this.newZoneName = (e.target as HTMLInputElement).value || ''; }}></ion-input>
           <ion-button size="small" fill="outline" ?disabled=${!this.newZoneName.trim()} @click=${() => this.addZone()}>${t('ui.addZone')}</ion-button>
         </div>
@@ -426,25 +425,25 @@ export class ErpTablesCanvas extends LitElement {
           <button class="x" @click=${() => { this.edit = undefined; }}>✕</button>
         </div>
         <div class="row2">
-          <div class="field"><label>${t('ui.fieldNumber')}</label>
-            <ion-input .value=${table.number} @ionInput=${(e: CustomEvent) => this.patchEdit({ number: (e.target as HTMLInputElement).value || '' })}></ion-input></div>
-          <div class="field"><label>${t('ui.fieldCapacity')}</label>
-            <ion-input type="number" min="1" .value=${String(table.capacity)} @ionInput=${(e: CustomEvent) => this.patchEdit({ capacity: Number((e.target as HTMLInputElement).value) || 1 })}></ion-input></div>
+          <div class="field">
+            <ion-input fill="outline" label-placement="floating" label=${t('ui.fieldNumber')} .value=${table.number} @ionInput=${(e: CustomEvent) => this.patchEdit({ number: (e.target as HTMLInputElement).value || '' })}></ion-input></div>
+          <div class="field">
+            <ion-input fill="outline" label-placement="floating" label=${t('ui.fieldCapacity')} type="number" min="1" .value=${String(table.capacity)} @ionInput=${(e: CustomEvent) => this.patchEdit({ capacity: Number((e.target as HTMLInputElement).value) || 1 })}></ion-input></div>
         </div>
-        <div class="field"><label>${t('ui.fieldNameOptional')}</label>
-          <ion-input .value=${table.name} @ionInput=${(e: CustomEvent) => this.patchEdit({ name: (e.target as HTMLInputElement).value || '' })}></ion-input></div>
+        <div class="field">
+          <ion-input fill="outline" label-placement="floating" label=${t('ui.fieldNameOptional')} .value=${table.name} @ionInput=${(e: CustomEvent) => this.patchEdit({ name: (e.target as HTMLInputElement).value || '' })}></ion-input></div>
         <div class="row2">
-          <div class="field"><label>${t('ui.fieldShape')}</label>
-            <ion-select .value=${table.shape} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ shape: (e.detail as { value: string }).value })}>
+          <div class="field">
+            <ion-select fill="outline" label-placement="floating" label=${t('ui.fieldShape')} .value=${table.shape} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ shape: (e.detail as { value: string }).value })}>
               ${SHAPES.map((s) => html`<ion-select-option value=${s}>${t(SHAPE_KEY[s] ?? s)}</ion-select-option>`)}
             </ion-select></div>
-          <div class="field"><label>${t('ui.fieldStatus')}</label>
-            <ion-select .value=${table.status} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ status: (e.detail as { value: string }).value })}>
+          <div class="field">
+            <ion-select fill="outline" label-placement="floating" label=${t('ui.fieldStatus')} .value=${table.status} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ status: (e.detail as { value: string }).value })}>
               ${STATUSES.map((s) => html`<ion-select-option value=${s}>${t(STATUS_KEY[s] ?? s)}</ion-select-option>`)}
             </ion-select></div>
         </div>
-        <div class="field"><label>${t('ui.fieldZone')}</label>
-          <ion-select .value=${table.zone_id ?? ''} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ zone_id: (e.detail as { value: string }).value || null })}>
+        <div class="field">
+          <ion-select fill="outline" label-placement="floating" label=${t('ui.fieldZone')} .value=${table.zone_id ?? ''} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ zone_id: (e.detail as { value: string }).value || null })}>
             <ion-select-option value="">${t('ui.noZone')}</ion-select-option>
             ${this.zones.map((z) => html`<ion-select-option value=${z.id}>${z.name}</ion-select-option>`)}
           </ion-select></div>
@@ -464,10 +463,10 @@ export class ErpTablesCanvas extends LitElement {
           <span class="t">${t('ui.editZone')}</span>
           <button class="x" @click=${() => { this.zoneEdit = undefined; }}>✕</button>
         </div>
-        <div class="field"><label>${t('ui.colName')}</label>
-          <ion-input .value=${z.name} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, name: (e.target as HTMLInputElement).value || '' }; }}></ion-input></div>
-        <div class="field"><label>${t('ui.fieldDescriptionOptional')}</label>
-          <ion-input .value=${z.description ?? ''} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, description: (e.target as HTMLInputElement).value || '' }; }}></ion-input></div>
+        <div class="field">
+          <ion-input fill="outline" label-placement="floating" label=${t('ui.colName')} .value=${z.name} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, name: (e.target as HTMLInputElement).value || '' }; }}></ion-input></div>
+        <div class="field">
+          <ion-input fill="outline" label-placement="floating" label=${t('ui.fieldDescriptionOptional')} .value=${z.description ?? ''} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, description: (e.target as HTMLInputElement).value || '' }; }}></ion-input></div>
         <div class="sheet-foot">
           <ion-button color="danger" fill="outline" size="small" ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t('ui.deleteZone')}</ion-button>
           <ion-button ?disabled=${this.saving} @click=${() => this.saveZone()}>${this.saving ? t('ui.saving') : t('ui.save')}</ion-button>

@@ -52,8 +52,8 @@ export class ErpTablesFloorPlan extends LitElement {
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color, #1c1b18); }
     header { display:flex; gap:.5rem; align-items:center; margin-bottom:.75rem; }
     h2 { margin:0; font-size:1.15rem; flex:1; }
-    .form { display:flex; gap:.5rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem; }
-    .form ion-input { --background:var(--surface-2,#f7f4ec); border:1px solid var(--line,#e7e2d6); border-radius:8px; min-width:8rem; }
+    .form { display:flex; gap:.75rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem; }
+    .form ion-input { flex:1 1 11rem; min-width:9rem; }
     .err { color:#d9480f; font-weight:600; }
   `;
 
@@ -164,8 +164,8 @@ export class ErpTablesFloorPlan extends LitElement {
           <h2>${t('ui.floorPlan')}</h2>
         </header>
         <form class="form" @submit=${(e) => this.createTable(e)}>
-          <ion-input placeholder=${t('ui.placeholderNumber')} .value=${this.newNumber} @ionInput=${(e: any) => (this.newNumber = e.target.value)}></ion-input>
-          <ion-input type="number" min="1" placeholder=${t('ui.placeholderCapacity')} .value=${this.newCapacity} @ionInput=${(e: any) => (this.newCapacity = e.target.value)}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t('ui.colNumber')} .value=${this.newNumber} @ionInput=${(e: any) => (this.newNumber = e.target.value)}></ion-input>
+          <ion-input fill="outline" label-placement="floating" label=${t('ui.colCapacity')} type="number" min="1" .value=${this.newCapacity} @ionInput=${(e: any) => (this.newCapacity = e.target.value)}></ion-input>
           <ion-button type="submit" size="small" ?disabled=${this.saving || !this.newNumber}>${this.saving ? t('ui.saving') : t('ui.addTable')}</ion-button>
         </form>
         ${this.formError ? html`<p class="err">${this.formError}</p>` : nothing}
