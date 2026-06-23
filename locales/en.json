@@ -1,0 +1,10 @@
+{
+  "name": "Tables",
+  "navigation": {
+    "floor_plan": { "label": "Floor Plan" },
+    "zones": { "label": "Zones" },
+    "tables": { "label": "Tables" },
+    "sessions": { "label": "Sessions" },
+    "settings": { "label": "Settings" }
+  }
+}

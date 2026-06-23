@@ -1,0 +1,10 @@
+{
+  "name": "Mesas",
+  "navigation": {
+    "floor_plan": { "label": "Plano de sala" },
+    "zones": { "label": "Zonas" },
+    "tables": { "label": "Mesas" },
+    "sessions": { "label": "Sesiones" },
+    "settings": { "label": "Ajustes" }
+  }
+}
