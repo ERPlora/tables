@@ -1,6 +1,11 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { state } from 'lit/decorators.js';
 import { define } from '@erplora/outfitkit/define';
+// Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
+// internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
+import esLocale from '../../../locales/es.json';
+import enLocale from '../../../locales/en.json';
+const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
 
 // erp-tables-canvas — editor visual del PLANO DE SALA (la "estructura de la terraza"). Pantalla
 // completa del módulo `tables` (entrada de navegación `floor_plan`). Pinta las mesas como cajas
@@ -22,16 +27,20 @@ interface ErploraLike {
   query<T = unknown>(name: string, params?: Record<string, unknown>): Promise<T>;
   command<T = unknown>(name: string, payload?: Record<string, unknown>): Promise<T>;
   on?(event: string, cb: (payload: unknown) => void): () => void;
+  /** i18n del módulo (ADR-0055): idioma activo + traducción del catálogo `ui`. */
+  locale: string;
+  t(catalog: Record<string, unknown>, key: string, params?: Record<string, unknown>): string;
 }
 
 const BOX = 72; // tamaño de la caja de mesa en px (se persiste como width/height)
 const DRAG_THRESHOLD = 5; // px: por debajo se considera CLIC (editar), por encima ARRASTRE (mover)
 const SHAPES = ['square', 'round', 'rectangle'];
 const STATUSES = ['available', 'occupied', 'reserved', 'blocked'];
-const STATUS_LABEL: Record<string, string> = {
-  available: 'Disponible', occupied: 'Ocupada', reserved: 'Reservada', blocked: 'Bloqueada',
+// enum → clave i18n (el `value=` del enum NO se traduce; sí su etiqueta visible).
+const STATUS_KEY: Record<string, string> = {
+  available: 'ui.statusAvailable', occupied: 'ui.statusOccupied', reserved: 'ui.statusReserved', blocked: 'ui.statusBlocked',
 };
-const SHAPE_LABEL: Record<string, string> = { square: 'Cuadrada', round: 'Redonda', rectangle: 'Rectangular' };
+const SHAPE_KEY: Record<string, string> = { square: 'ui.shapeSquare', round: 'ui.shapeRound', rectangle: 'ui.shapeRectangle' };
 const STATUS_COLOR: Record<string, string> = {
   available: '#2f9e44', occupied: '#d9480f', reserved: '#f08c00', blocked: '#868e96',
 };
@@ -106,8 +115,13 @@ export class ErpTablesCanvas extends LitElement {
   private dragStartY = 0;
   private dragMoved = false;
 
+  // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template (legend, sheets,
+  // tooltips…) se re-evalúan con el nuevo `erplora.locale`.
+  private readonly onLocaleChange = (): void => this.requestUpdate();
+
   async connectedCallback() {
     super.connectedCallback();
+    window.addEventListener('erplora:locale-changed', this.onLocaleChange);
     await this.reload();
     try {
       const evs = ['tables.table.created', 'tables.table.updated', 'tables.table.deleted', 'tables.zone.created', 'tables.zone.updated', 'tables.zone.deleted'];
@@ -118,6 +132,7 @@ export class ErpTablesCanvas extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    window.removeEventListener('erplora:locale-changed', this.onLocaleChange);
     this.unsub?.();
   }
 
@@ -142,7 +157,7 @@ export class ErpTablesCanvas extends LitElement {
         this.activeZone = this.zones[0]?.id ?? '';
       }
     } catch (e) {
-      this.error = e instanceof Error ? e.message : 'No se pudo cargar el plano';
+      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errLoadFloorPlan');
     } finally {
       this.loading = false;
     }
@@ -211,7 +226,7 @@ export class ErpTablesCanvas extends LitElement {
         height: BOX,
       });
     } catch (e) {
-      this.error = e instanceof Error ? e.message : 'No se pudo guardar la posición';
+      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errSavePosition');
     }
   }
 
@@ -233,7 +248,7 @@ export class ErpTablesCanvas extends LitElement {
       });
       await this.reload();
     } catch (e) {
-      this.error = e instanceof Error ? e.message : 'No se pudo crear la mesa';
+      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errCreateTable');
     }
   }
 
@@ -250,7 +265,7 @@ export class ErpTablesCanvas extends LitElement {
       const created = this.zones.find((z) => z.name === name);
       if (created) this.activeZone = created.id;
     } catch (e) {
-      this.error = e instanceof Error ? e.message : 'No se pudo crear la zona';
+      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errCreateZone');
     }
   }
 
@@ -260,7 +275,7 @@ export class ErpTablesCanvas extends LitElement {
   private async saveTable() {
     if (!this.edit) return;
     const t = this.edit;
-    if (!String(t.number).trim()) { this.error = 'El número de mesa es obligatorio'; return; }
+    if (!String(t.number).trim()) { this.error = erplora().t(CATALOG, 'ui.errTableNumberRequired'); return; }
     this.saving = true; this.error = '';
     try {
       await erplora().command('tables.tables.update', {
@@ -276,7 +291,7 @@ export class ErpTablesCanvas extends LitElement {
       this.edit = undefined;
       await this.reload();
     } catch (e) {
-      this.error = e instanceof Error ? e.message : 'No se pudo guardar la mesa';
+      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errSaveTable');
     } finally {
       this.saving = false;
     }
@@ -290,7 +305,7 @@ export class ErpTablesCanvas extends LitElement {
       this.edit = undefined;
       await this.reload();
     } catch (e) {
-      this.error = e instanceof Error ? e.message : 'No se pudo borrar la mesa';
+      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errDeleteTable');
     } finally {
       this.saving = false;
     }
@@ -314,7 +329,7 @@ export class ErpTablesCanvas extends LitElement {
   private async saveZone() {
     if (!this.zoneEdit) return;
     const z = this.zoneEdit;
-    if (!z.name.trim()) { this.error = 'El nombre de la zona es obligatorio'; return; }
+    if (!z.name.trim()) { this.error = erplora().t(CATALOG, 'ui.errZoneNameRequired'); return; }
     this.saving = true; this.error = '';
     try {
       await erplora().command('tables.zones.update', {
@@ -328,7 +343,7 @@ export class ErpTablesCanvas extends LitElement {
       this.zoneEdit = undefined;
       await this.reload();
     } catch (e) {
-      this.error = e instanceof Error ? e.message : 'No se pudo guardar la zona';
+      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errSaveZone');
     } finally {
       this.saving = false;
     }
@@ -344,22 +359,23 @@ export class ErpTablesCanvas extends LitElement {
       await this.reload();
     } catch (e) {
       // El WASM rechaza si la zona tiene mesas activas (tables_attached).
-      this.error = e instanceof Error ? e.message : 'No se pudo borrar la zona (¿tiene mesas?)';
+      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errDeleteZone');
     } finally {
       this.saving = false;
     }
   }
 
   render() {
+    const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
     return html`
       <header>
-        <h2>Plano de sala</h2>
+        <h2>${t('ui.floorPlan')}</h2>
         <div class="newzone">
-          <ion-input placeholder="Nueva zona…" .value=${this.newZoneName}
+          <ion-input placeholder=${t('ui.newZonePlaceholder')} .value=${this.newZoneName}
             @ionInput=${(e: CustomEvent) => { this.newZoneName = (e.target as HTMLInputElement).value || ''; }}></ion-input>
-          <ion-button size="small" fill="outline" ?disabled=${!this.newZoneName.trim()} @click=${() => this.addZone()}>Añadir zona</ion-button>
+          <ion-button size="small" fill="outline" ?disabled=${!this.newZoneName.trim()} @click=${() => this.addZone()}>${t('ui.addZone')}</ion-button>
         </div>
-        <ion-button size="small" ?disabled=${!this.zones.length} @click=${() => this.addTable()}>Añadir mesa</ion-button>
+        <ion-button size="small" ?disabled=${!this.zones.length} @click=${() => this.addTable()}>${t('ui.addTable')}</ion-button>
       </header>
 
       ${this.error ? html`<p class="err">${this.error}</p>` : nothing}
@@ -370,89 +386,91 @@ export class ErpTablesCanvas extends LitElement {
               @ionChange=${(e: CustomEvent) => { this.activeZone = (e.detail as { value: string }).value; }}>
               ${this.zones.map((z) => html`<ion-segment-button value=${z.id}><ion-label>${z.name}</ion-label></ion-segment-button>`)}
             </ion-segment>
-            <ion-button size="small" fill="clear" ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}>Editar zona</ion-button>
+            <ion-button size="small" fill="clear" ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}>${t('ui.editZone')}</ion-button>
           </div>`
         : nothing}
 
       <div class="legend">
-        ${STATUSES.map((s) => html`<span><i class="dot" style=${`background:${STATUS_COLOR[s]}`}></i>${STATUS_LABEL[s]}</span>`)}
+        ${STATUSES.map((s) => html`<span><i class="dot" style=${`background:${STATUS_COLOR[s]}`}></i>${t(STATUS_KEY[s] ?? s)}</span>`)}
       </div>
 
       <div class="canvas"
         @pointermove=${(e: PointerEvent) => this.onPointerMove(e)}
         @pointerup=${() => this.onPointerUp()}
         @pointercancel=${() => this.onPointerUp()}>
-        ${this.tablesInZone.map((t) => html`
-          <div class=${`mesa ${t.shape === 'round' ? 'round' : ''} ${t.id === this.dragId && this.dragMoved ? 'dragging' : ''}`}
-            style=${`left:${t.position_x}px; top:${t.position_y}px; border-color:${STATUS_COLOR[t.status] ?? '#d9d6cf'}`}
-            title=${`${STATUS_LABEL[t.status] ?? t.status} · ${t.capacity} pax (clic para editar)`}
-            @pointerdown=${(e: PointerEvent) => this.onPointerDown(t, e)}>
-            <div class="n">${t.number}</div>
-            <div class="c">${t.capacity} pax</div>
+        ${this.tablesInZone.map((tb) => html`
+          <div class=${`mesa ${tb.shape === 'round' ? 'round' : ''} ${tb.id === this.dragId && this.dragMoved ? 'dragging' : ''}`}
+            style=${`left:${tb.position_x}px; top:${tb.position_y}px; border-color:${STATUS_COLOR[tb.status] ?? '#d9d6cf'}`}
+            title=${t('ui.tableTooltip', { status: STATUS_KEY[tb.status] ? t(STATUS_KEY[tb.status]) : tb.status, count: tb.capacity })}
+            @pointerdown=${(e: PointerEvent) => this.onPointerDown(tb, e)}>
+            <div class="n">${tb.number}</div>
+            <div class="c">${t('ui.paxCount', { count: tb.capacity })}</div>
           </div>`)}
-        ${!this.loading && !this.zones.length ? html`<div class="empty">Crea una zona para empezar a colocar mesas.</div>` : nothing}
-        ${!this.loading && this.zones.length && !this.tablesInZone.length ? html`<div class="empty">Sin mesas en esta zona. Pulsa «Añadir mesa».</div>` : nothing}
-        ${this.loading ? html`<div class="empty">Cargando…</div>` : nothing}
+        ${!this.loading && !this.zones.length ? html`<div class="empty">${t('ui.createZoneToStart')}</div>` : nothing}
+        ${!this.loading && this.zones.length && !this.tablesInZone.length ? html`<div class="empty">${t('ui.noTablesInZonePrompt')}</div>` : nothing}
+        ${this.loading ? html`<div class="empty">${t('ui.loading')}</div>` : nothing}
       </div>
-      <p class="hint">Arrastra para colocar · clic en una mesa para editarla o borrarla. Los cambios se guardan al momento.</p>
+      <p class="hint">${t('ui.canvasHint')}</p>
 
       ${this.edit ? this.renderTableSheet(this.edit) : nothing}
       ${this.zoneEdit ? this.renderZoneSheet(this.zoneEdit) : nothing}
     `;
   }
 
-  private renderTableSheet(t: Table) {
+  private renderTableSheet(table: Table) {
+    const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
     return html`<div class="scrim" @click=${(e: Event) => { if ((e.target as HTMLElement).classList.contains('scrim')) this.edit = undefined; }}>
       <div class="sheet">
         <div class="sheet-h">
-          <span class="t">Editar mesa</span>
+          <span class="t">${t('ui.editTable')}</span>
           <button class="x" @click=${() => { this.edit = undefined; }}>✕</button>
         </div>
         <div class="row2">
-          <div class="field"><label>Número</label>
-            <ion-input .value=${t.number} @ionInput=${(e: CustomEvent) => this.patchEdit({ number: (e.target as HTMLInputElement).value || '' })}></ion-input></div>
-          <div class="field"><label>Aforo</label>
-            <ion-input type="number" min="1" .value=${String(t.capacity)} @ionInput=${(e: CustomEvent) => this.patchEdit({ capacity: Number((e.target as HTMLInputElement).value) || 1 })}></ion-input></div>
+          <div class="field"><label>${t('ui.fieldNumber')}</label>
+            <ion-input .value=${table.number} @ionInput=${(e: CustomEvent) => this.patchEdit({ number: (e.target as HTMLInputElement).value || '' })}></ion-input></div>
+          <div class="field"><label>${t('ui.fieldCapacity')}</label>
+            <ion-input type="number" min="1" .value=${String(table.capacity)} @ionInput=${(e: CustomEvent) => this.patchEdit({ capacity: Number((e.target as HTMLInputElement).value) || 1 })}></ion-input></div>
         </div>
-        <div class="field"><label>Nombre (opcional)</label>
-          <ion-input .value=${t.name} @ionInput=${(e: CustomEvent) => this.patchEdit({ name: (e.target as HTMLInputElement).value || '' })}></ion-input></div>
+        <div class="field"><label>${t('ui.fieldNameOptional')}</label>
+          <ion-input .value=${table.name} @ionInput=${(e: CustomEvent) => this.patchEdit({ name: (e.target as HTMLInputElement).value || '' })}></ion-input></div>
         <div class="row2">
-          <div class="field"><label>Forma</label>
-            <ion-select .value=${t.shape} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ shape: (e.detail as { value: string }).value })}>
-              ${SHAPES.map((s) => html`<ion-select-option value=${s}>${SHAPE_LABEL[s]}</ion-select-option>`)}
+          <div class="field"><label>${t('ui.fieldShape')}</label>
+            <ion-select .value=${table.shape} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ shape: (e.detail as { value: string }).value })}>
+              ${SHAPES.map((s) => html`<ion-select-option value=${s}>${t(SHAPE_KEY[s] ?? s)}</ion-select-option>`)}
             </ion-select></div>
-          <div class="field"><label>Estado</label>
-            <ion-select .value=${t.status} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ status: (e.detail as { value: string }).value })}>
-              ${STATUSES.map((s) => html`<ion-select-option value=${s}>${STATUS_LABEL[s]}</ion-select-option>`)}
+          <div class="field"><label>${t('ui.fieldStatus')}</label>
+            <ion-select .value=${table.status} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ status: (e.detail as { value: string }).value })}>
+              ${STATUSES.map((s) => html`<ion-select-option value=${s}>${t(STATUS_KEY[s] ?? s)}</ion-select-option>`)}
             </ion-select></div>
         </div>
-        <div class="field"><label>Zona</label>
-          <ion-select .value=${t.zone_id ?? ''} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ zone_id: (e.detail as { value: string }).value || null })}>
-            <ion-select-option value="">Sin zona</ion-select-option>
+        <div class="field"><label>${t('ui.fieldZone')}</label>
+          <ion-select .value=${table.zone_id ?? ''} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ zone_id: (e.detail as { value: string }).value || null })}>
+            <ion-select-option value="">${t('ui.noZone')}</ion-select-option>
             ${this.zones.map((z) => html`<ion-select-option value=${z.id}>${z.name}</ion-select-option>`)}
           </ion-select></div>
         <div class="sheet-foot">
-          <ion-button color="danger" fill="outline" size="small" ?disabled=${this.saving} @click=${() => this.deleteTable()}>Borrar</ion-button>
-          <ion-button ?disabled=${this.saving} @click=${() => this.saveTable()}>${this.saving ? 'Guardando…' : 'Guardar'}</ion-button>
+          <ion-button color="danger" fill="outline" size="small" ?disabled=${this.saving} @click=${() => this.deleteTable()}>${t('ui.delete')}</ion-button>
+          <ion-button ?disabled=${this.saving} @click=${() => this.saveTable()}>${this.saving ? t('ui.saving') : t('ui.save')}</ion-button>
         </div>
       </div>
     </div>`;
   }
 
   private renderZoneSheet(z: Zone) {
+    const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
     return html`<div class="scrim" @click=${(e: Event) => { if ((e.target as HTMLElement).classList.contains('scrim')) this.zoneEdit = undefined; }}>
       <div class="sheet">
         <div class="sheet-h">
-          <span class="t">Editar zona</span>
+          <span class="t">${t('ui.editZone')}</span>
           <button class="x" @click=${() => { this.zoneEdit = undefined; }}>✕</button>
         </div>
-        <div class="field"><label>Nombre</label>
+        <div class="field"><label>${t('ui.colName')}</label>
           <ion-input .value=${z.name} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, name: (e.target as HTMLInputElement).value || '' }; }}></ion-input></div>
-        <div class="field"><label>Descripción (opcional)</label>
+        <div class="field"><label>${t('ui.fieldDescriptionOptional')}</label>
           <ion-input .value=${z.description ?? ''} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, description: (e.target as HTMLInputElement).value || '' }; }}></ion-input></div>
         <div class="sheet-foot">
-          <ion-button color="danger" fill="outline" size="small" ?disabled=${this.saving} @click=${() => this.deleteZone()}>Borrar zona</ion-button>
-          <ion-button ?disabled=${this.saving} @click=${() => this.saveZone()}>${this.saving ? 'Guardando…' : 'Guardar'}</ion-button>
+          <ion-button color="danger" fill="outline" size="small" ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t('ui.deleteZone')}</ion-button>
+          <ion-button ?disabled=${this.saving} @click=${() => this.saveZone()}>${this.saving ? t('ui.saving') : t('ui.save')}</ion-button>
         </div>
       </div>
     </div>`;

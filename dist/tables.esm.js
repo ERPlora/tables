@@ -9,7 +9,7 @@ var __decorateClass = (decorators, target, key, kind) => {
   return result;
 };
 
-// ../../node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/element-internals.js
+// node_modules/@lit-labs/ssr-dom-shim/lib/element-internals.js
 var ElementInternalsShim = class ElementInternals {
   get shadowRoot() {
     return this.__host.__shadowRoot;
@@ -88,7 +88,7 @@ var ElementInternalsShim = class ElementInternals {
   }
 };
 
-// ../../node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/events.js
+// node_modules/@lit-labs/ssr-dom-shim/lib/events.js
 var __classPrivateFieldSet = function(receiver, state, value, kind, f3) {
   if (kind === "m") throw new TypeError("Private method is not writable");
   if (kind === "a" && !f3) throw new TypeError("Private accessor was defined without a setter");
@@ -246,7 +246,7 @@ Object.defineProperties(CustomEventShim.prototype, {
 var EventShimWithRealType = EventShim;
 var CustomEventShimWithRealType = CustomEventShim;
 
-// ../../node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/css.js
+// node_modules/@lit-labs/ssr-dom-shim/lib/css.js
 var _a2;
 var CSSRuleShim = (_a2 = class CSSRule {
   constructor() {
@@ -277,7 +277,7 @@ var CSSRuleShim = (_a2 = class CSSRule {
   }
 }, _a2.STYLE_RULE = 1, _a2.CHARSET_RULE = 2, _a2.IMPORT_RULE = 3, _a2.MEDIA_RULE = 4, _a2.FONT_FACE_RULE = 5, _a2.PAGE_RULE = 6, _a2.NAMESPACE_RULE = 10, _a2.KEYFRAMES_RULE = 7, _a2.KEYFRAME_RULE = 8, _a2.SUPPORTS_RULE = 12, _a2.COUNTER_STYLE_RULE = 11, _a2.FONT_FEATURE_VALUES_RULE = 14, _a2.MARGIN_RULE = 9, _a2);
 
-// ../../node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/index.js
+// node_modules/@lit-labs/ssr-dom-shim/index.js
 globalThis.Event ??= EventShimWithRealType;
 globalThis.CustomEvent ??= CustomEventShimWithRealType;
 var constructionToken = Symbol();
@@ -674,7 +674,7 @@ var CustomElementRegistryShimWithRealType = CustomElementRegistry;
 var customElements2 = new CustomElementRegistryShimWithRealType();
 var windowShim = new WindowShim(constructionToken);
 
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/css-tag.js
+// node_modules/@lit/reactive-element/node/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
 var s = Symbol();
@@ -719,7 +719,7 @@ var c = e || void 0 === t.CSSStyleSheet ? (t5) => t5 : (t5) => t5 instanceof CSS
   return r(e5);
 })(t5) : t5;
 
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/reactive-element.js
+// node_modules/@lit/reactive-element/node/reactive-element.js
 var { is: h, defineProperty: r2, getOwnPropertyDescriptor: o2, getOwnPropertyNames: n2, getOwnPropertySymbols: a, getPrototypeOf: c2 } = Object;
 var l = globalThis;
 l.customElements ??= customElements2;
@@ -942,7 +942,7 @@ var g = class extends (globalThis.HTMLElement ?? HTMLElementShimWithRealType) {
 };
 g.elementStyles = [], g.shadowRootOptions = { mode: "open" }, g[f("elementProperties")] = /* @__PURE__ */ new Map(), g[f("finalized")] = /* @__PURE__ */ new Map(), u?.({ ReactiveElement: g }), (l.reactiveElementVersions ??= []).push("2.1.2");
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/lit-html.js
+// node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i2 = (t5) => t5;
 var s2 = t2.trustedTypes;
@@ -1197,7 +1197,7 @@ var D = (t5, i7, s5) => {
   return h4._$AI(t5), h4;
 };
 
-// ../../node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
+// node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i3 = class extends g {
   constructor() {
@@ -1226,7 +1226,7 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i3 });
 (s3.litElementVersions ??= []).push("4.2.2");
 
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/decorators/property.js
+// node_modules/@lit/reactive-element/node/decorators/property.js
 var o5 = { attribute: true, type: String, converter: b, reflect: false, hasChanged: m };
 var r4 = (t5 = o5, e5, r6) => {
   const { kind: n6, metadata: i7 } = r6;
@@ -1256,30 +1256,177 @@ function n4(t5) {
   })(t5, e5, o7);
 }
 
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/decorators/state.js
+// node_modules/@lit/reactive-element/node/decorators/state.js
 function r5(r6) {
   return n4({ ...r6, state: true, attribute: false });
 }
 
-// ../../node_modules/.pnpm/@outfitkit+core@file+..+outfitkit/node_modules/@outfitkit/core/dist/define.js
+// ../outfitkit/dist/define.js
 function define(tag, ctor) {
   if (typeof customElements !== "undefined" && !customElements.get(tag)) {
     customElements.define(tag, ctor);
   }
 }
 
-// ui/components/erp-tables-canvas/erp-tables-canvas.ts
+// ../modules-workspace/modules/tables/locales/es.json
+var es_default = {
+  name: "Mesas",
+  navigation: {
+    floor_plan: { label: "Plano de sala" },
+    zones: { label: "Zonas" },
+    tables: { label: "Mesas" },
+    sessions: { label: "Sesiones" },
+    settings: { label: "Ajustes" }
+  },
+  ui: {
+    floorPlan: "Plano de sala",
+    assignTable: "Asignar mesa",
+    chooseTable: "Elegir mesa",
+    removeTable: "Quitar mesa",
+    tableLabel: "Mesa {number}",
+    paxCount: "{count} pax",
+    noTablesInZone: "Sin mesas en esta zona.",
+    noTablesInZonePrompt: "Sin mesas en esta zona. Pulsa \xABA\xF1adir mesa\xBB.",
+    createZoneToStart: "Crea una zona para empezar a colocar mesas.",
+    loading: "Cargando\u2026",
+    saving: "Guardando\u2026",
+    save: "Guardar",
+    delete: "Borrar",
+    deleteZone: "Borrar zona",
+    addTable: "A\xF1adir mesa",
+    addZone: "A\xF1adir zona",
+    editZone: "Editar zona",
+    editTable: "Editar mesa",
+    newZonePlaceholder: "Nueva zona\u2026",
+    canvasHint: "Arrastra para colocar \xB7 clic en una mesa para editarla o borrarla. Los cambios se guardan al momento.",
+    tableTooltip: "{status} \xB7 {count} pax (clic para editar)",
+    colNumber: "N\xFAmero",
+    colName: "Nombre",
+    colZone: "Zona",
+    colCapacity: "Aforo",
+    colStatus: "Estado",
+    fieldNumber: "N\xFAmero",
+    fieldCapacity: "Aforo",
+    fieldNameOptional: "Nombre (opcional)",
+    fieldShape: "Forma",
+    fieldStatus: "Estado",
+    fieldZone: "Zona",
+    fieldDescriptionOptional: "Descripci\xF3n (opcional)",
+    noZone: "Sin zona",
+    placeholderNumber: "N\xFAmero",
+    placeholderCapacity: "Aforo",
+    searchPlaceholder: "Buscar mesa o zona\u2026",
+    emptyTables: "Sin mesas.",
+    yes: "S\xED",
+    no: "No",
+    statusAvailable: "Disponible",
+    statusOccupied: "Ocupada",
+    statusReserved: "Reservada",
+    statusBlocked: "Bloqueada",
+    shapeSquare: "Cuadrada",
+    shapeRound: "Redonda",
+    shapeRectangle: "Rectangular",
+    errLoadTables: "No se pudieron cargar las mesas",
+    errLoadFloorPlan: "No se pudo cargar el plano",
+    errOccupyTable: "No se pudo ocupar la mesa",
+    errCreateTable: "No se pudo crear la mesa",
+    errCreateZone: "No se pudo crear la zona",
+    errSavePosition: "No se pudo guardar la posici\xF3n",
+    errSaveTable: "No se pudo guardar la mesa",
+    errDeleteTable: "No se pudo borrar la mesa",
+    errSaveZone: "No se pudo guardar la zona",
+    errDeleteZone: "No se pudo borrar la zona (\xBFtiene mesas?)",
+    errTableNumberRequired: "El n\xFAmero de mesa es obligatorio",
+    errZoneNameRequired: "El nombre de la zona es obligatorio"
+  }
+};
+
+// ../modules-workspace/modules/tables/locales/en.json
+var en_default = {
+  name: "Tables",
+  navigation: {
+    floor_plan: { label: "Floor Plan" },
+    zones: { label: "Zones" },
+    tables: { label: "Tables" },
+    sessions: { label: "Sessions" },
+    settings: { label: "Settings" }
+  },
+  ui: {
+    floorPlan: "Floor Plan",
+    assignTable: "Assign table",
+    chooseTable: "Choose table",
+    removeTable: "Remove table",
+    tableLabel: "Table {number}",
+    paxCount: "{count} pax",
+    noTablesInZone: "No tables in this zone.",
+    noTablesInZonePrompt: "No tables in this zone. Tap \u201CAdd table\u201D.",
+    createZoneToStart: "Create a zone to start placing tables.",
+    loading: "Loading\u2026",
+    saving: "Saving\u2026",
+    save: "Save",
+    delete: "Delete",
+    deleteZone: "Delete zone",
+    addTable: "Add table",
+    addZone: "Add zone",
+    editZone: "Edit zone",
+    editTable: "Edit table",
+    newZonePlaceholder: "New zone\u2026",
+    canvasHint: "Drag to position \xB7 click a table to edit or delete it. Changes are saved instantly.",
+    tableTooltip: "{status} \xB7 {count} pax (click to edit)",
+    colNumber: "Number",
+    colName: "Name",
+    colZone: "Zone",
+    colCapacity: "Capacity",
+    colStatus: "Status",
+    fieldNumber: "Number",
+    fieldCapacity: "Capacity",
+    fieldNameOptional: "Name (optional)",
+    fieldShape: "Shape",
+    fieldStatus: "Status",
+    fieldZone: "Zone",
+    fieldDescriptionOptional: "Description (optional)",
+    noZone: "No zone",
+    placeholderNumber: "Number",
+    placeholderCapacity: "Capacity",
+    searchPlaceholder: "Search table or zone\u2026",
+    emptyTables: "No tables.",
+    yes: "Yes",
+    no: "No",
+    statusAvailable: "Available",
+    statusOccupied: "Occupied",
+    statusReserved: "Reserved",
+    statusBlocked: "Blocked",
+    shapeSquare: "Square",
+    shapeRound: "Round",
+    shapeRectangle: "Rectangular",
+    errLoadTables: "Could not load tables",
+    errLoadFloorPlan: "Could not load the floor plan",
+    errOccupyTable: "Could not occupy the table",
+    errCreateTable: "Could not create the table",
+    errCreateZone: "Could not create the zone",
+    errSavePosition: "Could not save the position",
+    errSaveTable: "Could not save the table",
+    errDeleteTable: "Could not delete the table",
+    errSaveZone: "Could not save the zone",
+    errDeleteZone: "Could not delete the zone (does it have tables?)",
+    errTableNumberRequired: "The table number is required",
+    errZoneNameRequired: "The zone name is required"
+  }
+};
+
+// ../modules-workspace/modules/tables/ui/components/erp-tables-canvas/erp-tables-canvas.ts
+var CATALOG = { es: es_default, en: en_default };
 var BOX = 72;
 var DRAG_THRESHOLD = 5;
 var SHAPES = ["square", "round", "rectangle"];
 var STATUSES = ["available", "occupied", "reserved", "blocked"];
-var STATUS_LABEL = {
-  available: "Disponible",
-  occupied: "Ocupada",
-  reserved: "Reservada",
-  blocked: "Bloqueada"
+var STATUS_KEY = {
+  available: "ui.statusAvailable",
+  occupied: "ui.statusOccupied",
+  reserved: "ui.statusReserved",
+  blocked: "ui.statusBlocked"
 };
-var SHAPE_LABEL = { square: "Cuadrada", round: "Redonda", rectangle: "Rectangular" };
+var SHAPE_KEY = { square: "ui.shapeSquare", round: "ui.shapeRound", rectangle: "ui.shapeRectangle" };
 var STATUS_COLOR = {
   available: "#2f9e44",
   occupied: "#d9480f",
@@ -1311,6 +1458,9 @@ var ErpTablesCanvas = class extends i3 {
     this.dragStartX = 0;
     this.dragStartY = 0;
     this.dragMoved = false;
+    // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template (legend, sheets,
+    // tooltips…) se re-evalúan con el nuevo `erplora.locale`.
+    this.onLocaleChange = () => this.requestUpdate();
   }
   static {
     this.styles = i`
@@ -1353,6 +1503,7 @@ var ErpTablesCanvas = class extends i3 {
   }
   async connectedCallback() {
     super.connectedCallback();
+    window.addEventListener("erplora:locale-changed", this.onLocaleChange);
     await this.reload();
     try {
       const evs = ["tables.table.created", "tables.table.updated", "tables.table.deleted", "tables.zone.created", "tables.zone.updated", "tables.zone.deleted"];
@@ -1363,6 +1514,7 @@ var ErpTablesCanvas = class extends i3 {
   }
   disconnectedCallback() {
     super.disconnectedCallback();
+    window.removeEventListener("erplora:locale-changed", this.onLocaleChange);
     this.unsub?.();
   }
   async reload() {
@@ -1386,7 +1538,7 @@ var ErpTablesCanvas = class extends i3 {
         this.activeZone = this.zones[0]?.id ?? "";
       }
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : "No se pudo cargar el plano";
+      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errLoadFloorPlan");
     } finally {
       this.loading = false;
     }
@@ -1448,7 +1600,7 @@ var ErpTablesCanvas = class extends i3 {
         height: BOX
       });
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : "No se pudo guardar la posici\xF3n";
+      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errSavePosition");
     }
   }
   // ── Altas ───────────────────────────────────────────────────────────────────────────────────
@@ -1469,7 +1621,7 @@ var ErpTablesCanvas = class extends i3 {
       });
       await this.reload();
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : "No se pudo crear la mesa";
+      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errCreateTable");
     }
   }
   async addZone() {
@@ -1488,7 +1640,7 @@ var ErpTablesCanvas = class extends i3 {
       const created = this.zones.find((z2) => z2.name === name);
       if (created) this.activeZone = created.id;
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : "No se pudo crear la zona";
+      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errCreateZone");
     }
   }
   // ── Edición / borrado de mesa ────────────────────────────────────────────────────────────────
@@ -1499,7 +1651,7 @@ var ErpTablesCanvas = class extends i3 {
     if (!this.edit) return;
     const t5 = this.edit;
     if (!String(t5.number).trim()) {
-      this.error = "El n\xFAmero de mesa es obligatorio";
+      this.error = erplora().t(CATALOG, "ui.errTableNumberRequired");
       return;
     }
     this.saving = true;
@@ -1518,7 +1670,7 @@ var ErpTablesCanvas = class extends i3 {
       this.edit = void 0;
       await this.reload();
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : "No se pudo guardar la mesa";
+      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errSaveTable");
     } finally {
       this.saving = false;
     }
@@ -1532,7 +1684,7 @@ var ErpTablesCanvas = class extends i3 {
       this.edit = void 0;
       await this.reload();
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : "No se pudo borrar la mesa";
+      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errDeleteTable");
     } finally {
       this.saving = false;
     }
@@ -1554,7 +1706,7 @@ var ErpTablesCanvas = class extends i3 {
     if (!this.zoneEdit) return;
     const z2 = this.zoneEdit;
     if (!z2.name.trim()) {
-      this.error = "El nombre de la zona es obligatorio";
+      this.error = erplora().t(CATALOG, "ui.errZoneNameRequired");
       return;
     }
     this.saving = true;
@@ -1571,7 +1723,7 @@ var ErpTablesCanvas = class extends i3 {
       this.zoneEdit = void 0;
       await this.reload();
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : "No se pudo guardar la zona";
+      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errSaveZone");
     } finally {
       this.saving = false;
     }
@@ -1586,23 +1738,24 @@ var ErpTablesCanvas = class extends i3 {
       this.activeZone = "";
       await this.reload();
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : "No se pudo borrar la zona (\xBFtiene mesas?)";
+      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errDeleteZone");
     } finally {
       this.saving = false;
     }
   }
   render() {
+    const t5 = (k2, params) => erplora().t(CATALOG, k2, params);
     return b2`
       <header>
-        <h2>Plano de sala</h2>
+        <h2>${t5("ui.floorPlan")}</h2>
         <div class="newzone">
-          <ion-input placeholder="Nueva zona…" .value=${this.newZoneName}
+          <ion-input placeholder=${t5("ui.newZonePlaceholder")} .value=${this.newZoneName}
             @ionInput=${(e5) => {
       this.newZoneName = e5.target.value || "";
     }}></ion-input>
-          <ion-button size="small" fill="outline" ?disabled=${!this.newZoneName.trim()} @click=${() => this.addZone()}>Añadir zona</ion-button>
+          <ion-button size="small" fill="outline" ?disabled=${!this.newZoneName.trim()} @click=${() => this.addZone()}>${t5("ui.addZone")}</ion-button>
         </div>
-        <ion-button size="small" ?disabled=${!this.zones.length} @click=${() => this.addTable()}>Añadir mesa</ion-button>
+        <ion-button size="small" ?disabled=${!this.zones.length} @click=${() => this.addTable()}>${t5("ui.addTable")}</ion-button>
       </header>
 
       ${this.error ? b2`<p class="err">${this.error}</p>` : A}
@@ -1614,98 +1767,100 @@ var ErpTablesCanvas = class extends i3 {
     }}>
               ${this.zones.map((z2) => b2`<ion-segment-button value=${z2.id}><ion-label>${z2.name}</ion-label></ion-segment-button>`)}
             </ion-segment>
-            <ion-button size="small" fill="clear" ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}>Editar zona</ion-button>
+            <ion-button size="small" fill="clear" ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}>${t5("ui.editZone")}</ion-button>
           </div>` : A}
 
       <div class="legend">
-        ${STATUSES.map((s5) => b2`<span><i class="dot" style=${`background:${STATUS_COLOR[s5]}`}></i>${STATUS_LABEL[s5]}</span>`)}
+        ${STATUSES.map((s5) => b2`<span><i class="dot" style=${`background:${STATUS_COLOR[s5]}`}></i>${t5(STATUS_KEY[s5] ?? s5)}</span>`)}
       </div>
 
       <div class="canvas"
         @pointermove=${(e5) => this.onPointerMove(e5)}
         @pointerup=${() => this.onPointerUp()}
         @pointercancel=${() => this.onPointerUp()}>
-        ${this.tablesInZone.map((t5) => b2`
-          <div class=${`mesa ${t5.shape === "round" ? "round" : ""} ${t5.id === this.dragId && this.dragMoved ? "dragging" : ""}`}
-            style=${`left:${t5.position_x}px; top:${t5.position_y}px; border-color:${STATUS_COLOR[t5.status] ?? "#d9d6cf"}`}
-            title=${`${STATUS_LABEL[t5.status] ?? t5.status} \xB7 ${t5.capacity} pax (clic para editar)`}
-            @pointerdown=${(e5) => this.onPointerDown(t5, e5)}>
-            <div class="n">${t5.number}</div>
-            <div class="c">${t5.capacity} pax</div>
+        ${this.tablesInZone.map((tb) => b2`
+          <div class=${`mesa ${tb.shape === "round" ? "round" : ""} ${tb.id === this.dragId && this.dragMoved ? "dragging" : ""}`}
+            style=${`left:${tb.position_x}px; top:${tb.position_y}px; border-color:${STATUS_COLOR[tb.status] ?? "#d9d6cf"}`}
+            title=${t5("ui.tableTooltip", { status: STATUS_KEY[tb.status] ? t5(STATUS_KEY[tb.status]) : tb.status, count: tb.capacity })}
+            @pointerdown=${(e5) => this.onPointerDown(tb, e5)}>
+            <div class="n">${tb.number}</div>
+            <div class="c">${t5("ui.paxCount", { count: tb.capacity })}</div>
           </div>`)}
-        ${!this.loading && !this.zones.length ? b2`<div class="empty">Crea una zona para empezar a colocar mesas.</div>` : A}
-        ${!this.loading && this.zones.length && !this.tablesInZone.length ? b2`<div class="empty">Sin mesas en esta zona. Pulsa «Añadir mesa».</div>` : A}
-        ${this.loading ? b2`<div class="empty">Cargando…</div>` : A}
+        ${!this.loading && !this.zones.length ? b2`<div class="empty">${t5("ui.createZoneToStart")}</div>` : A}
+        ${!this.loading && this.zones.length && !this.tablesInZone.length ? b2`<div class="empty">${t5("ui.noTablesInZonePrompt")}</div>` : A}
+        ${this.loading ? b2`<div class="empty">${t5("ui.loading")}</div>` : A}
       </div>
-      <p class="hint">Arrastra para colocar · clic en una mesa para editarla o borrarla. Los cambios se guardan al momento.</p>
+      <p class="hint">${t5("ui.canvasHint")}</p>
 
       ${this.edit ? this.renderTableSheet(this.edit) : A}
       ${this.zoneEdit ? this.renderZoneSheet(this.zoneEdit) : A}
     `;
   }
-  renderTableSheet(t5) {
+  renderTableSheet(table) {
+    const t5 = (k2, params) => erplora().t(CATALOG, k2, params);
     return b2`<div class="scrim" @click=${(e5) => {
       if (e5.target.classList.contains("scrim")) this.edit = void 0;
     }}>
       <div class="sheet">
         <div class="sheet-h">
-          <span class="t">Editar mesa</span>
+          <span class="t">${t5("ui.editTable")}</span>
           <button class="x" @click=${() => {
       this.edit = void 0;
     }}>✕</button>
         </div>
         <div class="row2">
-          <div class="field"><label>Número</label>
-            <ion-input .value=${t5.number} @ionInput=${(e5) => this.patchEdit({ number: e5.target.value || "" })}></ion-input></div>
-          <div class="field"><label>Aforo</label>
-            <ion-input type="number" min="1" .value=${String(t5.capacity)} @ionInput=${(e5) => this.patchEdit({ capacity: Number(e5.target.value) || 1 })}></ion-input></div>
+          <div class="field"><label>${t5("ui.fieldNumber")}</label>
+            <ion-input .value=${table.number} @ionInput=${(e5) => this.patchEdit({ number: e5.target.value || "" })}></ion-input></div>
+          <div class="field"><label>${t5("ui.fieldCapacity")}</label>
+            <ion-input type="number" min="1" .value=${String(table.capacity)} @ionInput=${(e5) => this.patchEdit({ capacity: Number(e5.target.value) || 1 })}></ion-input></div>
         </div>
-        <div class="field"><label>Nombre (opcional)</label>
-          <ion-input .value=${t5.name} @ionInput=${(e5) => this.patchEdit({ name: e5.target.value || "" })}></ion-input></div>
+        <div class="field"><label>${t5("ui.fieldNameOptional")}</label>
+          <ion-input .value=${table.name} @ionInput=${(e5) => this.patchEdit({ name: e5.target.value || "" })}></ion-input></div>
         <div class="row2">
-          <div class="field"><label>Forma</label>
-            <ion-select .value=${t5.shape} interface="popover" @ionChange=${(e5) => this.patchEdit({ shape: e5.detail.value })}>
-              ${SHAPES.map((s5) => b2`<ion-select-option value=${s5}>${SHAPE_LABEL[s5]}</ion-select-option>`)}
+          <div class="field"><label>${t5("ui.fieldShape")}</label>
+            <ion-select .value=${table.shape} interface="popover" @ionChange=${(e5) => this.patchEdit({ shape: e5.detail.value })}>
+              ${SHAPES.map((s5) => b2`<ion-select-option value=${s5}>${t5(SHAPE_KEY[s5] ?? s5)}</ion-select-option>`)}
             </ion-select></div>
-          <div class="field"><label>Estado</label>
-            <ion-select .value=${t5.status} interface="popover" @ionChange=${(e5) => this.patchEdit({ status: e5.detail.value })}>
-              ${STATUSES.map((s5) => b2`<ion-select-option value=${s5}>${STATUS_LABEL[s5]}</ion-select-option>`)}
+          <div class="field"><label>${t5("ui.fieldStatus")}</label>
+            <ion-select .value=${table.status} interface="popover" @ionChange=${(e5) => this.patchEdit({ status: e5.detail.value })}>
+              ${STATUSES.map((s5) => b2`<ion-select-option value=${s5}>${t5(STATUS_KEY[s5] ?? s5)}</ion-select-option>`)}
             </ion-select></div>
         </div>
-        <div class="field"><label>Zona</label>
-          <ion-select .value=${t5.zone_id ?? ""} interface="popover" @ionChange=${(e5) => this.patchEdit({ zone_id: e5.detail.value || null })}>
-            <ion-select-option value="">Sin zona</ion-select-option>
+        <div class="field"><label>${t5("ui.fieldZone")}</label>
+          <ion-select .value=${table.zone_id ?? ""} interface="popover" @ionChange=${(e5) => this.patchEdit({ zone_id: e5.detail.value || null })}>
+            <ion-select-option value="">${t5("ui.noZone")}</ion-select-option>
             ${this.zones.map((z2) => b2`<ion-select-option value=${z2.id}>${z2.name}</ion-select-option>`)}
           </ion-select></div>
         <div class="sheet-foot">
-          <ion-button color="danger" fill="outline" size="small" ?disabled=${this.saving} @click=${() => this.deleteTable()}>Borrar</ion-button>
-          <ion-button ?disabled=${this.saving} @click=${() => this.saveTable()}>${this.saving ? "Guardando\u2026" : "Guardar"}</ion-button>
+          <ion-button color="danger" fill="outline" size="small" ?disabled=${this.saving} @click=${() => this.deleteTable()}>${t5("ui.delete")}</ion-button>
+          <ion-button ?disabled=${this.saving} @click=${() => this.saveTable()}>${this.saving ? t5("ui.saving") : t5("ui.save")}</ion-button>
         </div>
       </div>
     </div>`;
   }
   renderZoneSheet(z2) {
+    const t5 = (k2, params) => erplora().t(CATALOG, k2, params);
     return b2`<div class="scrim" @click=${(e5) => {
       if (e5.target.classList.contains("scrim")) this.zoneEdit = void 0;
     }}>
       <div class="sheet">
         <div class="sheet-h">
-          <span class="t">Editar zona</span>
+          <span class="t">${t5("ui.editZone")}</span>
           <button class="x" @click=${() => {
       this.zoneEdit = void 0;
     }}>✕</button>
         </div>
-        <div class="field"><label>Nombre</label>
+        <div class="field"><label>${t5("ui.colName")}</label>
           <ion-input .value=${z2.name} @ionInput=${(e5) => {
       this.zoneEdit = { ...z2, name: e5.target.value || "" };
     }}></ion-input></div>
-        <div class="field"><label>Descripción (opcional)</label>
+        <div class="field"><label>${t5("ui.fieldDescriptionOptional")}</label>
           <ion-input .value=${z2.description ?? ""} @ionInput=${(e5) => {
       this.zoneEdit = { ...z2, description: e5.target.value || "" };
     }}></ion-input></div>
         <div class="sheet-foot">
-          <ion-button color="danger" fill="outline" size="small" ?disabled=${this.saving} @click=${() => this.deleteZone()}>Borrar zona</ion-button>
-          <ion-button ?disabled=${this.saving} @click=${() => this.saveZone()}>${this.saving ? "Guardando\u2026" : "Guardar"}</ion-button>
+          <ion-button color="danger" fill="outline" size="small" ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t5("ui.deleteZone")}</ion-button>
+          <ion-button ?disabled=${this.saving} @click=${() => this.saveZone()}>${this.saving ? t5("ui.saving") : t5("ui.save")}</ion-button>
         </div>
       </div>
     </div>`;
@@ -1740,7 +1895,7 @@ __decorateClass([
 ], ErpTablesCanvas.prototype, "saving", 2);
 define("erp-tables-canvas", ErpTablesCanvas);
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive.js
+// node_modules/lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t5) => (...e5) => ({ _$litDirective$: t5, values: e5 });
 var i4 = class {
@@ -1760,7 +1915,7 @@ var i4 = class {
   }
 };
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive-helpers.js
+// node_modules/lit-html/directive-helpers.js
 var { I: t4 } = j;
 var i5 = (o7) => o7;
 var s4 = () => document.createComment("");
@@ -1793,7 +1948,7 @@ var h3 = (o7) => {
   o7._$AR(), o7._$AA.remove();
 };
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/repeat.js
+// node_modules/lit-html/directives/repeat.js
 var u4 = (e5, s5, t5) => {
   const r6 = /* @__PURE__ */ new Map();
   for (let l3 = s5; l3 <= t5; l3++) r6.set(e5[l3], l3);
@@ -1846,7 +2001,7 @@ var c4 = e4(class extends i4 {
   }
 });
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/style-map.js
+// node_modules/lit-html/directives/style-map.js
 var n5 = "important";
 var i6 = " !" + n5;
 var o6 = e4(class extends i4 {
@@ -1875,7 +2030,7 @@ var o6 = e4(class extends i4 {
   }
 });
 
-// ../../node_modules/.pnpm/@outfitkit+core@file+..+outfitkit/node_modules/@outfitkit/core/dist/ok-data-table.js
+// ../outfitkit/dist/ok-data-table.js
 var __defProp2 = Object.defineProperty;
 var __decorateClass2 = (decorators, target, key, kind) => {
   var result = void 0;
@@ -2043,12 +2198,15 @@ var OkDataTable = class extends i3 {
 
     /* ── Topbar / cabecera (relieve) ─────────────────────────────────────────────────────── */
     .bar { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.65rem 1rem; border-bottom: 1px solid var(--border-color); background: var(--header-background); }
-    /* Toolbar CONSOLIDADA: TODOS los controles (buscador, filtros, page-size, vistas, columnas,
-     * CSV, ⋮, alta) son hijos directos de UNA sola fila flex que envuelve ELEMENTO A ELEMENTO
-     * (no por bloques): caben en una línea → una línea; los que no caben bajan a la(s) línea(s)
-     * que hagan falta. El cluster derecho se empuja al borde con .tk-spacer (hueco flexible)
-     * solo cuando todo cabe en una línea; al envolver, el spacer se oculta y todo se apila a la
-     * izquierda. */
+    /* Toolbar CONSOLIDADA: TODOS los controles son hijos directos de UNA sola fila flex que
+     * envuelve ELEMENTO A ELEMENTO (no por bloques): caben en una línea → una línea; los que no
+     * caben bajan a la(s) línea(s) que hagan falta. El cluster derecho se empuja al borde con
+     * .tk-spacer (hueco flexible) solo cuando todo cabe en una línea; al envolver, el spacer se
+     * oculta y todo se apila a la izquierda.
+     * ORDEN CANÓNICO (2026-06-22, izquierda→derecha): [buscador] · [filtros en línea] · ‹spacer› ·
+     * [SELECTORES: columnas → filas/página] · [BOTONES: vistas → filtros(funnel) → import → export →
+     * alta → ⋮ → acción primaria]. Es decir: buscador al inicio, filtros en medio, y al final los
+     * selectores (columnas, luego «N por página») seguidos de los botones de acción. */
     .bar-main { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
     .bar-main > ion-button { --padding-start: 0.5rem; --padding-end: 0.5rem; margin: 0; }
     /* Spacer que absorbe el hueco libre en pantallas anchas (empuja el cluster derecho al borde).
@@ -2759,6 +2917,19 @@ var OkDataTable = class extends i3 {
                   ${this.hasSearch ? b2`<div class="search">${searchbar}</div>` : A}
                   ${this.inlineFilters ? this.renderInlineFilters() : A}
                   <span class="tk-spacer"></span>
+                    ${this.effColumnPicker ? b2`
+                          <ion-select
+                            class="tk-cols"
+                            multiple
+                            interface="popover"
+                            aria-label=${this.t.columnsVisible}
+                            .value=${this.visibleColumns.map((c5) => c5.key)}
+                            .selectedText=${this.t.columns}
+                            @ionChange=${(e5) => this.setVisibleColumns(e5.detail.value)}
+                          >
+                            ${this.columns.map((c5) => b2`<ion-select-option value=${c5.key}>${c5.header}</ion-select-option>`)}
+                          </ion-select>
+                        ` : A}
                     ${this.effPageSizes.length ? b2`
                           <ion-select
                             class="tk-psize"
@@ -2775,19 +2946,6 @@ var OkDataTable = class extends i3 {
                             ${this.toolButton("list-outline", this.viewMode === "table", () => this.setViewMode("table"), this.t.viewList)}
                             ${this.toolButton("grid-outline", this.viewMode === "cards", () => this.setViewMode("cards"), this.t.viewCards)}
                           </span>
-                        ` : A}
-                    ${this.effColumnPicker ? b2`
-                          <ion-select
-                            class="tk-cols"
-                            multiple
-                            interface="popover"
-                            aria-label=${this.t.columnsVisible}
-                            .value=${this.visibleColumns.map((c5) => c5.key)}
-                            .selectedText=${this.t.columns}
-                            @ionChange=${(e5) => this.setVisibleColumns(e5.detail.value)}
-                          >
-                            ${this.columns.map((c5) => b2`<ion-select-option value=${c5.key}>${c5.header}</ion-select-option>`)}
-                          </ion-select>
                         ` : A}
                     ${this.hasFilterRow && !this.inlineFilters ? this.toolButton("funnel-outline", this.panel === "filters" || this.activeFilterCount > 0, () => this.toggle("filters"), this.t.filters, this.serverSide ? void 0 : this.activeFilterCount) : A}
                     ${this.effImport ? b2`
@@ -3150,7 +3308,7 @@ __decorateClass2([
 ], OkDataTable.prototype, "menuOpen");
 define("ok-data-table", OkDataTable);
 
-// ../../node_modules/.pnpm/@erplora+module-sdk@file+..+hub+packages+module-sdk/node_modules/@erplora/module-sdk/src/index.ts
+// ../hub/packages/module-sdk/src/index.ts
 function isEmpty(v3) {
   return v3 === null || v3 === void 0 || v3 === "";
 }
@@ -3268,12 +3426,13 @@ function createListController(client, queryName, onChange = () => {
   return new ListController(client, queryName, onChange, opts);
 }
 
-// ui/components/erp-tables-floor-plan/erp-tables-floor-plan.ts
-var STATUS_LABELS = {
-  available: "Disponible",
-  occupied: "Ocupada",
-  reserved: "Reservada",
-  blocked: "Bloqueada"
+// ../modules-workspace/modules/tables/ui/components/erp-tables-floor-plan/erp-tables-floor-plan.ts
+var CATALOG2 = { es: es_default, en: en_default };
+var STATUS_KEY2 = {
+  available: "ui.statusAvailable",
+  occupied: "ui.statusOccupied",
+  reserved: "ui.statusReserved",
+  blocked: "ui.statusBlocked"
 };
 function erplora2() {
   const c5 = globalThis.erplora;
@@ -3288,21 +3447,9 @@ var ErpTablesFloorPlan = class extends i3 {
     this.saving = false;
     this.formError = "";
     this.tick = 0;
-    this.columns = [
-      { key: "number", header: "N\xFAmero", sortable: true, filterable: true, filterType: "text" },
-      { key: "name", header: "Nombre", sortable: true, filterable: true, filterType: "text", format: (r6) => r6.name || "\u2014" },
-      { key: "zone", header: "Zona", sortable: true, filterable: true, filterType: "text", format: (r6) => r6.zone || "\u2014" },
-      { key: "capacity", header: "Aforo", align: "right", sortable: true, filterable: true, filterType: "text", format: (r6) => `${r6.capacity} pax` },
-      {
-        key: "status",
-        header: "Estado",
-        sortable: true,
-        filterable: true,
-        filterType: "select",
-        options: Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
-        format: (r6) => STATUS_LABELS[r6.status] ?? r6.status
-      }
-    ];
+    // Re-render al cambiar el idioma del shell (ADR-0055): el getter `columns` y los textos del
+    // template se re-evalúan con el nuevo `erplora.locale`.
+    this.onLocaleChange = () => this.requestUpdate();
   }
   static {
     this.styles = i`
@@ -3314,11 +3461,32 @@ var ErpTablesFloorPlan = class extends i3 {
     .err { color:#d9480f; font-weight:600; }
   `;
   }
+  // Getter (no campo): se re-evalúa en cada render, así los textos cambian con el idioma activo
+  // (ADR-0055). `connectedCallback` re-renderiza al recibir `erplora:locale-changed`.
+  get columns() {
+    const t5 = (k2, params) => erplora2().t(CATALOG2, k2, params);
+    return [
+      { key: "number", header: t5("ui.colNumber"), sortable: true, filterable: true, filterType: "text" },
+      { key: "name", header: t5("ui.colName"), sortable: true, filterable: true, filterType: "text", format: (r6) => r6.name || "\u2014" },
+      { key: "zone", header: t5("ui.colZone"), sortable: true, filterable: true, filterType: "text", format: (r6) => r6.zone || "\u2014" },
+      { key: "capacity", header: t5("ui.colCapacity"), align: "right", sortable: true, filterable: true, filterType: "text", format: (r6) => t5("ui.paxCount", { count: r6.capacity }) },
+      {
+        key: "status",
+        header: t5("ui.colStatus"),
+        sortable: true,
+        filterable: true,
+        filterType: "select",
+        options: Object.entries(STATUS_KEY2).map(([value, k2]) => ({ value, label: t5(k2) })),
+        format: (r6) => STATUS_KEY2[r6.status] ? t5(STATUS_KEY2[r6.status]) : r6.status
+      }
+    ];
+  }
   // TODO-LIT: componentWillLoad → connectedCallback. Recuerda: connectedCallback se dispara
   // en CADA reconexión al DOM (no solo en el primer montaje). Si la init debe correr una
   // sola vez tras el primer render, considera firstUpdated() en su lugar.
   async connectedCallback() {
     super.connectedCallback();
+    window.addEventListener("erplora:locale-changed", this.onLocaleChange);
     this.ctrl = createListController(erplora2(), "tables.tables.list", () => this.requestUpdate(), {
       pageSize: 50,
       sort: "name",
@@ -3340,6 +3508,7 @@ var ErpTablesFloorPlan = class extends i3 {
   }
   disconnectedCallback() {
     super.disconnectedCallback();
+    window.removeEventListener("erplora:locale-changed", this.onLocaleChange);
     this.unsub?.();
   }
   async createTable(ev) {
@@ -3363,24 +3532,25 @@ var ErpTablesFloorPlan = class extends i3 {
       this.newCapacity = "4";
       await this.ctrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : "No se pudo crear la mesa";
+      this.formError = e5 instanceof Error ? e5.message : erplora2().t(CATALOG2, "ui.errCreateTable");
     } finally {
       this.saving = false;
     }
   }
   render() {
+    const t5 = (k2, params) => erplora2().t(CATALOG2, k2, params);
     return b2`<div>
         <header>
-          <h2>Plano de sala</h2>
+          <h2>${t5("ui.floorPlan")}</h2>
         </header>
         <form class="form" @submit=${(e5) => this.createTable(e5)}>
-          <ion-input placeholder="Número" .value=${this.newNumber} @ionInput=${(e5) => this.newNumber = e5.target.value}></ion-input>
-          <ion-input type="number" min="1" placeholder="Aforo" .value=${this.newCapacity} @ionInput=${(e5) => this.newCapacity = e5.target.value}></ion-input>
-          <ion-button type="submit" size="small" ?disabled=${this.saving || !this.newNumber}>${this.saving ? "Guardando\u2026" : "A\xF1adir mesa"}</ion-button>
+          <ion-input placeholder=${t5("ui.placeholderNumber")} .value=${this.newNumber} @ionInput=${(e5) => this.newNumber = e5.target.value}></ion-input>
+          <ion-input type="number" min="1" placeholder=${t5("ui.placeholderCapacity")} .value=${this.newCapacity} @ionInput=${(e5) => this.newCapacity = e5.target.value}></ion-input>
+          <ion-button type="submit" size="small" ?disabled=${this.saving || !this.newNumber}>${this.saving ? t5("ui.saving") : t5("ui.addTable")}</ion-button>
         </form>
         ${this.formError ? b2`<p class="err">${this.formError}</p>` : A}
         ${this.ctrl?.error ? b2`<p class="err">${this.ctrl.error}</p>` : A}
-        <ok-data-table .serverSide=${true} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${"Buscar mesa o zona\u2026"} .emptyMessage=${this.ctrl?.loading ? "Cargando\u2026" : "Sin mesas."} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}></ok-data-table>
+        <ok-data-table .serverSide=${true} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyTables")} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}></ok-data-table>
       </div>`;
   }
 };
@@ -3401,12 +3571,19 @@ __decorateClass([
 ], ErpTablesFloorPlan.prototype, "tick", 2);
 define("erp-tables-floor-plan", ErpTablesFloorPlan);
 
-// ui/components/erp-tables-pos-zones/erp-tables-pos-zones.ts
+// ../modules-workspace/modules/tables/ui/components/erp-tables-pos-zones/erp-tables-pos-zones.ts
+var CATALOG3 = { es: es_default, en: en_default };
 var STATUS_COLOR2 = {
   available: "#2f9e44",
   occupied: "#d9480f",
   reserved: "#f08c00",
   blocked: "#868e96"
+};
+var STATUS_KEY3 = {
+  available: "ui.statusAvailable",
+  occupied: "ui.statusOccupied",
+  reserved: "ui.statusReserved",
+  blocked: "ui.statusBlocked"
 };
 function erplora3() {
   const c5 = globalThis.erplora;
@@ -3436,6 +3613,9 @@ var ErpTablesPosZones = class extends i3 {
       this.sessionId = void 0;
       if (sid) void this.closeSession(sid);
     };
+    // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template se re-evalúan
+    // con el nuevo `erplora.locale`.
+    this.onLocaleChange = () => this.requestUpdate();
   }
   static {
     this.styles = i`
@@ -3460,10 +3640,12 @@ var ErpTablesPosZones = class extends i3 {
   connectedCallback() {
     super.connectedCallback();
     this.addEventListener("erp:order-context-reset", this.onReset);
+    window.addEventListener("erplora:locale-changed", this.onLocaleChange);
   }
   disconnectedCallback() {
     super.disconnectedCallback();
     this.removeEventListener("erp:order-context-reset", this.onReset);
+    window.removeEventListener("erplora:locale-changed", this.onLocaleChange);
   }
   async openPicker() {
     this.open = true;
@@ -3478,7 +3660,7 @@ var ErpTablesPosZones = class extends i3 {
       this.tables = rows2(t5);
       if (!this.activeZone) this.activeZone = this.zones[0]?.id ?? "";
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : "No se pudieron cargar las mesas";
+      this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errLoadTables");
     } finally {
       this.loading = false;
     }
@@ -3529,14 +3711,14 @@ var ErpTablesPosZones = class extends i3 {
         await erplora3().command("tables.sessions.open", { table_id: t5.id });
         sessionId = await this.activeSessionFor(t5.id);
       } catch (e5) {
-        this.error = e5 instanceof Error ? e5.message : "No se pudo ocupar la mesa";
+        this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errOccupyTable");
       }
     } else {
       sessionId = await this.activeSessionFor(t5.id);
     }
     this.sessionId = sessionId;
     this.selectedId = t5.id;
-    this.selectedLabel = `Mesa ${t5.number}`;
+    this.selectedLabel = erplora3().t(CATALOG3, "ui.tableLabel", { number: t5.number });
     this.emit(t5.id, this.selectedLabel);
     this.open = false;
     void this.refreshTables();
@@ -3557,9 +3739,10 @@ var ErpTablesPosZones = class extends i3 {
     return this.tables.filter((t5) => t5.zone_id === this.activeZone);
   }
   render() {
+    const t5 = (k2, params) => erplora3().t(CATALOG3, k2, params);
     return b2`
       <ion-button class="open" fill=${this.selectedId ? "solid" : "outline"} size="small" @click=${() => this.openPicker()}>
-        ${this.selectedLabel || "Asignar mesa"}
+        ${this.selectedLabel || t5("ui.assignTable")}
       </ion-button>
 
       ${this.open ? b2`<div class="scrim" @click=${(e5) => {
@@ -3567,7 +3750,7 @@ var ErpTablesPosZones = class extends i3 {
     }}>
             <div class="sheet">
               <div class="sheet-h">
-                <span class="t">Elegir mesa</span>
+                <span class="t">${t5("ui.chooseTable")}</span>
                 <button class="x" @click=${() => {
       this.open = false;
     }}>✕</button>
@@ -3583,19 +3766,19 @@ var ErpTablesPosZones = class extends i3 {
                   </ion-segment>` : A}
 
               <div class="grid">
-                ${this.tablesInZone.map((t5) => b2`
-                  <button class="mesa" aria-pressed=${this.selectedId === t5.id}
-                    style=${`border-color:${STATUS_COLOR2[t5.status] ?? "#d9d6cf"}`} @click=${() => this.pick(t5)}>
-                    <div class="n">${t5.number}</div>
-                    <div class="c">${t5.capacity} pax</div>
-                    <div class="s" style=${`color:${STATUS_COLOR2[t5.status] ?? "#868e96"}`}>${t5.status}</div>
+                ${this.tablesInZone.map((tb) => b2`
+                  <button class="mesa" aria-pressed=${this.selectedId === tb.id}
+                    style=${`border-color:${STATUS_COLOR2[tb.status] ?? "#d9d6cf"}`} @click=${() => this.pick(tb)}>
+                    <div class="n">${tb.number}</div>
+                    <div class="c">${t5("ui.paxCount", { count: tb.capacity })}</div>
+                    <div class="s" style=${`color:${STATUS_COLOR2[tb.status] ?? "#868e96"}`}>${t5(STATUS_KEY3[tb.status] ?? tb.status)}</div>
                   </button>`)}
-                ${!this.loading && !this.tablesInZone.length ? b2`<div class="empty">Sin mesas en esta zona.</div>` : A}
-                ${this.loading ? b2`<div class="empty">Cargando…</div>` : A}
+                ${!this.loading && !this.tablesInZone.length ? b2`<div class="empty">${t5("ui.noTablesInZone")}</div>` : A}
+                ${this.loading ? b2`<div class="empty">${t5("ui.loading")}</div>` : A}
               </div>
 
               <div class="foot">
-                <ion-button fill="clear" size="small" ?disabled=${!this.selectedId} @click=${() => this.clear()}>Quitar mesa</ion-button>
+                <ion-button fill="clear" size="small" ?disabled=${!this.selectedId} @click=${() => this.clear()}>${t5("ui.removeTable")}</ion-button>
               </div>
             </div>
           </div>` : A}

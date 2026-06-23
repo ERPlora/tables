@@ -1,6 +1,11 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { state } from 'lit/decorators.js';
 import { define } from '@erplora/outfitkit/define';
+// Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
+// internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
+import esLocale from '../../../locales/es.json';
+import enLocale from '../../../locales/en.json';
+const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
 
 // erp-tables-pos-zones — selector de MESA inyectado en la pantalla de venta (ADR-0043). El módulo
 // `tables` declara en su manifest que rellena el slot `sales.pos.order_context`; el shell monta este
@@ -21,7 +26,11 @@ interface Table {
 
 interface ErploraLike {
   query<T = unknown>(name: string, params?: Record<string, unknown>): Promise<T>;
+  command<T = unknown>(name: string, payload?: Record<string, unknown>): Promise<T>;
   on?(event: string, cb: (payload: unknown) => void): () => void;
+  /** i18n del módulo (ADR-0055): idioma activo + traducción del catálogo `ui`. */
+  locale: string;
+  t(catalog: Record<string, unknown>, key: string, params?: Record<string, unknown>): string;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -29,6 +38,13 @@ const STATUS_COLOR: Record<string, string> = {
   occupied: '#d9480f',
   reserved: '#f08c00',
   blocked: '#868e96',
+};
+
+const STATUS_KEY: Record<string, string> = {
+  available: 'ui.statusAvailable',
+  occupied: 'ui.statusOccupied',
+  reserved: 'ui.statusReserved',
+  blocked: 'ui.statusBlocked',
 };
 
 function erplora(): ErploraLike {
@@ -84,14 +100,20 @@ export class ErpTablesPosZones extends LitElement {
     if (sid) void this.closeSession(sid);
   };
 
+  // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template se re-evalúan
+  // con el nuevo `erplora.locale`.
+  private readonly onLocaleChange = (): void => this.requestUpdate();
+
   connectedCallback() {
     super.connectedCallback();
     this.addEventListener('erp:order-context-reset', this.onReset);
+    window.addEventListener('erplora:locale-changed', this.onLocaleChange);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     this.removeEventListener('erp:order-context-reset', this.onReset);
+    window.removeEventListener('erplora:locale-changed', this.onLocaleChange);
   }
 
   private async openPicker() {
@@ -107,7 +129,7 @@ export class ErpTablesPosZones extends LitElement {
       this.tables = rows<Table>(t);
       if (!this.activeZone) this.activeZone = this.zones[0]?.id ?? '';
     } catch (e) {
-      this.error = e instanceof Error ? e.message : 'No se pudieron cargar las mesas';
+      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errLoadTables');
     } finally {
       this.loading = false;
     }
@@ -155,7 +177,7 @@ export class ErpTablesPosZones extends LitElement {
         await erplora().command('tables.sessions.open', { table_id: t.id });
         sessionId = await this.activeSessionFor(t.id);
       } catch (e) {
-        this.error = e instanceof Error ? e.message : 'No se pudo ocupar la mesa';
+        this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errOccupyTable');
       }
     } else {
       // Mesa ya ocupada/reservada → reanudar su sesión activa (no abrir otra).
@@ -163,7 +185,7 @@ export class ErpTablesPosZones extends LitElement {
     }
     this.sessionId = sessionId;
     this.selectedId = t.id;
-    this.selectedLabel = `Mesa ${t.number}`;
+    this.selectedLabel = erplora().t(CATALOG, 'ui.tableLabel', { number: t.number });
     this.emit(t.id, this.selectedLabel);
     this.open = false;
     void this.refreshTables();
@@ -184,16 +206,17 @@ export class ErpTablesPosZones extends LitElement {
   }
 
   render() {
+    const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
     return html`
       <ion-button class="open" fill=${this.selectedId ? 'solid' : 'outline'} size="small" @click=${() => this.openPicker()}>
-        ${this.selectedLabel || 'Asignar mesa'}
+        ${this.selectedLabel || t('ui.assignTable')}
       </ion-button>
 
       ${this.open
         ? html`<div class="scrim" @click=${(e: Event) => { if ((e.target as HTMLElement).classList.contains('scrim')) this.open = false; }}>
             <div class="sheet">
               <div class="sheet-h">
-                <span class="t">Elegir mesa</span>
+                <span class="t">${t('ui.chooseTable')}</span>
                 <button class="x" @click=${() => { this.open = false; }}>✕</button>
               </div>
 
@@ -207,19 +230,19 @@ export class ErpTablesPosZones extends LitElement {
                 : nothing}
 
               <div class="grid">
-                ${this.tablesInZone.map((t) => html`
-                  <button class="mesa" aria-pressed=${this.selectedId === t.id}
-                    style=${`border-color:${STATUS_COLOR[t.status] ?? '#d9d6cf'}`} @click=${() => this.pick(t)}>
-                    <div class="n">${t.number}</div>
-                    <div class="c">${t.capacity} pax</div>
-                    <div class="s" style=${`color:${STATUS_COLOR[t.status] ?? '#868e96'}`}>${t.status}</div>
+                ${this.tablesInZone.map((tb) => html`
+                  <button class="mesa" aria-pressed=${this.selectedId === tb.id}
+                    style=${`border-color:${STATUS_COLOR[tb.status] ?? '#d9d6cf'}`} @click=${() => this.pick(tb)}>
+                    <div class="n">${tb.number}</div>
+                    <div class="c">${t('ui.paxCount', { count: tb.capacity })}</div>
+                    <div class="s" style=${`color:${STATUS_COLOR[tb.status] ?? '#868e96'}`}>${t(STATUS_KEY[tb.status] ?? tb.status)}</div>
                   </button>`)}
-                ${!this.loading && !this.tablesInZone.length ? html`<div class="empty">Sin mesas en esta zona.</div>` : nothing}
-                ${this.loading ? html`<div class="empty">Cargando…</div>` : nothing}
+                ${!this.loading && !this.tablesInZone.length ? html`<div class="empty">${t('ui.noTablesInZone')}</div>` : nothing}
+                ${this.loading ? html`<div class="empty">${t('ui.loading')}</div>` : nothing}
               </div>
 
               <div class="foot">
-                <ion-button fill="clear" size="small" ?disabled=${!this.selectedId} @click=${() => this.clear()}>Quitar mesa</ion-button>
+                <ion-button fill="clear" size="small" ?disabled=${!this.selectedId} @click=${() => this.clear()}>${t('ui.removeTable')}</ion-button>
               </div>
             </div>
           </div>`
