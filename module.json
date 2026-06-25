@@ -134,7 +134,8 @@
       },
       "ai": {
         "description": "Lists all floor plan zones (dining room, terrace, bar, etc.)"
-      }
+      },
+      "expose_api": true
     },
     "tables.zones.get": {
       "permission": "tables.view_zone",
@@ -142,7 +143,8 @@
       "schema": "schemas/zone_get.json",
       "ai": {
         "description": "Gets the details of a specific zone by its identifier"
-      }
+      },
+      "expose_api": true
     },
     "tables.tables.list": {
       "permission": "tables.view_table",
@@ -211,7 +213,8 @@
       },
       "ai": {
         "description": "Lists all available tables with their current status"
-      }
+      },
+      "expose_api": true
     },
     "tables.sessions.list": {
       "permission": "tables.view_tablesession",
@@ -263,7 +266,8 @@
       },
       "ai": {
         "description": "Lists active or historical table sessions"
-      }
+      },
+      "expose_api": true
     }
   },
   "commands": {
@@ -279,7 +283,8 @@
       ],
       "ai": {
         "description": "Creates a new zone in the floor plan"
-      }
+      },
+      "expose_api": true
     },
     "tables.zones.update": {
       "permission": "tables.change_zone",
@@ -293,7 +298,8 @@
       ],
       "ai": {
         "description": "Updates the name or configuration of an existing zone"
-      }
+      },
+      "expose_api": true
     },
     "tables.zones.delete": {
       "permission": "tables.delete_zone",
@@ -322,7 +328,8 @@
       ],
       "ai": {
         "description": "Creates a new table inside a zone"
-      }
+      },
+      "expose_api": true
     },
     "tables.tables.update": {
       "permission": "tables.change_table",
@@ -336,7 +343,8 @@
       ],
       "ai": {
         "description": "Updates a table's data (name, capacity, position)"
-      }
+      },
+      "expose_api": true
     },
     "tables.tables.move": {
       "permission": "tables.change_table",
