@@ -4,6 +4,6 @@
 -- la transacción completa.
 INSERT INTO tables__gate (gate, ok)
 SELECT 'session_not_active',
-       EXISTS (SELECT 1 FROM tables_session
+       CASE WHEN EXISTS (SELECT 1 FROM tables_session
                WHERE id = :session_id AND hub_id = :hub_id
-                 AND is_deleted = 1 AND deleted_at = :now);
+                 AND is_deleted = 1 AND deleted_at = :now) THEN 1 ELSE 0 END;

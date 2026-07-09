@@ -5,6 +5,6 @@
 -- la transacción completa.
 INSERT INTO tables__gate (gate, ok)
 SELECT 'zone_without_active_tables',
-       EXISTS (SELECT 1 FROM tables_zone
+       CASE WHEN EXISTS (SELECT 1 FROM tables_zone
                WHERE id = :zone_id AND hub_id = :hub_id
-                 AND is_deleted = 1 AND deleted_at = :now);
+                 AND is_deleted = 1 AND deleted_at = :now) THEN 1 ELSE 0 END;
