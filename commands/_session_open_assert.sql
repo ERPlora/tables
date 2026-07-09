@@ -4,7 +4,7 @@
 -- transacción completa (no queda ni sesión ni mesa ocupada).
 INSERT INTO tables__gate (gate, ok)
 SELECT 'table_available',
-       EXISTS (SELECT 1 FROM tables_session
-               WHERE id = :session_id AND hub_id = :hub_id AND status = 'active')
+       CASE WHEN EXISTS (SELECT 1 FROM tables_session
+               WHERE id = :session_id AND hub_id = :hub_id AND status = 'active') THEN 1 ELSE 0 END
        AND EXISTS (SELECT 1 FROM tables_table
                    WHERE id = :table_id AND hub_id = :hub_id AND status = 'occupied');

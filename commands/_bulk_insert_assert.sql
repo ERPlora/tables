@@ -3,5 +3,5 @@
 -- CHECK (ok = 1) de tables__gate y revierte el lote completo (todas las mesas).
 INSERT INTO tables__gate (gate, ok)
 SELECT 'zone_exists',
-       EXISTS (SELECT 1 FROM tables_table
-               WHERE id = :table_id AND hub_id = :hub_id);
+       CASE WHEN EXISTS (SELECT 1 FROM tables_table
+               WHERE id = :table_id AND hub_id = :hub_id) THEN 1 ELSE 0 END;
