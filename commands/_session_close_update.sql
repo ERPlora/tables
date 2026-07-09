@@ -8,7 +8,8 @@ UPDATE tables_session SET
   notes      = CASE
                  WHEN :notes IS NOT NULL AND :notes <> '' THEN
                    CASE WHEN notes IS NULL OR notes = '' THEN :notes
-                        ELSE notes || char(10) || :notes END
+                        ELSE notes || '
+' || :notes END
                  ELSE notes
                END,
   updated_by = :current_user_id,
