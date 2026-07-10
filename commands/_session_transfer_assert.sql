@@ -5,9 +5,10 @@
 -- revierten la transacción completa (las 4 escrituras).
 INSERT INTO tables__gate (gate, ok)
 SELECT 'transfer_applied',
-       CASE WHEN EXISTS (SELECT 1 FROM tables_session
+       CASE WHEN (EXISTS (SELECT 1 FROM tables_session
                WHERE id = :new_session_id AND hub_id = :hub_id
-                 AND status = 'active' AND transferred_from_id = :session_id) THEN 1 ELSE 0 END
+                 AND status = 'active' AND transferred_from_id = :session_id)
        AND EXISTS (SELECT 1 FROM tables_table
                    WHERE id = :target_table_id AND hub_id = :hub_id
-                     AND status = 'occupied');
+                     AND status = 'occupied'))
+            THEN 1 ELSE 0 END;
