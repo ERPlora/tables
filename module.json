@@ -118,7 +118,7 @@
         "default_dir": "asc",
         "filters": {
           "name": {
-            "op": "eq"
+            "op": "like"
           },
           "color": {
             "op": "eq"
@@ -174,7 +174,7 @@
             "op": "eq"
           },
           "name": {
-            "op": "eq"
+            "op": "like"
           },
           "capacity": {
             "op": "eq"
@@ -256,7 +256,7 @@
             "op": "range"
           },
           "notes": {
-            "op": "eq"
+            "op": "like"
           }
         },
         "page_size": 50
