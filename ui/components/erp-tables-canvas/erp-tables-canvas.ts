@@ -126,8 +126,16 @@ export class ErpTablesCanvas extends LitElement {
     window.addEventListener('erplora:locale-changed', this.onLocaleChange);
     await this.reload();
     try {
-      const evs = ['tables.table.created', 'tables.table.updated', 'tables.table.deleted', 'tables.zone.created', 'tables.zone.updated', 'tables.zone.deleted'];
-      const offs = evs.map((e) => erplora().on?.(e, () => this.reload())).filter(Boolean) as Array<() => void>;
+      // Una suscripción por evento, con su literal EN la llamada (ADR-0127: el extractor
+      // de contratos no sigue arrays; el nombre vive donde se usa).
+      const offs = [
+        erplora().on?.('tables.table.created', () => this.reload()),
+        erplora().on?.('tables.table.updated', () => this.reload()),
+        erplora().on?.('tables.table.deleted', () => this.reload()),
+        erplora().on?.('tables.zone.created', () => this.reload()),
+        erplora().on?.('tables.zone.updated', () => this.reload()),
+        erplora().on?.('tables.zone.deleted', () => this.reload()),
+      ].filter(Boolean) as Array<() => void>;
       this.unsub = () => offs.forEach((o) => o());
     } catch { /* preview sin SDK */ }
   }

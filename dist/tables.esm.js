@@ -1505,8 +1505,14 @@ var ErpTablesCanvas = class extends i3 {
     window.addEventListener("erplora:locale-changed", this.onLocaleChange);
     await this.reload();
     try {
-      const evs = ["tables.table.created", "tables.table.updated", "tables.table.deleted", "tables.zone.created", "tables.zone.updated", "tables.zone.deleted"];
-      const offs = evs.map((e5) => erplora().on?.(e5, () => this.reload())).filter(Boolean);
+      const offs = [
+        erplora().on?.("tables.table.created", () => this.reload()),
+        erplora().on?.("tables.table.updated", () => this.reload()),
+        erplora().on?.("tables.table.deleted", () => this.reload()),
+        erplora().on?.("tables.zone.created", () => this.reload()),
+        erplora().on?.("tables.zone.updated", () => this.reload()),
+        erplora().on?.("tables.zone.deleted", () => this.reload())
+      ].filter(Boolean);
       this.unsub = () => offs.forEach((o7) => o7());
     } catch {
     }

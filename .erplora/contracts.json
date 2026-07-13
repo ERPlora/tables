@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "module": "tables",
+  "consumes": {
+    "queries": [
+      "tables.sessions.list",
+      "tables.tables.list",
+      "tables.zones.get",
+      "tables.zones.list"
+    ],
+    "optional_queries": [],
+    "commands": [
+      "tables.sessions.close",
+      "tables.sessions.open",
+      "tables.tables.create",
+      "tables.tables.delete",
+      "tables.tables.move",
+      "tables.tables.update",
+      "tables.zones.create",
+      "tables.zones.delete",
+      "tables.zones.update"
+    ],
+    "events": [
+      "tables.session.closed",
+      "tables.session.opened",
+      "tables.session.transferred",
+      "tables.table.created",
+      "tables.table.deleted",
+      "tables.table.updated",
+      "tables.zone.created",
+      "tables.zone.deleted",
+      "tables.zone.updated"
+    ],
+    "slots": []
+  }
+}
