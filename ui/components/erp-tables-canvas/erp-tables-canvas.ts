@@ -25,6 +25,9 @@ interface Table {
 
 interface ErploraLike {
   query<T = unknown>(name: string, params?: Record<string, unknown>): Promise<T>;
+  /** TODAS las filas (sin tope). Para lo que no es «una página»: la rejilla del TPV, un
+   *  `<ion-select>` de categorías… El viejo `page_size` NO existía y truncaba a 50. */
+  queryAll<T = unknown>(name: string, params?: Record<string, unknown>): Promise<T[]>;
   command<T = unknown>(name: string, payload?: Record<string, unknown>): Promise<T>;
   on?(event: string, cb: (payload: unknown) => void): () => void;
   /** i18n del módulo (ADR-0055): idioma activo + traducción del catálogo `ui`. */
@@ -139,8 +142,8 @@ export class ErpTablesCanvas extends LitElement {
     this.loading = true;
     try {
       const [z, t] = await Promise.all([
-        erplora().query('tables.zones.list', { page_size: 100, sort: 'sort_order', dir: 'asc' }).catch(() => []),
-        erplora().query('tables.tables.list', { page_size: 300, sort: 'number', dir: 'asc' }).catch(() => []),
+        erplora().queryAll('tables.zones.list', { sort: 'sort_order', dir: 'asc' }).catch(() => []),
+        erplora().queryAll('tables.tables.list', { sort: 'number', dir: 'asc' }).catch(() => []),
       ]);
       this.zones = rows<Zone>(z);
       this.tables = rows<Table>(t).map((m) => ({
