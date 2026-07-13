@@ -33,6 +33,11 @@ interface Table {
   zone_id: string | null;
 }
 
+interface Zone {
+  id: string;
+  name: string;
+}
+
 // Estado → clave i18n (el `value=` del enum NO se traduce; sí su etiqueta visible).
 const STATUS_KEY: Record<string, string> = {
   available: 'ui.statusAvailable',
@@ -49,11 +54,13 @@ function erplora(): ErploraClientLike {
 
 export class ErpTablesFloorPlan extends LitElement {
   static styles = css`
-    :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color, #1c1b18); }
-    header { display:flex; gap:.5rem; align-items:center; margin-bottom:.75rem; }
-    h2 { margin:0; font-size:1.15rem; flex:1; }
-    .form { display:flex; gap:.75rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem; }
-    .form ion-input { flex:1 1 11rem; min-width:9rem; }
+    :host { display:flex; flex-direction:column; height:100%; min-height:0; font-family: system-ui, sans-serif; color: var(--ion-text-color, #1c1b18); }
+    /* La vista llena el alto: el data-table ocupa todo (scroll interno, pie fijo). */
+    .page { display:flex; flex-direction:column; min-height:0; flex:1 1 auto; }
+    .page > ok-data-table { flex:1 1 auto; min-height:0; }
+    /* El alta vive en el panel lateral de la tabla (estrecho) → campos en columna, no en fila. */
+    .form { display:flex; flex-direction:column; gap:.7rem; }
+    .form ion-button { align-self:flex-end; }
     .err { color:#d9480f; font-weight:600; }
   `;
 
@@ -67,6 +74,10 @@ export class ErpTablesFloorPlan extends LitElement {
 
   @state() tick = 0;
 
+  /** Zonas REALES del hub: pueblan el select del filtro de zona (el servidor filtra `zone` por `eq`
+   *  sobre el NOMBRE de la zona, no por su id). */
+  @state() private zones: Zone[] = [];
+
   private ctrl!: ListController<Table>;
 
   private unsub?: () => void;
@@ -78,7 +89,17 @@ export class ErpTablesFloorPlan extends LitElement {
     return [
       { key: 'number', header: t('ui.colNumber'), sortable: true, filterable: true, filterType: 'text' },
       { key: 'name', header: t('ui.colName'), sortable: true, filterable: true, filterType: 'text', format: (r) => (r.name as string) || '—' },
-      { key: 'zone', header: t('ui.colZone'), sortable: true, filterable: true, filterType: 'text', format: (r) => (r.zone as string) || '—' },
+      {
+        key: 'zone',
+        header: t('ui.colZone'),
+        sortable: true,
+        filterable: true,
+        // Dominio cerrado: las zonas que existen en el hub. Tecleando el nombre a mano, un acento o
+        // una mayúscula de más («salon» por «Salón») dejaba la lista vacía sin decir por qué.
+        filterType: 'select',
+        options: this.zones.map((z) => ({ value: z.name, label: z.name })),
+        format: (r) => (r.zone as string) || '—',
+      },
       { key: 'capacity', header: t('ui.colCapacity'), align: 'right', sortable: true, filterable: true, filterType: 'text', format: (r) => t('ui.paxCount', { count: r.capacity }) },
       {
         key: 'status',
@@ -108,6 +129,7 @@ export class ErpTablesFloorPlan extends LitElement {
       dir: 'asc',
     });
     await this.ctrl.load();
+    await this.loadZones();
     // Reactividad: recargamos cuando el runtime emite eventos de dominio.
     try {
       const offs = [
@@ -130,6 +152,27 @@ export class ErpTablesFloorPlan extends LitElement {
     this.unsub?.();
   }
 
+  // Best-effort: si las zonas no cargan, el filtro de zona queda sin opciones pero la lista de mesas
+  // sigue funcionando (una mesa sin zona es válida: `zone_id` es nullable).
+  private async loadZones(): Promise<void> {
+    try {
+      // `queryAll`, no `query`: el select del filtro quiere TODAS las zonas. `query` sobre una query
+      // de lista devuelve solo la PRIMERA página (50) y se calla — ADR-0124. Coherente con lo que
+      // ya hacen erp-tables-canvas y erp-tables-pos-zones.
+      const rows = await erplora().queryAll<Zone>('tables.zones.list', { sort: 'sort_order', dir: 'asc' });
+      this.zones = Array.isArray(rows) ? rows : [];
+    } catch {
+      this.zones = [];
+    }
+  }
+
+  // Referencia al ok-data-table para cerrar su panel lateral (drawer) tras el alta.
+  private dataTable(): { open(p?: 'filters' | 'create'): void; close(): void } | null {
+    return this.renderRoot.querySelector('ok-data-table') as
+      | { open(p?: 'filters' | 'create'): void; close(): void }
+      | null;
+  }
+
   private async createTable(ev: Event) {
     ev.preventDefault();
     if (!this.newNumber.trim()) return;
@@ -149,6 +192,7 @@ export class ErpTablesFloorPlan extends LitElement {
       });
       this.newNumber = '';
       this.newCapacity = '4';
+      this.dataTable()?.close(); // si no, el panel se queda abierto tapando la mesa recién creada
       await this.ctrl.load(); // (además del evento; garantiza refresco inmediato)
     } catch (e) {
       this.formError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errCreateTable');
@@ -157,20 +201,21 @@ export class ErpTablesFloorPlan extends LitElement {
     }
   }
 
+  // El título de la vista lo pinta el topbar del shell: repetirlo aquí lo duplicaba en pantalla.
   render() {
     const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
-    return html`<div>
-        <header>
-          <h2>${t('ui.floorPlan')}</h2>
-        </header>
-        <form class="form" @submit=${(e) => this.createTable(e)}>
-          <ion-input fill="outline" label-placement="floating" label=${t('ui.colNumber')} .value=${this.newNumber} @ionInput=${(e: any) => (this.newNumber = e.target.value)}></ion-input>
-          <ion-input fill="outline" label-placement="floating" label=${t('ui.colCapacity')} type="number" min="1" .value=${this.newCapacity} @ionInput=${(e: any) => (this.newCapacity = e.target.value)}></ion-input>
-          <ion-button type="submit" size="small" ?disabled=${this.saving || !this.newNumber}>${this.saving ? t('ui.saving') : t('ui.addTable')}</ion-button>
-        </form>
+    return html`<div class="page">
         ${this.formError ? html`<p class="err">${this.formError}</p>` : nothing}
         ${this.ctrl?.error ? html`<p class="err">${this.ctrl.error}</p>` : nothing}
-        <ok-data-table .serverSide=${true} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${t('ui.searchPlaceholder')} .emptyMessage=${this.ctrl?.loading ? t('ui.loading') : t('ui.emptyTables')} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}></ok-data-table>
+        <ok-data-table .serverSide=${true} .fill=${true} .addable=${true} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${t('ui.searchPlaceholder')} .emptyMessage=${this.ctrl?.loading ? t('ui.loading') : t('ui.emptyTables')} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
+          <!-- Alta de mesa: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
+               solo con el panel abierto, el «+» de la barra abriría un panel vacío. -->
+          <form slot="create" class="form" @submit=${(e: Event) => this.createTable(e)}>
+            <ion-input fill="outline" label-placement="floating" label=${t('ui.colNumber')} .value=${this.newNumber} @ionInput=${(e: any) => (this.newNumber = e.target.value)}></ion-input>
+            <ion-input fill="outline" label-placement="floating" label=${t('ui.colCapacity')} type="number" min="1" .value=${this.newCapacity} @ionInput=${(e: any) => (this.newCapacity = e.target.value)}></ion-input>
+            <ion-button type="submit" ?disabled=${this.saving || !this.newNumber}>${this.saving ? t('ui.saving') : t('ui.addTable')}</ion-button>
+          </form>
+        </ok-data-table>
       </div>`;
   }
 }
