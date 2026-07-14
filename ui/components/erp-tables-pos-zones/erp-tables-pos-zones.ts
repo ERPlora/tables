@@ -65,7 +65,11 @@ function rows<T>(r: unknown): T[] {
 export class ErpTablesPosZones extends LitElement {
   static styles = css`
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
-    .open { width:100%; }
+    .ctx { display:flex; align-items:center; gap:.15rem; }
+    .trigger { --padding-start:.5rem; --padding-end:.5rem; }
+    .trigger[data-assigned] { --color: var(--ion-color-primary,#0091ce); }
+    .name { font-size:.8rem; font-weight:700; color:var(--ion-color-primary,#0091ce); max-width:9rem;
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .scrim { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:60; }
     .sheet { background:var(--ion-background-color,#fff); border-radius:16px; padding:1rem; width:min(94vw,32rem); max-height:90vh; overflow:auto; box-shadow:0 12px 48px rgba(0,0,0,.35); }
     .sheet-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; }
@@ -211,16 +215,25 @@ export class ErpTablesPosZones extends LitElement {
   render() {
     const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
     return html`
-      <ion-button class="open" fill=${this.selectedId ? 'solid' : 'outline'} size="small" @click=${() => this.openPicker()}>
-        ${this.selectedLabel || t('ui.assignTable')}
-      </ion-button>
+      <div class="ctx">
+        <ion-button class="trigger" fill="clear" size="small"
+          aria-label=${this.selectedLabel || t('ui.assignTable')}
+          title=${this.selectedLabel || t('ui.assignTable')}
+          ?data-assigned=${!!this.selectedId} @click=${() => this.openPicker()}>
+          <ion-icon slot="icon-only" name=${this.selectedId ? 'restaurant' : 'restaurant-outline'}></ion-icon>
+        </ion-button>
+        ${this.selectedLabel ? html`<span class="name" title=${this.selectedLabel}>${this.selectedLabel}</span>` : nothing}
+      </div>
 
       ${this.open
         ? html`<div class="scrim" @click=${(e: Event) => { if ((e.target as HTMLElement).classList.contains('scrim')) this.open = false; }}>
-            <div class="sheet">
+            <div class="sheet" role="dialog" aria-modal="true" aria-label=${t('ui.chooseTable')}>
               <div class="sheet-h">
                 <span class="t">${t('ui.chooseTable')}</span>
-                <button class="x" @click=${() => { this.open = false; }}>✕</button>
+                <ion-button class="close" fill="clear" size="small" aria-label=${t('ui.close')}
+                  @click=${() => { this.open = false; }}>
+                  <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+                </ion-button>
               </div>
 
               ${this.error ? html`<p style="color:#d9480f">${this.error}</p>` : nothing}
