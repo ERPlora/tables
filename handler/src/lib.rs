@@ -67,6 +67,12 @@ pub fn transfer_session(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<
 
 #[cfg(feature = "guest")]
 #[plugin_fn]
+pub fn merge_session(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output>> {
+    merge_session_pure(input.into_inner().into_value()).map(Json).map_err(guest_err)
+}
+
+#[cfg(feature = "guest")]
+#[plugin_fn]
 pub fn delete_zone(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output>> {
     delete_zone_pure(input.into_inner().into_value()).map(Json).map_err(guest_err)
 }
@@ -250,6 +256,27 @@ pub fn transfer_session_pure(input: Value) -> Result<Output, String> {
     Ok(Output { operations: vec![Operation::sql("tables._session_transfer", p)], events: vec![] })
 }
 
+/// `{payload, context}` → intención `tables._session_merge`.
+///
+/// Fusiona la comanda de la sesión origen (`session_id`) en la mesa destino OCUPADA
+/// (`target_table_id`). El handler es puro: NO conoce la sesión activa del destino
+/// (`merged_into_id`) ni el estado vivo — el SQL interno `tables._session_merge` cierra
+/// la sesión origen (`merged`, `merged_into_id` = sesión activa del destino por subquery),
+/// libera la mesa origen y asegura por gate que ambas estaban en el estado esperado. A
+/// diferencia de `transfer`, NO crea sesión nueva → no consume `context.new_ids`.
+pub fn merge_session_pure(input: Value) -> Result<Output, String> {
+    let (payload, _) = payload_and_ids(&input);
+
+    let session_id = req_str(&payload, "session_id")?;
+    let target_table_id = req_str(&payload, "target_table_id")?;
+
+    let mut p = Map::new();
+    p.insert("session_id".into(), json!(session_id));
+    p.insert("target_table_id".into(), json!(target_table_id));
+
+    Ok(Output { operations: vec![Operation::sql("tables._session_merge", p)], events: vec![] })
+}
+
 /// `{payload, context}` → intención `tables._session_delete`.
 pub fn delete_session_pure(input: Value) -> Result<Output, String> {
     let (payload, _) = payload_and_ids(&input);
@@ -277,4 +304,55 @@ pub fn delete_table_pure(input: Value) -> Result<Output, String> {
     let mut p = Map::new();
     p.insert("table_id".into(), json!(table_id));
     Ok(Output { operations: vec![Operation::sql("tables._table_delete", p)], events: vec![] })
+}
+
+// ── tests (lógica pura, sin BD ni feature `guest`) ───────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Entrada `{payload, context}` con los ids que el host entregaría.
+    fn input(payload: Value, ids: usize) -> Value {
+        let new_ids: Vec<Value> = (0..ids).map(|i| json!(format!("id-{i}"))).collect();
+        json!({
+            "payload": payload,
+            "context": { "hub_id": "h1", "current_user_id": "u1", "now": "2026-07-18T10:00:00+00:00", "new_ids": new_ids }
+        })
+    }
+
+    // ── merge_session (fusión de comandas, punto 3) ──────────────────────────
+
+    #[test]
+    fn merge_session_emite_la_intencion_con_origen_y_destino() {
+        // Fusionar la comanda de la sesión origen `s-origen` en la mesa destino OCUPADA
+        // `mesa-destino`. El handler es puro: no conoce la sesión activa del destino
+        // (`merged_into_id`) — eso lo resuelve el SQL interno por subquery. Solo valida
+        // y emite UNA intención `tables._session_merge` con {session_id, target_table_id}.
+        // A diferencia de `transfer`, NO crea sesión nueva → no consume `new_ids`.
+        let out = merge_session_pure(input(
+            json!({ "session_id": "s-origen", "target_table_id": "mesa-destino" }),
+            0,
+        ))
+        .expect("merge con origen y destino válidos");
+
+        assert_eq!(out.operations.len(), 1, "una sola intención de fusión");
+        let op = &out.operations[0];
+        assert_eq!(op.command, "tables._session_merge");
+        assert_eq!(op.params["session_id"], json!("s-origen"));
+        assert_eq!(op.params["target_table_id"], json!("mesa-destino"));
+        assert!(out.events.is_empty(), "el evento lo emite el command (declarado en module.json)");
+    }
+
+    #[test]
+    fn merge_session_exige_session_id_y_target_table_id() {
+        assert!(
+            merge_session_pure(input(json!({ "target_table_id": "mesa-destino" }), 0)).is_err(),
+            "sin session_id (origen) debe fallar"
+        );
+        assert!(
+            merge_session_pure(input(json!({ "session_id": "s-origen" }), 0)).is_err(),
+            "sin target_table_id (destino) debe fallar"
+        );
+    }
 }
