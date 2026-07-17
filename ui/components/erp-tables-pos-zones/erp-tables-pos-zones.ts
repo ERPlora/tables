@@ -80,12 +80,26 @@ export class ErpTablesPosZones extends LitElement {
     .sheet-h .t { font-size:1.2rem; font-weight:700; }
     .x { background:none; border:none; font-size:1.3rem; cursor:pointer; color:#8b897f; }
     .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr)); gap:.6rem; margin-top:.8rem; }
-    .mesa { border:2px solid; border-radius:12px; padding:.6rem .4rem; cursor:pointer; text-align:center; background:var(--ion-background-color,#fff); transition:transform .05s; }
+    .mesa-wrap { position:relative; }
+    .mesa { width:100%; border:2px solid; border-radius:12px; padding:.6rem .4rem; cursor:pointer; text-align:center; background:var(--ion-background-color,#fff); transition:transform .05s; }
     .mesa:active { transform:scale(.96); }
     .mesa[aria-pressed=true] { outline:3px solid var(--ion-color-primary,#0091ce); outline-offset:1px; }
+    .mesa[disabled] { opacity:.35; cursor:not-allowed; }
+    .mesa.target { outline:2px dashed var(--ion-color-primary,#0091ce); outline-offset:1px; }
     .mesa .n { font-weight:700; font-size:1.05rem; }
     .mesa .c { font-size:.75rem; color:#8b897f; }
     .mesa .s { font-size:.65rem; text-transform:uppercase; letter-spacing:.03em; font-weight:600; }
+    /* Botón ⋮ (more-vert) en la esquina de cada mesa OCUPADA: abre transferir/fusionar. */
+    .kebab { position:absolute; top:2px; right:2px; z-index:1; width:1.6rem; height:1.6rem; display:flex;
+      align-items:center; justify-content:center; border:none; border-radius:50%; background:rgba(0,0,0,.06);
+      color:var(--ion-text-color,#1c1b18); cursor:pointer; font-size:1rem; line-height:1; }
+    .kebab:hover { background:rgba(0,0,0,.14); }
+    /* Menú de acciones (tras ⋮) y banner de "elige destino". */
+    .actions { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin:.6rem 0; padding:.6rem .7rem;
+      border-radius:12px; background:var(--ion-color-light,#f4f5f8); }
+    .actions .lbl { font-weight:700; margin-right:auto; }
+    .hint { margin:.6rem 0; padding:.5rem .7rem; border-radius:10px; background:var(--ion-color-light,#f4f5f8);
+      font-size:.85rem; color:#8b897f; }
     .empty { color:#8b897f; text-align:center; padding:1.5rem 0; }
     .foot { display:flex; justify-content:space-between; align-items:center; margin-top:1rem; }
   `;
@@ -98,6 +112,11 @@ export class ErpTablesPosZones extends LitElement {
   @state() private selectedLabel = '';
   @state() private loading = false;
   @state() private error = '';
+  /** Modo del selector: `select` = elegir mesa; `transfer`/`merge` = elegir mesa DESTINO tras el
+   *  menú ⋮ de una mesa ocupada (punto 4/3). */
+  @state() private mode: 'select' | 'transfer' | 'merge' = 'select';
+  /** Mesa ORIGEN sobre la que se abrió el menú ⋮ (transferir/fusionar). */
+  @state() private actionSource?: { id: string; number: string };
 
   /** Sesión activa de la mesa seleccionada (la abrimos al ocupar, o la reanudamos si ya estaba). */
   private sessionId?: string;
@@ -108,6 +127,8 @@ export class ErpTablesPosZones extends LitElement {
     this.selectedId = undefined;
     this.selectedLabel = '';
     this.sessionId = undefined;
+    this.mode = 'select';
+    this.actionSource = undefined;
     if (sid) void this.closeSession(sid);
   };
 
@@ -173,7 +194,19 @@ export class ErpTablesPosZones extends LitElement {
     } catch { /* ignore */ }
   }
 
+  /** ¿Es `t` un destino válido para el modo activo? transfer→mesa libre; merge→mesa ocupada;
+   *  nunca la propia mesa origen. */
+  private isValidTarget(t: Table): boolean {
+    if (t.id === this.actionSource?.id) return false;
+    if (this.mode === 'transfer') return t.status === 'available';
+    if (this.mode === 'merge') return t.status !== 'available';
+    return true;
+  }
+
   private async pick(t: Table) {
+    // En modo destino, un toque elige la mesa a la que transferir/fusionar (solo válidas).
+    if (this.mode === 'transfer') { if (this.isValidTarget(t)) await this.doTransfer(t); return; }
+    if (this.mode === 'merge') { if (this.isValidTarget(t)) await this.doMerge(t); return; }
     if (t.id === this.selectedId) return;
     this.error = '';
     // Cambiar de mesa antes de cobrar: libera la anterior si la habíamos ocupado nosotros.
@@ -211,6 +244,76 @@ export class ErpTablesPosZones extends LitElement {
     void this.refreshTables();
   }
 
+  // ── Transferir / Fusionar (menú ⋮ de una mesa ocupada) ───────────────────────
+
+  /** Abre el menú de acciones (⋮) sobre una mesa ocupada. Detiene la propagación para no
+   *  disparar el `pick` de la celda. */
+  private openActions(t: Table, e: Event) {
+    e.stopPropagation();
+    this.error = '';
+    this.actionSource = { id: t.id, number: t.number };
+    this.mode = 'select';
+  }
+
+  private startTransfer() { this.mode = 'transfer'; }
+  private startMerge() { this.mode = 'merge'; }
+  private cancelAction() { this.mode = 'select'; this.actionSource = undefined; }
+
+  /** Emite hacia el POS el movimiento de comanda (mover en transfer, combinar en merge). El POS
+   *  (erp-pos-touch/desktop) mueve/fusiona el carrito por `table_id`; contrato por evento DOM. */
+  private emitCartMove(type: 'erp:order-transfer' | 'erp:order-merge', fromId: string, target: Table) {
+    this.dispatchEvent(new CustomEvent(type, {
+      detail: {
+        from_table_id: fromId,
+        to_table_id: target.id,
+        to_label: erplora().t(CATALOG, 'ui.tableLabel', { number: target.number }),
+      },
+      bubbles: true, composed: true,
+    }));
+  }
+
+  private async doTransfer(target: Table) {
+    const src = this.actionSource;
+    if (!src) return;
+    const sid = await this.activeSessionFor(src.id);
+    if (!sid) { this.error = erplora().t(CATALOG, 'ui.errNoActiveSession'); return; }
+    try {
+      await erplora().command('tables.sessions.transfer', { session_id: sid, target_table_id: target.id });
+      this.emitCartMove('erp:order-transfer', src.id, target);
+      await this.afterMove(src.id, target);
+    } catch (e) {
+      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errTransfer');
+    }
+  }
+
+  private async doMerge(target: Table) {
+    const src = this.actionSource;
+    if (!src) return;
+    const sid = await this.activeSessionFor(src.id);
+    if (!sid) { this.error = erplora().t(CATALOG, 'ui.errNoActiveSession'); return; }
+    try {
+      await erplora().command('tables.sessions.merge', { session_id: sid, target_table_id: target.id });
+      this.emitCartMove('erp:order-merge', src.id, target);
+      await this.afterMove(src.id, target);
+    } catch (e) {
+      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errMerge');
+    }
+  }
+
+  /** Tras transferir/fusionar: la comanda vive ahora en el DESTINO. Si SEGUÍAMOS en la mesa origen,
+   *  la selección pasa a la mesa destino (si no, el POS conserva la mesa que estuviera atendiendo). */
+  private async afterMove(srcId: string, target: Table) {
+    if (this.selectedId === srcId) {
+      this.selectedId = target.id;
+      this.sessionId = await this.activeSessionFor(target.id);
+      this.selectedLabel = erplora().t(CATALOG, 'ui.tableLabel', { number: target.number });
+    }
+    this.mode = 'select';
+    this.actionSource = undefined;
+    this.open = false;
+    void this.refreshTables();
+  }
+
   private get tablesInZone(): Table[] {
     if (!this.activeZone) return this.tables;
     return this.tables.filter((t) => t.zone_id === this.activeZone);
@@ -218,6 +321,11 @@ export class ErpTablesPosZones extends LitElement {
 
   render() {
     const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
+    const inAction = this.mode !== 'select';
+    const srcNum = this.actionSource?.number ?? '';
+    const title = this.mode === 'transfer' ? t('ui.transferTitle', { number: srcNum })
+      : this.mode === 'merge' ? t('ui.mergeTitle', { number: srcNum })
+      : t('ui.chooseTable');
     // Botón propio (ADR-0043 B): el POS monta este WC en el header (slot sales.pos.assign) como UN
     // botón-icono independiente del de cliente. Abre SU modal; al elegir mesa se cierra y emite
     // `erp:order-context`. El nombre de la mesa asignada lo muestra el chip del POS, no este botón.
@@ -229,17 +337,32 @@ export class ErpTablesPosZones extends LitElement {
         <ion-icon slot="icon-only" name=${this.selectedId ? 'restaurant' : 'restaurant-outline'}></ion-icon>
       </ion-button>
 
-      <dialog class="sheet" aria-label=${t('ui.chooseTable')}
+      <dialog class="sheet" aria-label=${title}
         @close=${() => { this.open = false; }}
         @click=${(e: Event) => { if (e.target === e.currentTarget) this.open = false; }}>
         <div class="sheet-h">
-          <span class="t">${t('ui.chooseTable')}</span>
+          <span class="t">${title}</span>
           <ion-button class="close" fill="clear" size="small" aria-label=${t('ui.close')} @click=${() => { this.open = false; }}>
             <ion-icon slot="icon-only" name="close-outline"></ion-icon>
           </ion-button>
         </div>
 
         ${this.error ? html`<p style="color:#d9480f">${this.error}</p>` : nothing}
+
+        ${this.actionSource && !inAction
+          ? html`<div class="actions">
+              <span class="lbl">${t('ui.tableLabel', { number: srcNum })}</span>
+              <ion-button size="small" fill="outline" @click=${() => this.startTransfer()}>
+                <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>${t('ui.transfer')}
+              </ion-button>
+              <ion-button size="small" fill="outline" @click=${() => this.startMerge()}>
+                <ion-icon slot="start" name="git-merge-outline"></ion-icon>${t('ui.merge')}
+              </ion-button>
+            </div>`
+          : nothing}
+        ${inAction
+          ? html`<div class="hint">${this.mode === 'transfer' ? t('ui.pickFreeTable') : t('ui.pickOccupiedTable')}</div>`
+          : nothing}
 
         ${this.zones.length
           ? html`<ion-segment scrollable value=${this.activeZone}
@@ -249,19 +372,33 @@ export class ErpTablesPosZones extends LitElement {
           : nothing}
 
         <div class="grid">
-          ${this.tablesInZone.map((tb) => html`
-            <button class="mesa" aria-pressed=${this.selectedId === tb.id}
-              style=${`border-color:${STATUS_COLOR[tb.status] ?? '#d9d6cf'}`} @click=${() => this.pick(tb)}>
-              <div class="n">${tb.number}</div>
-              <div class="c">${t('ui.paxCount', { count: tb.capacity })}</div>
-              <div class="s" style=${`color:${STATUS_COLOR[tb.status] ?? '#868e96'}`}>${t(STATUS_KEY[tb.status] ?? tb.status)}</div>
-            </button>`)}
+          ${this.tablesInZone.map((tb) => {
+            const validTarget = inAction && this.isValidTarget(tb);
+            const showKebab = !inAction && tb.status === 'occupied';
+            return html`
+            <div class="mesa-wrap">
+              ${showKebab
+                ? html`<button class="kebab" aria-label=${t('ui.tableActions')} @click=${(e: Event) => this.openActions(tb, e)}>
+                    <ion-icon name="ellipsis-vertical"></ion-icon>
+                  </button>`
+                : nothing}
+              <button class="mesa ${validTarget ? 'target' : ''}" aria-pressed=${this.selectedId === tb.id}
+                ?disabled=${inAction && !validTarget}
+                style=${`border-color:${STATUS_COLOR[tb.status] ?? '#d9d6cf'}`} @click=${() => this.pick(tb)}>
+                <div class="n">${tb.number}</div>
+                <div class="c">${t('ui.paxCount', { count: tb.capacity })}</div>
+                <div class="s" style=${`color:${STATUS_COLOR[tb.status] ?? '#868e96'}`}>${t(STATUS_KEY[tb.status] ?? tb.status)}</div>
+              </button>
+            </div>`;
+          })}
           ${!this.loading && !this.tablesInZone.length ? html`<div class="empty">${t('ui.noTablesInZone')}</div>` : nothing}
           ${this.loading ? html`<div class="empty">${t('ui.loading')}</div>` : nothing}
         </div>
 
         <div class="foot">
-          <ion-button fill="clear" size="small" ?disabled=${!this.selectedId} @click=${() => this.clear()}>${t('ui.removeTable')}</ion-button>
+          ${inAction
+            ? html`<ion-button fill="clear" size="small" @click=${() => this.cancelAction()}>${t('ui.cancel')}</ion-button>`
+            : html`<ion-button fill="clear" size="small" ?disabled=${!this.selectedId} @click=${() => this.clear()}>${t('ui.removeTable')}</ion-button>`}
         </div>
       </dialog>
     `;

@@ -1283,6 +1283,17 @@ var es_default = {
     assignTable: "Asignar mesa",
     chooseTable: "Elegir mesa",
     removeTable: "Quitar mesa",
+    tableActions: "Opciones de mesa",
+    transfer: "Transferir",
+    merge: "Fusionar",
+    cancel: "Cancelar",
+    transferTitle: "Transferir {number} a\u2026",
+    mergeTitle: "Fusionar {number} con\u2026",
+    pickFreeTable: "Elige una mesa libre",
+    pickOccupiedTable: "Elige una mesa ocupada",
+    errNoActiveSession: "Esa mesa no tiene comanda abierta",
+    errTransfer: "No se pudo transferir la mesa",
+    errMerge: "No se pudieron fusionar las mesas",
     tableLabel: "Mesa {number}",
     paxCount: "{count} pax",
     noTablesInZone: "Sin mesas en esta zona.",
@@ -1356,6 +1367,17 @@ var en_default = {
     assignTable: "Assign table",
     chooseTable: "Choose table",
     removeTable: "Remove table",
+    tableActions: "Table options",
+    transfer: "Transfer",
+    merge: "Merge",
+    cancel: "Cancel",
+    transferTitle: "Transfer {number} to\u2026",
+    mergeTitle: "Merge {number} with\u2026",
+    pickFreeTable: "Pick a free table",
+    pickOccupiedTable: "Pick an occupied table",
+    errNoActiveSession: "That table has no open order",
+    errTransfer: "Could not transfer the table",
+    errMerge: "Could not merge the tables",
     tableLabel: "Table {number}",
     paxCount: "{count} pax",
     noTablesInZone: "No tables in this zone.",
@@ -3830,12 +3852,15 @@ var ErpTablesPosZones = class extends i3 {
     this.selectedLabel = "";
     this.loading = false;
     this.error = "";
+    this.mode = "select";
     // Tras cobrar, el POS dispara este reset: la mesa queda pagada → cerramos su sesión (la libera).
     this.onReset = () => {
       const sid = this.sessionId;
       this.selectedId = void 0;
       this.selectedLabel = "";
       this.sessionId = void 0;
+      this.mode = "select";
+      this.actionSource = void 0;
       if (sid) void this.closeSession(sid);
     };
     // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template se re-evalúan
@@ -3860,12 +3885,26 @@ var ErpTablesPosZones = class extends i3 {
     .sheet-h .t { font-size:1.2rem; font-weight:700; }
     .x { background:none; border:none; font-size:1.3rem; cursor:pointer; color:#8b897f; }
     .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr)); gap:.6rem; margin-top:.8rem; }
-    .mesa { border:2px solid; border-radius:12px; padding:.6rem .4rem; cursor:pointer; text-align:center; background:var(--ion-background-color,#fff); transition:transform .05s; }
+    .mesa-wrap { position:relative; }
+    .mesa { width:100%; border:2px solid; border-radius:12px; padding:.6rem .4rem; cursor:pointer; text-align:center; background:var(--ion-background-color,#fff); transition:transform .05s; }
     .mesa:active { transform:scale(.96); }
     .mesa[aria-pressed=true] { outline:3px solid var(--ion-color-primary,#0091ce); outline-offset:1px; }
+    .mesa[disabled] { opacity:.35; cursor:not-allowed; }
+    .mesa.target { outline:2px dashed var(--ion-color-primary,#0091ce); outline-offset:1px; }
     .mesa .n { font-weight:700; font-size:1.05rem; }
     .mesa .c { font-size:.75rem; color:#8b897f; }
     .mesa .s { font-size:.65rem; text-transform:uppercase; letter-spacing:.03em; font-weight:600; }
+    /* Botón ⋮ (more-vert) en la esquina de cada mesa OCUPADA: abre transferir/fusionar. */
+    .kebab { position:absolute; top:2px; right:2px; z-index:1; width:1.6rem; height:1.6rem; display:flex;
+      align-items:center; justify-content:center; border:none; border-radius:50%; background:rgba(0,0,0,.06);
+      color:var(--ion-text-color,#1c1b18); cursor:pointer; font-size:1rem; line-height:1; }
+    .kebab:hover { background:rgba(0,0,0,.14); }
+    /* Menú de acciones (tras ⋮) y banner de "elige destino". */
+    .actions { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin:.6rem 0; padding:.6rem .7rem;
+      border-radius:12px; background:var(--ion-color-light,#f4f5f8); }
+    .actions .lbl { font-weight:700; margin-right:auto; }
+    .hint { margin:.6rem 0; padding:.5rem .7rem; border-radius:10px; background:var(--ion-color-light,#f4f5f8);
+      font-size:.85rem; color:#8b897f; }
     .empty { color:#8b897f; text-align:center; padding:1.5rem 0; }
     .foot { display:flex; justify-content:space-between; align-items:center; margin-top:1rem; }
   `;
@@ -3928,7 +3967,23 @@ var ErpTablesPosZones = class extends i3 {
     } catch {
     }
   }
+  /** ¿Es `t` un destino válido para el modo activo? transfer→mesa libre; merge→mesa ocupada;
+   *  nunca la propia mesa origen. */
+  isValidTarget(t5) {
+    if (t5.id === this.actionSource?.id) return false;
+    if (this.mode === "transfer") return t5.status === "available";
+    if (this.mode === "merge") return t5.status !== "available";
+    return true;
+  }
   async pick(t5) {
+    if (this.mode === "transfer") {
+      if (this.isValidTarget(t5)) await this.doTransfer(t5);
+      return;
+    }
+    if (this.mode === "merge") {
+      if (this.isValidTarget(t5)) await this.doMerge(t5);
+      return;
+    }
     if (t5.id === this.selectedId) return;
     this.error = "";
     if (this.sessionId && this.selectedId && this.selectedId !== t5.id) {
@@ -3964,12 +4019,92 @@ var ErpTablesPosZones = class extends i3 {
     this.open = false;
     void this.refreshTables();
   }
+  // ── Transferir / Fusionar (menú ⋮ de una mesa ocupada) ───────────────────────
+  /** Abre el menú de acciones (⋮) sobre una mesa ocupada. Detiene la propagación para no
+   *  disparar el `pick` de la celda. */
+  openActions(t5, e5) {
+    e5.stopPropagation();
+    this.error = "";
+    this.actionSource = { id: t5.id, number: t5.number };
+    this.mode = "select";
+  }
+  startTransfer() {
+    this.mode = "transfer";
+  }
+  startMerge() {
+    this.mode = "merge";
+  }
+  cancelAction() {
+    this.mode = "select";
+    this.actionSource = void 0;
+  }
+  /** Emite hacia el POS el movimiento de comanda (mover en transfer, combinar en merge). El POS
+   *  (erp-pos-touch/desktop) mueve/fusiona el carrito por `table_id`; contrato por evento DOM. */
+  emitCartMove(type, fromId, target) {
+    this.dispatchEvent(new CustomEvent(type, {
+      detail: {
+        from_table_id: fromId,
+        to_table_id: target.id,
+        to_label: erplora3().t(CATALOG3, "ui.tableLabel", { number: target.number })
+      },
+      bubbles: true,
+      composed: true
+    }));
+  }
+  async doTransfer(target) {
+    const src = this.actionSource;
+    if (!src) return;
+    const sid = await this.activeSessionFor(src.id);
+    if (!sid) {
+      this.error = erplora3().t(CATALOG3, "ui.errNoActiveSession");
+      return;
+    }
+    try {
+      await erplora3().command("tables.sessions.transfer", { session_id: sid, target_table_id: target.id });
+      this.emitCartMove("erp:order-transfer", src.id, target);
+      await this.afterMove(src.id, target);
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errTransfer");
+    }
+  }
+  async doMerge(target) {
+    const src = this.actionSource;
+    if (!src) return;
+    const sid = await this.activeSessionFor(src.id);
+    if (!sid) {
+      this.error = erplora3().t(CATALOG3, "ui.errNoActiveSession");
+      return;
+    }
+    try {
+      await erplora3().command("tables.sessions.merge", { session_id: sid, target_table_id: target.id });
+      this.emitCartMove("erp:order-merge", src.id, target);
+      await this.afterMove(src.id, target);
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errMerge");
+    }
+  }
+  /** Tras transferir/fusionar: la comanda vive ahora en el DESTINO. Si SEGUÍAMOS en la mesa origen,
+   *  la selección pasa a la mesa destino (si no, el POS conserva la mesa que estuviera atendiendo). */
+  async afterMove(srcId, target) {
+    if (this.selectedId === srcId) {
+      this.selectedId = target.id;
+      this.sessionId = await this.activeSessionFor(target.id);
+      this.selectedLabel = erplora3().t(CATALOG3, "ui.tableLabel", { number: target.number });
+    }
+    this.mode = "select";
+    this.actionSource = void 0;
+    this.open = false;
+    void this.refreshTables();
+  }
   get tablesInZone() {
     if (!this.activeZone) return this.tables;
     return this.tables.filter((t5) => t5.zone_id === this.activeZone);
   }
   render() {
     const t5 = (k2, params) => erplora3().t(CATALOG3, k2, params);
+    const inAction = this.mode !== "select";
+    const srcNum = this.actionSource?.number ?? "";
+    const title = this.mode === "transfer" ? t5("ui.transferTitle", { number: srcNum }) : this.mode === "merge" ? t5("ui.mergeTitle", { number: srcNum }) : t5("ui.chooseTable");
     return b2`
       <ion-button class="trigger" fill="clear" size="small"
         aria-label=${this.selectedLabel || t5("ui.assignTable")}
@@ -3978,7 +4113,7 @@ var ErpTablesPosZones = class extends i3 {
         <ion-icon slot="icon-only" name=${this.selectedId ? "restaurant" : "restaurant-outline"}></ion-icon>
       </ion-button>
 
-      <dialog class="sheet" aria-label=${t5("ui.chooseTable")}
+      <dialog class="sheet" aria-label=${title}
         @close=${() => {
       this.open = false;
     }}
@@ -3986,7 +4121,7 @@ var ErpTablesPosZones = class extends i3 {
       if (e5.target === e5.currentTarget) this.open = false;
     }}>
         <div class="sheet-h">
-          <span class="t">${t5("ui.chooseTable")}</span>
+          <span class="t">${title}</span>
           <ion-button class="close" fill="clear" size="small" aria-label=${t5("ui.close")} @click=${() => {
       this.open = false;
     }}>
@@ -3996,6 +4131,17 @@ var ErpTablesPosZones = class extends i3 {
 
         ${this.error ? b2`<p style="color:#d9480f">${this.error}</p>` : A}
 
+        ${this.actionSource && !inAction ? b2`<div class="actions">
+              <span class="lbl">${t5("ui.tableLabel", { number: srcNum })}</span>
+              <ion-button size="small" fill="outline" @click=${() => this.startTransfer()}>
+                <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>${t5("ui.transfer")}
+              </ion-button>
+              <ion-button size="small" fill="outline" @click=${() => this.startMerge()}>
+                <ion-icon slot="start" name="git-merge-outline"></ion-icon>${t5("ui.merge")}
+              </ion-button>
+            </div>` : A}
+        ${inAction ? b2`<div class="hint">${this.mode === "transfer" ? t5("ui.pickFreeTable") : t5("ui.pickOccupiedTable")}</div>` : A}
+
         ${this.zones.length ? b2`<ion-segment scrollable value=${this.activeZone}
               @ionChange=${(e5) => {
       this.activeZone = e5.detail.value;
@@ -4004,19 +4150,29 @@ var ErpTablesPosZones = class extends i3 {
             </ion-segment>` : A}
 
         <div class="grid">
-          ${this.tablesInZone.map((tb) => b2`
-            <button class="mesa" aria-pressed=${this.selectedId === tb.id}
-              style=${`border-color:${STATUS_COLOR2[tb.status] ?? "#d9d6cf"}`} @click=${() => this.pick(tb)}>
-              <div class="n">${tb.number}</div>
-              <div class="c">${t5("ui.paxCount", { count: tb.capacity })}</div>
-              <div class="s" style=${`color:${STATUS_COLOR2[tb.status] ?? "#868e96"}`}>${t5(STATUS_KEY3[tb.status] ?? tb.status)}</div>
-            </button>`)}
+          ${this.tablesInZone.map((tb) => {
+      const validTarget = inAction && this.isValidTarget(tb);
+      const showKebab = !inAction && tb.status === "occupied";
+      return b2`
+            <div class="mesa-wrap">
+              ${showKebab ? b2`<button class="kebab" aria-label=${t5("ui.tableActions")} @click=${(e5) => this.openActions(tb, e5)}>
+                    <ion-icon name="ellipsis-vertical"></ion-icon>
+                  </button>` : A}
+              <button class="mesa ${validTarget ? "target" : ""}" aria-pressed=${this.selectedId === tb.id}
+                ?disabled=${inAction && !validTarget}
+                style=${`border-color:${STATUS_COLOR2[tb.status] ?? "#d9d6cf"}`} @click=${() => this.pick(tb)}>
+                <div class="n">${tb.number}</div>
+                <div class="c">${t5("ui.paxCount", { count: tb.capacity })}</div>
+                <div class="s" style=${`color:${STATUS_COLOR2[tb.status] ?? "#868e96"}`}>${t5(STATUS_KEY3[tb.status] ?? tb.status)}</div>
+              </button>
+            </div>`;
+    })}
           ${!this.loading && !this.tablesInZone.length ? b2`<div class="empty">${t5("ui.noTablesInZone")}</div>` : A}
           ${this.loading ? b2`<div class="empty">${t5("ui.loading")}</div>` : A}
         </div>
 
         <div class="foot">
-          <ion-button fill="clear" size="small" ?disabled=${!this.selectedId} @click=${() => this.clear()}>${t5("ui.removeTable")}</ion-button>
+          ${inAction ? b2`<ion-button fill="clear" size="small" @click=${() => this.cancelAction()}>${t5("ui.cancel")}</ion-button>` : b2`<ion-button fill="clear" size="small" ?disabled=${!this.selectedId} @click=${() => this.clear()}>${t5("ui.removeTable")}</ion-button>`}
         </div>
       </dialog>
     `;
@@ -4057,4 +4213,10 @@ __decorateClass([
 __decorateClass([
   r5()
 ], ErpTablesPosZones.prototype, "error", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "mode", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "actionSource", 2);
 define("erp-tables-pos-zones", ErpTablesPosZones);
