@@ -89,8 +89,6 @@
     {
       "slot": "sales.pos.assign",
       "component": "erp-tables-pos-zones",
-      "tab_label": "Mesa",
-      "tab_icon": "restaurant-outline",
       "permission": "tables.view_table",
       "priority": 100
     }
