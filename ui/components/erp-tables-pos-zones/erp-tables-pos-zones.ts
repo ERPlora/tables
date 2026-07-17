@@ -86,7 +86,6 @@ export class ErpTablesPosZones extends LitElement {
     .foot { display:flex; justify-content:space-between; align-items:center; margin-top:1rem; }
   `;
 
-  @state() private open = false;
   @state() private zones: Zone[] = [];
   @state() private tables: Table[] = [];
   @state() private activeZone = '';
@@ -115,6 +114,9 @@ export class ErpTablesPosZones extends LitElement {
     super.connectedCallback();
     this.addEventListener('erp:order-context-reset', this.onReset);
     window.addEventListener('erplora:locale-changed', this.onLocaleChange);
+    // Picker INLINE (ADR-0043 B): el WC vive dentro de una pestaña del modal "Asignar" del POS, así
+    // que carga sus datos al montar (ya no hay botón-trigger que abra un modal propio).
+    void this.load();
   }
 
   disconnectedCallback() {
@@ -123,8 +125,7 @@ export class ErpTablesPosZones extends LitElement {
     window.removeEventListener('erplora:locale-changed', this.onLocaleChange);
   }
 
-  private async openPicker() {
-    this.open = true;
+  private async load() {
     this.loading = true;
     this.error = '';
     try {
@@ -170,7 +171,7 @@ export class ErpTablesPosZones extends LitElement {
   }
 
   private async pick(t: Table) {
-    if (t.id === this.selectedId) { this.open = false; return; }
+    if (t.id === this.selectedId) return;
     this.error = '';
     // Cambiar de mesa antes de cobrar: libera la anterior si la habíamos ocupado nosotros.
     if (this.sessionId && this.selectedId && this.selectedId !== t.id) {
@@ -194,7 +195,6 @@ export class ErpTablesPosZones extends LitElement {
     this.selectedId = t.id;
     this.selectedLabel = erplora().t(CATALOG, 'ui.tableLabel', { number: t.number });
     this.emit(t.id, this.selectedLabel);
-    this.open = false;
     void this.refreshTables();
   }
 
@@ -203,7 +203,6 @@ export class ErpTablesPosZones extends LitElement {
     this.selectedId = undefined;
     this.selectedLabel = '';
     this.emit(null, '');
-    this.open = false;
     void this.refreshTables();
   }
 
@@ -214,55 +213,33 @@ export class ErpTablesPosZones extends LitElement {
 
   render() {
     const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
+    // Contenido INLINE (ADR-0043 B): sin botón-trigger ni modal propio; el POS lo monta dentro de la
+    // pestaña "Mesa" de su modal "Asignar". Sigue emitiendo `erp:order-context` al elegir/quitar.
     return html`
-      <div class="ctx">
-        <ion-button class="trigger" fill="clear" size="small"
-          aria-label=${this.selectedLabel || t('ui.assignTable')}
-          title=${this.selectedLabel || t('ui.assignTable')}
-          ?data-assigned=${!!this.selectedId} @click=${() => this.openPicker()}>
-          <ion-icon slot="icon-only" name=${this.selectedId ? 'restaurant' : 'restaurant-outline'}></ion-icon>
-        </ion-button>
-        ${this.selectedLabel ? html`<span class="name" title=${this.selectedLabel}>${this.selectedLabel}</span>` : nothing}
+      ${this.error ? html`<p style="color:#d9480f">${this.error}</p>` : nothing}
+
+      ${this.zones.length
+        ? html`<ion-segment scrollable value=${this.activeZone}
+            @ionChange=${(e: CustomEvent) => { this.activeZone = (e.detail as { value: string }).value; }}>
+            ${this.zones.map((z) => html`<ion-segment-button value=${z.id}><ion-label>${z.name}</ion-label></ion-segment-button>`)}
+          </ion-segment>`
+        : nothing}
+
+      <div class="grid">
+        ${this.tablesInZone.map((tb) => html`
+          <button class="mesa" aria-pressed=${this.selectedId === tb.id}
+            style=${`border-color:${STATUS_COLOR[tb.status] ?? '#d9d6cf'}`} @click=${() => this.pick(tb)}>
+            <div class="n">${tb.number}</div>
+            <div class="c">${t('ui.paxCount', { count: tb.capacity })}</div>
+            <div class="s" style=${`color:${STATUS_COLOR[tb.status] ?? '#868e96'}`}>${t(STATUS_KEY[tb.status] ?? tb.status)}</div>
+          </button>`)}
+        ${!this.loading && !this.tablesInZone.length ? html`<div class="empty">${t('ui.noTablesInZone')}</div>` : nothing}
+        ${this.loading ? html`<div class="empty">${t('ui.loading')}</div>` : nothing}
       </div>
 
-      ${this.open
-        ? html`<div class="scrim" @click=${(e: Event) => { if ((e.target as HTMLElement).classList.contains('scrim')) this.open = false; }}>
-            <div class="sheet" role="dialog" aria-modal="true" aria-label=${t('ui.chooseTable')}>
-              <div class="sheet-h">
-                <span class="t">${t('ui.chooseTable')}</span>
-                <ion-button class="close" fill="clear" size="small" aria-label=${t('ui.close')}
-                  @click=${() => { this.open = false; }}>
-                  <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-                </ion-button>
-              </div>
-
-              ${this.error ? html`<p style="color:#d9480f">${this.error}</p>` : nothing}
-
-              ${this.zones.length
-                ? html`<ion-segment scrollable value=${this.activeZone}
-                    @ionChange=${(e: CustomEvent) => { this.activeZone = (e.detail as { value: string }).value; }}>
-                    ${this.zones.map((z) => html`<ion-segment-button value=${z.id}><ion-label>${z.name}</ion-label></ion-segment-button>`)}
-                  </ion-segment>`
-                : nothing}
-
-              <div class="grid">
-                ${this.tablesInZone.map((tb) => html`
-                  <button class="mesa" aria-pressed=${this.selectedId === tb.id}
-                    style=${`border-color:${STATUS_COLOR[tb.status] ?? '#d9d6cf'}`} @click=${() => this.pick(tb)}>
-                    <div class="n">${tb.number}</div>
-                    <div class="c">${t('ui.paxCount', { count: tb.capacity })}</div>
-                    <div class="s" style=${`color:${STATUS_COLOR[tb.status] ?? '#868e96'}`}>${t(STATUS_KEY[tb.status] ?? tb.status)}</div>
-                  </button>`)}
-                ${!this.loading && !this.tablesInZone.length ? html`<div class="empty">${t('ui.noTablesInZone')}</div>` : nothing}
-                ${this.loading ? html`<div class="empty">${t('ui.loading')}</div>` : nothing}
-              </div>
-
-              <div class="foot">
-                <ion-button fill="clear" size="small" ?disabled=${!this.selectedId} @click=${() => this.clear()}>${t('ui.removeTable')}</ion-button>
-              </div>
-            </div>
-          </div>`
-        : nothing}
+      <div class="foot">
+        <ion-button fill="clear" size="small" ?disabled=${!this.selectedId} @click=${() => this.clear()}>${t('ui.removeTable')}</ion-button>
+      </div>
     `;
   }
 }
