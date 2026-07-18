@@ -15,6 +15,7 @@
       "tables.sessions.link_order",
       "tables.sessions.merge",
       "tables.sessions.open",
+      "tables.sessions.park",
       "tables.sessions.transfer",
       "tables.tables.create",
       "tables.tables.delete",

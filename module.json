@@ -571,6 +571,38 @@
       "ai": {
         "description": "Internal: closes the table session (and its history segment) when its order ends — paid or voided (ADR-0146). Listener target, not called directly."
       }
+    },
+    "tables.sessions.park": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "sql": [
+        "commands/_assignment_release_parked.sql",
+        "commands/_table_free_by_session.sql",
+        "commands/_session_park.sql"
+      ],
+      "schema": "schemas/session_park.json",
+      "emit": [
+        "tables.session.parked"
+      ],
+      "ai": {
+        "description": "Parks an open check: releases the table WITHOUT closing the account (ADR-0146). The session stays alive (guests, waiter, start time) and its history segment closes with reason `parked`; parking never opens a new segment, because a parked check is not sitting at any table."
+      }
+    },
+    "tables.sessions.restore": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "sql": [
+        "commands/_session_restore.sql",
+        "commands/_assignment_restore.sql",
+        "commands/_table_occupy_by_session.sql"
+      ],
+      "schema": "schemas/session_restore.json",
+      "emit": [
+        "tables.session.restored"
+      ],
+      "ai": {
+        "description": "Seats a parked check at a table again (the same one or another) — ADR-0146. Opens a new history segment with reason `restored`."
+      }
     }
   },
   "ui": {

@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "tables.sessions.restore",
+  "description": "Sienta de nuevo una cuenta aparcada en una mesa (ADR-0146). Abre un tramo de historial con motivo `restored`.",
+  "type": "object",
+  "required": ["session_id", "table_id"],
+  "additionalProperties": false,
+  "properties": {
+    "session_id": { "type": "string", "minLength": 1 },
+    "table_id": { "type": "string", "minLength": 1 },
+    "operation_id": { "type": "string", "default": "" }
+  }
+}

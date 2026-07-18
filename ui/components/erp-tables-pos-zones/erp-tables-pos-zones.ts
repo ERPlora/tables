@@ -155,6 +155,7 @@ export class ErpTablesPosZones extends LitElement {
     this.addEventListener('erp:order-context-reset', this.onReset);
     this.addEventListener('erp:order-linked', this.onOrderLinked);
     this.addEventListener('erp:order-restored', this.onOrderRestored);
+    this.addEventListener('erp:order-parked', this.onOrderParked);
     window.addEventListener('erplora:locale-changed', this.onLocaleChange);
   }
 
@@ -163,6 +164,7 @@ export class ErpTablesPosZones extends LitElement {
     this.removeEventListener('erp:order-context-reset', this.onReset);
     this.removeEventListener('erp:order-linked', this.onOrderLinked);
     this.removeEventListener('erp:order-restored', this.onOrderRestored);
+    this.removeEventListener('erp:order-parked', this.onOrderParked);
     window.removeEventListener('erplora:locale-changed', this.onLocaleChange);
   }
 
@@ -192,6 +194,22 @@ export class ErpTablesPosZones extends LitElement {
       detail: { table_id, label, order_id: order_id ?? null }, bubbles: true, composed: true,
     }));
   }
+
+  /** El TPV aparcó la cuenta → esta mesa se suelta, pero la cuenta sigue viva (ADR-0146).
+   *
+   *  La sesión pasa a `parked` conservando comensales, camarero y desde cuándo se atiende; su tramo
+   *  de historial se cierra con motivo `parked`, y la mesa queda libre para otros. */
+  private readonly onOrderParked = async (): Promise<void> => {
+    if (!this.sessionId) return;
+    const sid = this.sessionId;
+    this.sessionId = undefined;
+    this.selectedId = undefined;
+    this.selectedLabel = '';
+    try {
+      await erplora().command('tables.sessions.park', { session_id: sid });
+    } catch { /* aparcar no puede romper la venta: la cuenta sigue abierta igualmente */ }
+    void this.refreshTables();
+  };
 
   /** El TPV reanudó un pedido tras recargar → recupera SU mesa desde la junction (ADR-0144).
    *

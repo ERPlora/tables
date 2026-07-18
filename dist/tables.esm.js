@@ -3866,6 +3866,22 @@ var ErpTablesPosZones = class extends i3 {
     // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template se re-evalúan
     // con el nuevo `erplora.locale`.
     this.onLocaleChange = () => this.requestUpdate();
+    /** El TPV aparcó la cuenta → esta mesa se suelta, pero la cuenta sigue viva (ADR-0146).
+     *
+     *  La sesión pasa a `parked` conservando comensales, camarero y desde cuándo se atiende; su tramo
+     *  de historial se cierra con motivo `parked`, y la mesa queda libre para otros. */
+    this.onOrderParked = async () => {
+      if (!this.sessionId) return;
+      const sid = this.sessionId;
+      this.sessionId = void 0;
+      this.selectedId = void 0;
+      this.selectedLabel = "";
+      try {
+        await erplora3().command("tables.sessions.park", { session_id: sid });
+      } catch {
+      }
+      void this.refreshTables();
+    };
     /** El TPV reanudó un pedido tras recargar → recupera SU mesa desde la junction (ADR-0144).
      *
      *  `sales` no sabe de mesas, así que no puede restaurar este contexto: lo hace su dueño. Sin
@@ -3956,6 +3972,7 @@ var ErpTablesPosZones = class extends i3 {
     this.addEventListener("erp:order-context-reset", this.onReset);
     this.addEventListener("erp:order-linked", this.onOrderLinked);
     this.addEventListener("erp:order-restored", this.onOrderRestored);
+    this.addEventListener("erp:order-parked", this.onOrderParked);
     window.addEventListener("erplora:locale-changed", this.onLocaleChange);
   }
   disconnectedCallback() {
@@ -3963,6 +3980,7 @@ var ErpTablesPosZones = class extends i3 {
     this.removeEventListener("erp:order-context-reset", this.onReset);
     this.removeEventListener("erp:order-linked", this.onOrderLinked);
     this.removeEventListener("erp:order-restored", this.onOrderRestored);
+    this.removeEventListener("erp:order-parked", this.onOrderParked);
     window.removeEventListener("erplora:locale-changed", this.onLocaleChange);
   }
   async openPicker() {
