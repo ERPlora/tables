@@ -4061,11 +4061,13 @@ var ErpTablesPosZones = class extends i3 {
   }
   /** Emite hacia el POS el movimiento de comanda (mover en transfer, combinar en merge). El POS
    *  (erp-pos-touch/desktop) mueve/fusiona el carrito por `table_id`; contrato por evento DOM. */
-  emitCartMove(type, fromId, target) {
+  emitCartMove(type, fromId, target, orders = {}) {
     this.dispatchEvent(new CustomEvent(type, {
       detail: {
         from_table_id: fromId,
         to_table_id: target.id,
+        from_order_id: orders.from ?? null,
+        to_order_id: orders.to ?? null,
         to_label: erplora3().t(CATALOG3, "ui.tableLabel", { number: target.number })
       },
       bubbles: true,
@@ -4075,14 +4077,16 @@ var ErpTablesPosZones = class extends i3 {
   async doTransfer(target) {
     const src = this.actionSource;
     if (!src) return;
-    const sid = await this.activeSessionFor(src.id);
+    const info = await this.activeSessionInfo(src.id);
+    const sid = info?.id;
+    const srcOrderId = info?.order_id || void 0;
     if (!sid) {
       this.error = erplora3().t(CATALOG3, "ui.errNoActiveSession");
       return;
     }
     try {
       await erplora3().command("tables.sessions.transfer", { session_id: sid, target_table_id: target.id });
-      this.emitCartMove("erp:order-transfer", src.id, target);
+      this.emitCartMove("erp:order-transfer", src.id, target, { from: srcOrderId, to: srcOrderId });
       await this.afterMove(src.id, target);
     } catch (e5) {
       this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errTransfer");
@@ -4091,14 +4095,17 @@ var ErpTablesPosZones = class extends i3 {
   async doMerge(target) {
     const src = this.actionSource;
     if (!src) return;
-    const sid = await this.activeSessionFor(src.id);
+    const info = await this.activeSessionInfo(src.id);
+    const sid = info?.id;
+    const srcOrderId = info?.order_id || void 0;
+    const dstOrderId = (await this.activeSessionInfo(target.id))?.order_id || void 0;
     if (!sid) {
       this.error = erplora3().t(CATALOG3, "ui.errNoActiveSession");
       return;
     }
     try {
       await erplora3().command("tables.sessions.merge", { session_id: sid, target_table_id: target.id });
-      this.emitCartMove("erp:order-merge", src.id, target);
+      this.emitCartMove("erp:order-merge", src.id, target, { from: srcOrderId, to: dstOrderId });
       await this.afterMove(src.id, target);
     } catch (e5) {
       this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errMerge");
