@@ -487,6 +487,7 @@
       "permission": "tables.add_tablesession",
       "sql": [
         "commands/_session_open_insert.sql",
+        "commands/_assignment_open.sql",
         "commands/_session_open_occupy.sql",
         "commands/_session_open_assert.sql",
         "commands/_gate_clear.sql"
@@ -496,6 +497,7 @@
       "permission": "tables.change_tablesession",
       "sql": [
         "commands/_session_close_update.sql",
+        "commands/_assignment_release_closed.sql",
         "commands/_session_close_free.sql",
         "commands/_session_close_assert.sql",
         "commands/_gate_clear.sql"
@@ -505,9 +507,11 @@
       "permission": "tables.change_tablesession",
       "sql": [
         "commands/_session_transfer_close.sql",
+        "commands/_assignment_release_transferred.sql",
         "commands/_session_transfer_free.sql",
         "commands/_session_transfer_insert.sql",
         "commands/_session_transfer_occupy.sql",
+        "commands/_assignment_transfer_open.sql",
         "commands/_session_transfer_assert.sql",
         "commands/_gate_clear.sql"
       ]
@@ -516,6 +520,7 @@
       "permission": "tables.change_tablesession",
       "sql": [
         "commands/_session_merge_close.sql",
+        "commands/_assignment_release_merged.sql",
         "commands/_session_merge_free.sql",
         "commands/_session_merge_assert.sql",
         "commands/_gate_clear.sql"
@@ -554,9 +559,31 @@
       "ai": {
         "description": "Links the active session of a table to an open order (ADR-0141 table-order junction). Called by the POS when it opens an order while a table is selected."
       }
+    },
+    "tables._session_close_by_order": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "sql": [
+        "commands/_assignment_release_by_order.sql",
+        "commands/_table_free_by_order.sql",
+        "commands/_session_close_by_order.sql"
+      ],
+      "ai": {
+        "description": "Internal: closes the table session (and its history segment) when its order ends — paid or voided (ADR-0146). Listener target, not called directly."
+      }
     }
   },
   "ui": {
     "entry": "dist/tables.esm.js"
+  },
+  "events": {
+    "listen": {
+      "order.completed": {
+        "command": "tables._session_close_by_order"
+      },
+      "sale.voided": {
+        "command": "tables._session_close_by_order"
+      }
+    }
   }
 }
