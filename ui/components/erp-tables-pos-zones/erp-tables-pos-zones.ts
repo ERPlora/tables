@@ -292,11 +292,18 @@ export class ErpTablesPosZones extends LitElement {
 
   /** Emite hacia el POS el movimiento de comanda (mover en transfer, combinar en merge). El POS
    *  (erp-pos-touch/desktop) mueve/fusiona el carrito por `table_id`; contrato por evento DOM. */
-  private emitCartMove(type: 'erp:order-transfer' | 'erp:order-merge', fromId: string, target: Table) {
+  private emitCartMove(
+    type: 'erp:order-transfer' | 'erp:order-merge', fromId: string, target: Table,
+    orders: { from?: string; to?: string } = {},
+  ) {
+    // ADR-0141: viajan también los PEDIDOS. Transferir no mueve líneas (el pedido es el mismo, solo
+    // cambia de mesa); fusionar sí: el POS suma las líneas del origen en el destino y lo anula.
     this.dispatchEvent(new CustomEvent(type, {
       detail: {
         from_table_id: fromId,
         to_table_id: target.id,
+        from_order_id: orders.from ?? null,
+        to_order_id: orders.to ?? null,
         to_label: erplora().t(CATALOG, 'ui.tableLabel', { number: target.number }),
       },
       bubbles: true, composed: true,
@@ -306,11 +313,16 @@ export class ErpTablesPosZones extends LitElement {
   private async doTransfer(target: Table) {
     const src = this.actionSource;
     if (!src) return;
-    const sid = await this.activeSessionFor(src.id);
+    const info = await this.activeSessionInfo(src.id);
+    const sid = info?.id;
+    // Pedido de la mesa ORIGEN, leído ANTES de mover (después la sesión origen queda 'transferred').
+    const srcOrderId = info?.order_id || undefined;
     if (!sid) { this.error = erplora().t(CATALOG, 'ui.errNoActiveSession'); return; }
     try {
       await erplora().command('tables.sessions.transfer', { session_id: sid, target_table_id: target.id });
-      this.emitCartMove('erp:order-transfer', src.id, target);
+      // El pedido NO se mueve: sigue siendo el mismo, ahora colgado de la mesa destino (la sesión
+      // nueva arrastró el order_id). Se avisa al POS solo para que actualice su contexto.
+      this.emitCartMove('erp:order-transfer', src.id, target, { from: srcOrderId, to: srcOrderId });
       await this.afterMove(src.id, target);
     } catch (e) {
       this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errTransfer');
@@ -320,11 +332,17 @@ export class ErpTablesPosZones extends LitElement {
   private async doMerge(target: Table) {
     const src = this.actionSource;
     if (!src) return;
-    const sid = await this.activeSessionFor(src.id);
+    const info = await this.activeSessionInfo(src.id);
+    const sid = info?.id;
+    // Los DOS pedidos, leídos antes de fusionar: el POS suma el del origen en el del destino.
+    const srcOrderId = info?.order_id || undefined;
+    const dstOrderId = (await this.activeSessionInfo(target.id))?.order_id || undefined;
     if (!sid) { this.error = erplora().t(CATALOG, 'ui.errNoActiveSession'); return; }
     try {
       await erplora().command('tables.sessions.merge', { session_id: sid, target_table_id: target.id });
-      this.emitCartMove('erp:order-merge', src.id, target);
+      // Fusionar SÍ mueve líneas: el POS suma la comanda del origen en la del destino y anula la
+      // del origen (una sola cuenta en una sola mesa).
+      this.emitCartMove('erp:order-merge', src.id, target, { from: srcOrderId, to: dstOrderId });
       await this.afterMove(src.id, target);
     } catch (e) {
       this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errMerge');
