@@ -97,7 +97,8 @@
     "sqlite": [
       "migrations/sqlite/001_init.sql",
       "migrations/sqlite/002_gate.sql",
-      "migrations/sqlite/003_session_merge.sql"
+      "migrations/sqlite/003_session_merge.sql",
+      "migrations/sqlite/004_session_order.sql"
     ]
   },
   "queries": {
