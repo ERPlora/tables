@@ -4147,7 +4147,7 @@ var ErpTablesPosZones = class extends i3 {
                se quita de un toque. Si la comanda tiene productos NO se pierde: el POS la aparca. -->
           <ion-chip class="table-chip" outline @click=${() => this.openPicker()}
                     title=${this.selectedLabel} aria-label=${this.selectedLabel}>
-            <ion-icon name="restaurant"></ion-icon>
+            <ion-icon name="ms-table-restaurant"></ion-icon>
             <ion-label>${this.selectedLabel}</ion-label>
             <ion-icon name="close-circle" class="chip-x" role="button" tabindex="0"
                       aria-label=${t5("ui.removeTable")} title=${t5("ui.removeTable")}
@@ -4159,7 +4159,7 @@ var ErpTablesPosZones = class extends i3 {
           <ion-button class="trigger" fill="clear" size="small"
             aria-label=${t5("ui.assignTable")} title=${t5("ui.assignTable")}
             @click=${() => this.openPicker()}>
-            <ion-icon slot="icon-only" name="restaurant-outline"></ion-icon>
+            <ion-icon slot="icon-only" name="ms-table-restaurant-outline"></ion-icon>
           </ion-button>`}
 
       <dialog class="sheet" aria-label=${title}
