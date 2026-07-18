@@ -3866,6 +3866,25 @@ var ErpTablesPosZones = class extends i3 {
     // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template se re-evalúan
     // con el nuevo `erplora.locale`.
     this.onLocaleChange = () => this.requestUpdate();
+    /** El TPV reanudó un pedido tras recargar → recupera SU mesa desde la junction (ADR-0144).
+     *
+     *  `sales` no sabe de mesas, así que no puede restaurar este contexto: lo hace su dueño. Sin
+     *  esto, al recargar el TPV la comanda aparecía «sin mesa» aunque la mesa siguiera ocupada, y el
+     *  camarero no tenía forma de saber a qué mesa pertenecía lo que estaba viendo. */
+    this.onOrderRestored = async (e5) => {
+      const orderId = e5.detail?.order_id;
+      if (!orderId || this.selectedId) return;
+      try {
+        const r6 = await erplora3().query("tables.sessions.by_order", { order_id: orderId });
+        const s5 = rows2(r6).find((x2) => x2.status === "active");
+        if (!s5?.table_id) return;
+        this.sessionId = s5.session_id;
+        this.selectedId = s5.table_id;
+        this.selectedLabel = erplora3().t(CATALOG3, "ui.tableLabel", { number: s5.table_number ?? "" });
+        this.emit(s5.table_id, this.selectedLabel, orderId);
+      } catch {
+      }
+    };
     /** El POS abrió un pedido con esta mesa seleccionada → se escribe la junction (ADR-0141). */
     this.onOrderLinked = async (e5) => {
       const d3 = e5.detail;
@@ -3929,12 +3948,14 @@ var ErpTablesPosZones = class extends i3 {
     super.connectedCallback();
     this.addEventListener("erp:order-context-reset", this.onReset);
     this.addEventListener("erp:order-linked", this.onOrderLinked);
+    this.addEventListener("erp:order-restored", this.onOrderRestored);
     window.addEventListener("erplora:locale-changed", this.onLocaleChange);
   }
   disconnectedCallback() {
     super.disconnectedCallback();
     this.removeEventListener("erp:order-context-reset", this.onReset);
     this.removeEventListener("erp:order-linked", this.onOrderLinked);
+    this.removeEventListener("erp:order-restored", this.onOrderRestored);
     window.removeEventListener("erplora:locale-changed", this.onLocaleChange);
   }
   async openPicker() {

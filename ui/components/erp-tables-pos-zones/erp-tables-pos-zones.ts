@@ -147,6 +147,7 @@ export class ErpTablesPosZones extends LitElement {
     super.connectedCallback();
     this.addEventListener('erp:order-context-reset', this.onReset);
     this.addEventListener('erp:order-linked', this.onOrderLinked);
+    this.addEventListener('erp:order-restored', this.onOrderRestored);
     window.addEventListener('erplora:locale-changed', this.onLocaleChange);
   }
 
@@ -154,6 +155,7 @@ export class ErpTablesPosZones extends LitElement {
     super.disconnectedCallback();
     this.removeEventListener('erp:order-context-reset', this.onReset);
     this.removeEventListener('erp:order-linked', this.onOrderLinked);
+    this.removeEventListener('erp:order-restored', this.onOrderRestored);
     window.removeEventListener('erplora:locale-changed', this.onLocaleChange);
   }
 
@@ -183,6 +185,27 @@ export class ErpTablesPosZones extends LitElement {
       detail: { table_id, label, order_id: order_id ?? null }, bubbles: true, composed: true,
     }));
   }
+
+  /** El TPV reanudó un pedido tras recargar → recupera SU mesa desde la junction (ADR-0144).
+   *
+   *  `sales` no sabe de mesas, así que no puede restaurar este contexto: lo hace su dueño. Sin
+   *  esto, al recargar el TPV la comanda aparecía «sin mesa» aunque la mesa siguiera ocupada, y el
+   *  camarero no tenía forma de saber a qué mesa pertenecía lo que estaba viendo. */
+  private readonly onOrderRestored = async (e: Event): Promise<void> => {
+    const orderId = (e as CustomEvent<{ order_id?: string }>).detail?.order_id;
+    if (!orderId || this.selectedId) return;
+    try {
+      const r = await erplora().query('tables.sessions.by_order', { order_id: orderId });
+      const s = rows<{ session_id?: string; table_id?: string; table_number?: string; status?: string }>(r)
+        .find((x) => x.status === 'active');
+      if (!s?.table_id) return; // el pedido no es de mesa (barra/mostrador)
+      this.sessionId = s.session_id;
+      this.selectedId = s.table_id;
+      this.selectedLabel = erplora().t(CATALOG, 'ui.tableLabel', { number: s.table_number ?? '' });
+      // Devuelve el contexto al TPV para que pinte la mesa de la comanda que acaba de reanudar.
+      this.emit(s.table_id, this.selectedLabel, orderId);
+    } catch { /* si no se puede resolver, el TPV sigue: la comanda no depende de la mesa */ }
+  };
 
   /** El POS abrió un pedido con esta mesa seleccionada → se escribe la junction (ADR-0141). */
   private readonly onOrderLinked = async (e: Event): Promise<void> => {
