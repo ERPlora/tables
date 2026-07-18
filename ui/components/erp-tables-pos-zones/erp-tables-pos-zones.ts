@@ -67,6 +67,13 @@ export class ErpTablesPosZones extends LitElement {
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
     .ctx { display:flex; align-items:center; gap:.15rem; }
     .trigger { --padding-start:.5rem; --padding-end:.5rem; }
+    /* Mesa asignada: badge compacto con su X. El aspa es el objetivo táctil de soltar la mesa. */
+    ion-chip.table-chip { --background:transparent; border-color:var(--ion-color-primary,#0091ce);
+      color:var(--ion-color-primary,#0091ce); height:2rem; margin:0; font-weight:700; }
+    ion-chip.table-chip ion-label { font-size:.8rem; max-width:8rem; overflow:hidden;
+      text-overflow:ellipsis; white-space:nowrap; }
+    ion-chip.table-chip .chip-x { cursor:pointer; font-size:1.05rem; margin-inline-start:.15rem; }
+    ion-chip.table-chip .chip-x:hover { opacity:.7; }
     .trigger[data-assigned] { --color: var(--ion-color-primary,#0091ce); }
     .name { font-size:.8rem; font-weight:700; color:var(--ion-color-primary,#0091ce); max-width:9rem;
             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -379,12 +386,25 @@ export class ErpTablesPosZones extends LitElement {
     // botón-icono independiente del de cliente. Abre SU modal; al elegir mesa se cierra y emite
     // `erp:order-context`. El nombre de la mesa asignada lo muestra el chip del POS, no este botón.
     return html`
-      <ion-button class="trigger" fill="clear" size="small"
-        aria-label=${this.selectedLabel || t('ui.assignTable')}
-        title=${this.selectedLabel || t('ui.assignTable')}
-        ?data-assigned=${!!this.selectedId} @click=${() => this.openPicker()}>
-        <ion-icon slot="icon-only" name=${this.selectedId ? 'restaurant' : 'restaurant-outline'}></ion-icon>
-      </ion-button>
+      ${this.selectedId
+        ? html`
+          <!-- Mesa asignada: badge con su nombre y una X para soltarla. Sustituye al botón de texto
+               'Quitar mesa', que estaba escondido en el pie del modal: aquí se ve qué mesa llevas y
+               se quita de un toque. Si la comanda tiene productos NO se pierde: el POS la aparca. -->
+          <ion-chip class="table-chip" outline @click=${() => this.openPicker()}
+                    title=${this.selectedLabel} aria-label=${this.selectedLabel}>
+            <ion-icon name="restaurant"></ion-icon>
+            <ion-label>${this.selectedLabel}</ion-label>
+            <ion-icon name="close-circle" class="chip-x" role="button" tabindex="0"
+                      aria-label=${t('ui.removeTable')} title=${t('ui.removeTable')}
+                      @click=${(e: Event) => { e.stopPropagation(); void this.clear(); }}></ion-icon>
+          </ion-chip>`
+        : html`
+          <ion-button class="trigger" fill="clear" size="small"
+            aria-label=${t('ui.assignTable')} title=${t('ui.assignTable')}
+            @click=${() => this.openPicker()}>
+            <ion-icon slot="icon-only" name="restaurant-outline"></ion-icon>
+          </ion-button>`}
 
       <dialog class="sheet" aria-label=${title}
         @close=${() => { this.open = false; }}
@@ -447,7 +467,7 @@ export class ErpTablesPosZones extends LitElement {
         <div class="foot">
           ${inAction
             ? html`<ion-button fill="clear" size="small" @click=${() => this.cancelAction()}>${t('ui.cancel')}</ion-button>`
-            : html`<ion-button fill="clear" size="small" ?disabled=${!this.selectedId} @click=${() => this.clear()}>${t('ui.removeTable')}</ion-button>`}
+            : nothing}
         </div>
       </dialog>
     `;
