@@ -68,8 +68,15 @@ export class ErpTablesPosZones extends LitElement {
     .ctx { display:flex; align-items:center; gap:.15rem; }
     .trigger { --padding-start:.5rem; --padding-end:.5rem; }
     /* Mesa asignada: badge compacto con su X. El aspa es el objetivo táctil de soltar la mesa. */
+    ion-button.trigger ion-icon { font-size: calc(var(--pos-hdr-icon-size, 1.75rem) * 1.05); }
     ion-chip.table-chip { --background:transparent; border-color:var(--ion-color-primary,#0091ce);
       color:var(--ion-color-primary,#0091ce); height:2rem; margin:0; font-weight:700; }
+    /* El icono hereda el tamaño que fija el TPV en la cabecera del carrito
+       (la variable --pos-hdr-icon-size, que cruza el Shadow DOM); el fallback vale por si se monta
+       en otro sitio.
+       Material Symbols dibuja con menos trazo y menor viewBox que Ionicons, así que con el mismo
+       número se ve MÁS PEQUEÑO: se compensa con el factor de abajo para que ópticamente cuadre. */
+    ion-chip.table-chip ion-icon:not(.chip-x) { font-size: calc(var(--pos-hdr-icon-size, 1.75rem) * 1.05); }
     ion-chip.table-chip ion-label { font-size:.8rem; max-width:8rem; overflow:hidden;
       text-overflow:ellipsis; white-space:nowrap; }
     ion-chip.table-chip .chip-x { cursor:pointer; font-size:1.05rem; margin-inline-start:.15rem; }

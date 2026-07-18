@@ -3,6 +3,7 @@
   "module": "tables",
   "consumes": {
     "queries": [
+      "tables.sessions.by_order",
       "tables.sessions.list",
       "tables.tables.list",
       "tables.zones.get",
