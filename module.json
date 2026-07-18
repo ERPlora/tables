@@ -98,13 +98,15 @@
       "migrations/sqlite/001_init.sql",
       "migrations/sqlite/002_gate.sql",
       "migrations/sqlite/003_session_merge.sql",
-      "migrations/sqlite/004_session_order.sql"
+      "migrations/sqlite/004_session_order.sql",
+      "migrations/sqlite/005_session_assignment.sql"
     ],
     "postgres": [
       "migrations/postgres/001_init.sql",
       "migrations/postgres/002_gate.sql",
       "migrations/postgres/003_session_merge.sql",
-      "migrations/postgres/004_session_order.sql"
+      "migrations/postgres/004_session_order.sql",
+      "migrations/postgres/005_session_assignment.sql"
     ]
   },
   "queries": {
