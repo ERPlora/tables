@@ -11,7 +11,10 @@
     "optional_queries": [],
     "commands": [
       "tables.sessions.close",
+      "tables.sessions.link_order",
+      "tables.sessions.merge",
       "tables.sessions.open",
+      "tables.sessions.transfer",
       "tables.tables.create",
       "tables.tables.delete",
       "tables.tables.move",
