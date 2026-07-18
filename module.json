@@ -536,6 +536,16 @@
         "commands/_table_delete_assert.sql",
         "commands/_gate_clear.sql"
       ]
+    },
+    "tables.sessions.link_order": {
+      "permission": "tables.add_tablesession",
+      "transaction": true,
+      "sql": [
+        "commands/session_link_order.sql"
+      ],
+      "ai": {
+        "description": "Links the active session of a table to an open order (ADR-0141 table-order junction). Called by the POS when it opens an order while a table is selected."
+      }
     }
   },
   "ui": {

@@ -3866,6 +3866,15 @@ var ErpTablesPosZones = class extends i3 {
     // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template se re-evalúan
     // con el nuevo `erplora.locale`.
     this.onLocaleChange = () => this.requestUpdate();
+    /** El POS abrió un pedido con esta mesa seleccionada → se escribe la junction (ADR-0141). */
+    this.onOrderLinked = async (e5) => {
+      const d3 = e5.detail;
+      if (!d3?.order_id || !this.selectedId) return;
+      try {
+        await erplora3().command("tables.sessions.link_order", { table_id: this.selectedId, order_id: d3.order_id });
+      } catch {
+      }
+    };
   }
   static {
     this.styles = i`
@@ -3912,11 +3921,13 @@ var ErpTablesPosZones = class extends i3 {
   connectedCallback() {
     super.connectedCallback();
     this.addEventListener("erp:order-context-reset", this.onReset);
+    this.addEventListener("erp:order-linked", this.onOrderLinked);
     window.addEventListener("erplora:locale-changed", this.onLocaleChange);
   }
   disconnectedCallback() {
     super.disconnectedCallback();
     this.removeEventListener("erp:order-context-reset", this.onReset);
+    this.removeEventListener("erp:order-linked", this.onOrderLinked);
     window.removeEventListener("erplora:locale-changed", this.onLocaleChange);
   }
   async openPicker() {
@@ -3937,18 +3948,22 @@ var ErpTablesPosZones = class extends i3 {
       this.loading = false;
     }
   }
-  emit(table_id, label) {
+  emit(table_id, label, order_id) {
     this.dispatchEvent(new CustomEvent("erp:order-context", {
-      detail: { table_id, label },
+      detail: { table_id, label, order_id: order_id ?? null },
       bubbles: true,
       composed: true
     }));
   }
   /** Id de la sesión `active` de una mesa (para reanudar/cerrar), o undefined si no hay. */
   async activeSessionFor(tableId) {
+    return (await this.activeSessionInfo(tableId))?.id;
+  }
+  /** Sesión activa de una mesa CON su pedido enlazado (junction ADR-0141). */
+  async activeSessionInfo(tableId) {
     try {
       const r6 = await erplora3().query("tables.sessions.list", { f_table_id: tableId, f_status: "active", limit: 1 });
-      return rows2(r6)[0]?.id;
+      return rows2(r6)[0];
     } catch {
       return void 0;
     }
@@ -3987,10 +4002,14 @@ var ErpTablesPosZones = class extends i3 {
     if (t5.id === this.selectedId) return;
     this.error = "";
     if (this.sessionId && this.selectedId && this.selectedId !== t5.id) {
-      await this.closeSession(this.sessionId);
+      const prev = await this.activeSessionInfo(this.selectedId);
+      if (!prev?.order_id) {
+        await this.closeSession(this.sessionId);
+      }
       this.sessionId = void 0;
     }
     let sessionId;
+    let linkedOrderId;
     if (t5.status === "available") {
       try {
         await erplora3().command("tables.sessions.open", { table_id: t5.id });
@@ -3999,12 +4018,14 @@ var ErpTablesPosZones = class extends i3 {
         this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errOccupyTable");
       }
     } else {
-      sessionId = await this.activeSessionFor(t5.id);
+      const info = await this.activeSessionInfo(t5.id);
+      sessionId = info?.id;
+      linkedOrderId = info?.order_id || void 0;
     }
     this.sessionId = sessionId;
     this.selectedId = t5.id;
     this.selectedLabel = erplora3().t(CATALOG3, "ui.tableLabel", { number: t5.number });
-    this.emit(t5.id, this.selectedLabel);
+    this.emit(t5.id, this.selectedLabel, linkedOrderId ?? null);
     this.open = false;
     void this.refreshTables();
   }

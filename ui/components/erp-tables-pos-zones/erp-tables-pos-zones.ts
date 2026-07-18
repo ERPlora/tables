@@ -139,12 +139,14 @@ export class ErpTablesPosZones extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this.addEventListener('erp:order-context-reset', this.onReset);
+    this.addEventListener('erp:order-linked', this.onOrderLinked);
     window.addEventListener('erplora:locale-changed', this.onLocaleChange);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     this.removeEventListener('erp:order-context-reset', this.onReset);
+    this.removeEventListener('erp:order-linked', this.onOrderLinked);
     window.removeEventListener('erplora:locale-changed', this.onLocaleChange);
   }
 
@@ -167,17 +169,33 @@ export class ErpTablesPosZones extends LitElement {
     }
   }
 
-  private emit(table_id: string | null, label: string) {
+  private emit(table_id: string | null, label: string, order_id?: string | null) {
+    // ADR-0141: la sesión es la JUNCTION mesa↔pedido. Al elegir mesa le decimos al POS QUÉ pedido
+    // tiene abierta esa mesa (o null si aún ninguno) para que reanude su comanda desde la BD.
     this.dispatchEvent(new CustomEvent('erp:order-context', {
-      detail: { table_id, label }, bubbles: true, composed: true,
+      detail: { table_id, label, order_id: order_id ?? null }, bubbles: true, composed: true,
     }));
   }
 
+  /** El POS abrió un pedido con esta mesa seleccionada → se escribe la junction (ADR-0141). */
+  private readonly onOrderLinked = async (e: Event): Promise<void> => {
+    const d = (e as CustomEvent<{ order_id?: string }>).detail;
+    if (!d?.order_id || !this.selectedId) return;
+    try {
+      await erplora().command('tables.sessions.link_order', { table_id: this.selectedId, order_id: d.order_id });
+    } catch { /* el enlace es operativo, no debe romper la venta */ }
+  };
+
   /** Id de la sesión `active` de una mesa (para reanudar/cerrar), o undefined si no hay. */
   private async activeSessionFor(tableId: string): Promise<string | undefined> {
+    return (await this.activeSessionInfo(tableId))?.id;
+  }
+
+  /** Sesión activa de una mesa CON su pedido enlazado (junction ADR-0141). */
+  private async activeSessionInfo(tableId: string): Promise<{ id: string; order_id?: string } | undefined> {
     try {
       const r = await erplora().query('tables.sessions.list', { f_table_id: tableId, f_status: 'active', limit: 1 });
-      return rows<{ id: string }>(r)[0]?.id;
+      return rows<{ id: string; order_id?: string }>(r)[0];
     } catch { return undefined; }
   }
 
@@ -209,12 +227,22 @@ export class ErpTablesPosZones extends LitElement {
     if (this.mode === 'merge') { if (this.isValidTarget(t)) await this.doMerge(t); return; }
     if (t.id === this.selectedId) return;
     this.error = '';
-    // Cambiar de mesa antes de cobrar: libera la anterior si la habíamos ocupado nosotros.
+    // Cambiar de mesa antes de cobrar: libera la anterior SOLO si no tiene comanda.
+    //
+    // ADR-0141: la sesión es la JUNCTION mesa↔pedido, así que cerrarla PIERDE el enlace con la
+    // comanda. Antes daba igual (el carrito se guardaba aparte, por `table_id`), pero ahora cerrar
+    // la sesión de una mesa con comanda abierta hacía desaparecer sus líneas al volver a ella.
+    // Regla: si la mesa que dejamos ya tiene pedido enlazado, sigue OCUPADA (es su comanda viva);
+    // solo se libera la que tocamos por error y quedó sin pedir nada. Se cierra al cobrar (reset).
     if (this.sessionId && this.selectedId && this.selectedId !== t.id) {
-      await this.closeSession(this.sessionId);
+      const prev = await this.activeSessionInfo(this.selectedId);
+      if (!prev?.order_id) {
+        await this.closeSession(this.sessionId);
+      }
       this.sessionId = undefined;
     }
     let sessionId: string | undefined;
+    let linkedOrderId: string | undefined; // ADR-0141: pedido que ya tiene abierto esta mesa
     if (t.status === 'available') {
       // Mesa libre → ocupar (abrir sesión). El runtime rechaza si dejó de estar disponible.
       try {
@@ -224,13 +252,16 @@ export class ErpTablesPosZones extends LitElement {
         this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errOccupyTable');
       }
     } else {
-      // Mesa ya ocupada/reservada → reanudar su sesión activa (no abrir otra).
-      sessionId = await this.activeSessionFor(t.id);
+      // Mesa ya ocupada/reservada → reanudar su sesión activa (no abrir otra) Y su pedido, para que
+      // el POS recupere la comanda tal cual quedó (ADR-0141: la sesión es la junction mesa↔pedido).
+      const info = await this.activeSessionInfo(t.id);
+      sessionId = info?.id;
+      linkedOrderId = info?.order_id || undefined;
     }
     this.sessionId = sessionId;
     this.selectedId = t.id;
     this.selectedLabel = erplora().t(CATALOG, 'ui.tableLabel', { number: t.number });
-    this.emit(t.id, this.selectedLabel);
+    this.emit(t.id, this.selectedLabel, linkedOrderId ?? null);
     this.open = false;
     void this.refreshTables();
   }
