@@ -265,6 +265,14 @@
       "ai": {
         "description": "Lists active or historical table sessions"
       }
+    },
+    "tables.sessions.by_order": {
+      "permission": "tables.view_tablesession",
+      "expose_api": true,
+      "sql": "queries/session_by_order.sql",
+      "ai": {
+        "description": "Resolves the TABLE linked to a given order id via the table-session junction (ADR-0141). Used by kitchen to route a dine-in ticket without sales carrying table_id."
+      }
     }
   },
   "commands": {

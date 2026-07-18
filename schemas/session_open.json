@@ -3,7 +3,9 @@
   "title": "tables.sessions.open payload",
   "type": "object",
   "additionalProperties": false,
-  "required": ["table_id"],
+  "required": [
+    "table_id"
+  ],
   "properties": {
     "table_id": {
       "type": "string",
@@ -11,17 +13,33 @@
       "description": "UUID de la mesa (debe estar `available`; si no → not_available)"
     },
     "guests_count": {
-      "type": ["integer", "null"],
+      "type": [
+        "integer",
+        "null"
+      ],
       "minimum": 1,
       "description": "Comensales (def. 1; si supera el aforo es warning de UI, no bloquea)"
     },
     "waiter_id": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "description": "UUID del camarero asignado (opcional)"
     },
     "notes": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "description": "Notas iniciales de la sesión (opcional)"
+    },
+    "order_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "ADR-0141: pedido (sales_order.id) al que se enlaza esta mesa. La sesión es la junction mesa↔pedido; `tables` OWNea la asociación. Opaco (sin FK cross-módulo). NULL = mesa ocupada sin pedido aún."
     }
   }
 }

@@ -219,6 +219,9 @@ pub fn open_session_pure(input: Value) -> Result<Output, String> {
     p.insert("guests_count".into(), json!(guests_count));
     p.insert("waiter_id".into(), opt_str(&payload, "waiter_id"));
     p.insert("notes".into(), json!(as_str(payload.get("notes").unwrap_or(&Value::Null))));
+    // ADR-0141: la sesión es la JUNCTION mesa↔pedido. `order_id` (opcional) enlaza esta mesa con el
+    // pedido abierto de `sales`. `tables` OWNea la asociación; `sales` no conoce la mesa.
+    p.insert("order_id".into(), opt_str(&payload, "order_id"));
 
     // El evento `tables.session.opened` lo emite el command (declarado).
     Ok(Output { operations: vec![Operation::sql("tables._session_open", p)], events: vec![] })
@@ -354,5 +357,25 @@ mod tests {
             merge_session_pure(input(json!({ "session_id": "s-origen" }), 0)).is_err(),
             "sin target_table_id (destino) debe fallar"
         );
+    }
+
+    // ── ADR-0141 · la sesión de mesa es la JUNCTION mesa↔pedido ──────────────
+
+    #[test]
+    fn open_session_pasa_el_order_id_a_la_junction() {
+        // ADR-0141: `tables_session` es la junction mesa↔pedido. `tables.sessions.open` acepta un
+        // `order_id` (opcional) y lo pasa a la intención para persistirlo en `tables_session.order_id`.
+        // Así `tables` (satélite) OWNea la asociación; `sales` no conoce la mesa (dirección invertida).
+        let out = open_session_pure(input(
+            json!({ "table_id": "mesa-5", "order_id": "ord-9" }), 1,
+        )).expect("open con table_id + order_id");
+        let op = &out.operations[0];
+        assert_eq!(op.command, "tables._session_open");
+        assert_eq!(op.params["order_id"], json!("ord-9"), "el order_id viaja a la junction");
+        assert_eq!(op.params["table_id"], json!("mesa-5"));
+
+        // sin order_id (mesa ocupada antes de crear el pedido) → NULL, sigue funcionando.
+        let out2 = open_session_pure(input(json!({ "table_id": "mesa-5" }), 1)).expect("open sin order_id");
+        assert!(out2.operations[0].params["order_id"].is_null(), "order_id es opcional → NULL");
     }
 }
