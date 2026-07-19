@@ -1272,11 +1272,21 @@ function define(tag, ctor) {
 var es_default = {
   name: "Mesas",
   navigation: {
-    floor_plan: { label: "Plano de sala" },
-    zones: { label: "Zonas" },
-    tables: { label: "Mesas" },
-    sessions: { label: "Sesiones" },
-    settings: { label: "Ajustes" }
+    floor_plan: {
+      label: "Plano de sala"
+    },
+    zones: {
+      label: "Zonas"
+    },
+    tables: {
+      label: "Mesas"
+    },
+    sessions: {
+      label: "Sesiones"
+    },
+    settings: {
+      label: "Ajustes"
+    }
   },
   ui: {
     floorPlan: "Plano de sala",
@@ -1348,7 +1358,9 @@ var es_default = {
     errSaveZone: "No se pudo guardar la zona",
     errDeleteZone: "No se pudo borrar la zona (\xBFtiene mesas?)",
     errTableNumberRequired: "El n\xFAmero de mesa es obligatorio",
-    errZoneNameRequired: "El nombre de la zona es obligatorio"
+    errZoneNameRequired: "El nombre de la zona es obligatorio",
+    close: "Cerrar",
+    noTablesInZoneHint: "Crea mesas en el m\xF3dulo Mesas."
   }
 };
 
@@ -1356,11 +1368,21 @@ var es_default = {
 var en_default = {
   name: "Tables",
   navigation: {
-    floor_plan: { label: "Floor Plan" },
-    zones: { label: "Zones" },
-    tables: { label: "Tables" },
-    sessions: { label: "Sessions" },
-    settings: { label: "Settings" }
+    floor_plan: {
+      label: "Floor Plan"
+    },
+    zones: {
+      label: "Zones"
+    },
+    tables: {
+      label: "Tables"
+    },
+    sessions: {
+      label: "Sessions"
+    },
+    settings: {
+      label: "Settings"
+    }
   },
   ui: {
     floorPlan: "Floor Plan",
@@ -1432,7 +1454,9 @@ var en_default = {
     errSaveZone: "Could not save the zone",
     errDeleteZone: "Could not delete the zone (does it have tables?)",
     errTableNumberRequired: "The table number is required",
-    errZoneNameRequired: "The zone name is required"
+    errZoneNameRequired: "The zone name is required",
+    close: "Close",
+    noTablesInZoneHint: "Create tables in the Tables module."
   }
 };
 
@@ -2353,7 +2377,7 @@ var OkDataTable = class extends i3 {
     .tk-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.18); z-index: 19; }
     .drawer { position: absolute; top: 0; right: 0; height: 100%; width: 340px; max-width: 88%;
       background: var(--background); border-left: 1px solid var(--border-color);
-      box-shadow: -10px 0 28px rgba(0, 0, 0, 0.10); display: flex; flex-direction: column; z-index: 20;
+      display: flex; flex-direction: column; z-index: 20;
       animation: tk-slide-in 0.18s ease; }
     @keyframes tk-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
     .drawer .dh { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
@@ -3963,7 +3987,12 @@ var ErpTablesPosZones = class extends i3 {
     .actions .lbl { font-weight:700; margin-right:auto; }
     .hint { margin:.6rem 0; padding:.5rem .7rem; border-radius:10px; background:var(--ion-color-light,#f4f5f8);
       font-size:.85rem; color:#8b897f; }
-    .empty { color:#8b897f; text-align:center; padding:1.5rem 0; }
+    /* Empty-state con aire: icono + qué pasa + qué hacer (antes: texto estrujado en un panel
+       encogido — el panel toma un ancho mínimo digno aunque no haya mesas). */
+    .empty { color:#8b897f; text-align:center; padding:1.6rem 1rem; min-width:16rem; }
+    .empty ion-icon { font-size:2rem; opacity:.5; display:block; margin:0 auto .4rem; }
+    .empty p { margin:.15rem 0; }
+    .empty .empty-hint { font-size:.82rem; opacity:.75; }
     .foot { display:flex; justify-content:space-between; align-items:center; margin-top:1rem; }
   `;
   }
@@ -4262,7 +4291,12 @@ var ErpTablesPosZones = class extends i3 {
               </button>
             </div>`;
     })}
-          ${!this.loading && !this.tablesInZone.length ? b2`<div class="empty">${t5("ui.noTablesInZone")}</div>` : A}
+          ${!this.loading && !this.tablesInZone.length ? b2`
+            <div class="empty">
+              <ion-icon name="grid-outline"></ion-icon>
+              <p>${t5("ui.noTablesInZone")}</p>
+              <p class="empty-hint">${t5("ui.noTablesInZoneHint")}</p>
+            </div>` : A}
           ${this.loading ? b2`<div class="empty">${t5("ui.loading")}</div>` : A}
         </div>
 

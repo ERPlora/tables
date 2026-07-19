@@ -1,11 +1,21 @@
 {
   "name": "Tables",
   "navigation": {
-    "floor_plan": { "label": "Floor Plan" },
-    "zones": { "label": "Zones" },
-    "tables": { "label": "Tables" },
-    "sessions": { "label": "Sessions" },
-    "settings": { "label": "Settings" }
+    "floor_plan": {
+      "label": "Floor Plan"
+    },
+    "zones": {
+      "label": "Zones"
+    },
+    "tables": {
+      "label": "Tables"
+    },
+    "sessions": {
+      "label": "Sessions"
+    },
+    "settings": {
+      "label": "Settings"
+    }
   },
   "ui": {
     "floorPlan": "Floor Plan",
@@ -77,6 +87,8 @@
     "errSaveZone": "Could not save the zone",
     "errDeleteZone": "Could not delete the zone (does it have tables?)",
     "errTableNumberRequired": "The table number is required",
-    "errZoneNameRequired": "The zone name is required"
+    "errZoneNameRequired": "The zone name is required",
+    "close": "Close",
+    "noTablesInZoneHint": "Create tables in the Tables module."
   }
 }

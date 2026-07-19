@@ -160,3 +160,36 @@ describe('erp-tables-pos-zones — transferir / fusionar (⋮)', () => {
     expect(d?.to_table_id).toBe('tbl-3');
   });
 });
+
+// ── Pulido QA 2026-07-19 (visto en Playwright, no en la suite) ────────────────────────────────
+// (1) El botón de cerrar pintaba el literal «ui.close»: la clave no existía en los catálogos.
+//     El stub de `t` devuelve la clave, así que el test que protege esto mira los JSON.
+// (2) El empty-state «Sin mesas en esta zona» salía como texto estrujado en un panel encogido:
+//     ahora lleva icono + pista de QUÉ hacer (crear mesas en el módulo Mesas) y aire.
+import esCatalog from '../../../locales/es.json';
+import enCatalog from '../../../locales/en.json';
+
+describe('pulido del selector de mesas (QA 2026-07-19)', () => {
+  it('la clave ui.close existe en AMBOS catálogos (el botón de cerrar no pinta literales)', () => {
+    expect((esCatalog as { ui: Record<string, string> }).ui.close, 'es').toBeTruthy();
+    expect((enCatalog as { ui: Record<string, string> }).ui.close, 'en').toBeTruthy();
+  });
+
+  it('el empty-state de zona sin mesas lleva icono y pista de qué hacer', async () => {
+    (globalThis as Record<string, unknown>).erplora = {
+      ...((globalThis as Record<string, unknown>).erplora as object),
+      query: async (name: string) => (name.includes('zone') ? [{ id: 'z1', name: 'Terraza' }] : []),
+      queryAll: async (name: string) => (name.includes('zone') ? [{ id: 'z1', name: 'Terraza' }] : []),
+    };
+    const el = await montar();
+    (el as unknown as { open: boolean }).open = true;
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+
+    const vacio = el.shadowRoot!.querySelector('.empty');
+    expect(vacio, 'el estado vacío existe').toBeTruthy();
+    expect(vacio!.querySelector('ion-icon'), 'con icono, no texto suelto estrujado').toBeTruthy();
+    expect(vacio!.textContent, 'y con la pista de qué hacer').toContain('ui.noTablesInZoneHint');
+  });
+});

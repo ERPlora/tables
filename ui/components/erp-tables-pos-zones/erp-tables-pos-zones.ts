@@ -114,7 +114,12 @@ export class ErpTablesPosZones extends LitElement {
     .actions .lbl { font-weight:700; margin-right:auto; }
     .hint { margin:.6rem 0; padding:.5rem .7rem; border-radius:10px; background:var(--ion-color-light,#f4f5f8);
       font-size:.85rem; color:#8b897f; }
-    .empty { color:#8b897f; text-align:center; padding:1.5rem 0; }
+    /* Empty-state con aire: icono + qué pasa + qué hacer (antes: texto estrujado en un panel
+       encogido — el panel toma un ancho mínimo digno aunque no haya mesas). */
+    .empty { color:#8b897f; text-align:center; padding:1.6rem 1rem; min-width:16rem; }
+    .empty ion-icon { font-size:2rem; opacity:.5; display:block; margin:0 auto .4rem; }
+    .empty p { margin:.15rem 0; }
+    .empty .empty-hint { font-size:.82rem; opacity:.75; }
     .foot { display:flex; justify-content:space-between; align-items:center; margin-top:1rem; }
   `;
 
@@ -508,7 +513,12 @@ export class ErpTablesPosZones extends LitElement {
               </button>
             </div>`;
           })}
-          ${!this.loading && !this.tablesInZone.length ? html`<div class="empty">${t('ui.noTablesInZone')}</div>` : nothing}
+          ${!this.loading && !this.tablesInZone.length ? html`
+            <div class="empty">
+              <ion-icon name="grid-outline"></ion-icon>
+              <p>${t('ui.noTablesInZone')}</p>
+              <p class="empty-hint">${t('ui.noTablesInZoneHint')}</p>
+            </div>` : nothing}
           ${this.loading ? html`<div class="empty">${t('ui.loading')}</div>` : nothing}
         </div>
 
