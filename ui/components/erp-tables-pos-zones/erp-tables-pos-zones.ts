@@ -161,6 +161,7 @@ export class ErpTablesPosZones extends LitElement {
     this.addEventListener('erp:order-linked', this.onOrderLinked);
     this.addEventListener('erp:order-restored', this.onOrderRestored);
     this.addEventListener('erp:order-parked', this.onOrderParked);
+    this.addEventListener('erp:order-detached', this.onOrderDetached);
     window.addEventListener('erplora:locale-changed', this.onLocaleChange);
   }
 
@@ -170,6 +171,7 @@ export class ErpTablesPosZones extends LitElement {
     this.removeEventListener('erp:order-linked', this.onOrderLinked);
     this.removeEventListener('erp:order-restored', this.onOrderRestored);
     this.removeEventListener('erp:order-parked', this.onOrderParked);
+    this.removeEventListener('erp:order-detached', this.onOrderDetached);
     window.removeEventListener('erplora:locale-changed', this.onLocaleChange);
   }
 
@@ -204,6 +206,14 @@ export class ErpTablesPosZones extends LitElement {
    *
    *  La sesión pasa a `parked` conservando comensales, camarero y desde cuándo se atiende; su tramo
    *  de historial se cierra con motivo `parked`, y la mesa queda libre para otros. */
+  /** El TPV suelta la cuenta DE LA PANTALLA («Dejar en la mesa»): se limpia SOLO la selección
+   *  local — ni park ni close. La mesa sigue ocupada con su cuenta, recuperable tocándola. */
+  private readonly onOrderDetached = (): void => {
+    this.sessionId = undefined;
+    this.selectedId = undefined;
+    this.selectedLabel = '';
+  };
+
   private readonly onOrderParked = async (): Promise<void> => {
     if (!this.sessionId) return;
     const sid = this.sessionId;
@@ -327,7 +337,14 @@ export class ErpTablesPosZones extends LitElement {
   }
 
   private async clear() {
-    if (this.sessionId) { await this.closeSession(this.sessionId); this.sessionId = undefined; }
+    // Quitar la mesa = APARCAR la sesión (decisión Ioan 2026-07-19): la mesa queda libre y la
+    // sesión sobrevive como «aparcada» (ADR-0146), recuperable. Cerrarla era terminal: la
+    // cuenta perdía su rastro de servicio.
+    if (this.sessionId) {
+      const sid = this.sessionId;
+      this.sessionId = undefined;
+      try { await erplora().command('tables.sessions.park', { session_id: sid }); } catch { /* la cuenta sigue abierta igualmente */ }
+    }
     this.selectedId = undefined;
     this.selectedLabel = '';
     this.emit(null, '');

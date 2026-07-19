@@ -193,3 +193,57 @@ describe('pulido del selector de mesas (QA 2026-07-19)', () => {
     expect(vacio!.textContent, 'y con la pista de qué hacer').toContain('ui.noTablesInZoneHint');
   });
 });
+
+// ── «Dejar en la mesa» (decisión Ioan 2026-07-19): la cuenta VIVE en la mesa ──────────────────
+// El TPV puede soltar una cuenta DE LA PANTALLA sin aparcarla: la mesa sigue ocupada con su
+// cuenta y se recupera tocándola. Para eso el host emite `erp:order-detached`: el filler limpia
+// SU selección local y NADA más — ni park ni close (eso liberaría la mesa, el mal de siempre).
+describe('erp:order-detached: soltar de pantalla sin liberar la mesa', () => {
+  it('limpia la selección local y NO ejecuta ningún comando de sesión', async () => {
+    const comandos: string[] = [];
+    (globalThis as Record<string, unknown>).erplora = {
+      ...((globalThis as Record<string, unknown>).erplora as object),
+      command: async (name: string) => { comandos.push(name); return {}; },
+    };
+    const el = await montar();
+    const filler = el as unknown as {
+      selectedId?: string; selectedLabel: string; sessionId?: string; updateComplete: Promise<unknown>;
+    };
+    filler.selectedId = 'tbl-1';
+    filler.selectedLabel = 'Mesa 4';
+    filler.sessionId = 'ses-1';
+
+    el.dispatchEvent(new CustomEvent('erp:order-detached', { detail: {}, bubbles: false }));
+    await filler.updateComplete;
+
+    expect(filler.selectedId, 'la selección de pantalla se limpia').toBeUndefined();
+    expect(filler.sessionId).toBeUndefined();
+    expect(comandos.filter((c) => c.includes('sessions')), 'la sesión NO se toca: la mesa sigue ocupada')
+      .toEqual([]);
+  });
+});
+
+// La X del chip = QUITAR LA MESA = aparcar la sesión (decisión Ioan 2026-07-19): la mesa queda
+// libre y la sesión sobrevive como «aparcada» (ADR-0146), recuperable. Antes la X CERRABA la
+// sesión (terminal): la cuenta perdía su rastro de servicio.
+describe('la X del chip aparca la sesión, no la cierra', () => {
+  it('clear() ejecuta tables.sessions.park (no close) y emite contexto nulo', async () => {
+    const comandos: string[] = [];
+    (globalThis as Record<string, unknown>).erplora = {
+      ...((globalThis as Record<string, unknown>).erplora as object),
+      command: async (name: string) => { comandos.push(name); return {}; },
+    };
+    const el = await montar();
+    const filler = el as unknown as {
+      selectedId?: string; sessionId?: string; clear(): Promise<void>;
+    };
+    filler.selectedId = 'tbl-1';
+    filler.sessionId = 'ses-1';
+
+    await filler.clear();
+
+    expect(comandos).toContain('tables.sessions.park');
+    expect(comandos).not.toContain('tables.sessions.close');
+    expect(filler.selectedId).toBeUndefined();
+  });
+});
