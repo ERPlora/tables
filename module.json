@@ -99,14 +99,16 @@
       "migrations/sqlite/002_gate.sql",
       "migrations/sqlite/003_session_merge.sql",
       "migrations/sqlite/004_session_order.sql",
-      "migrations/sqlite/005_session_assignment.sql"
+      "migrations/sqlite/005_session_assignment.sql",
+      "migrations/sqlite/006_session_no_table.sql"
     ],
     "postgres": [
       "migrations/postgres/001_init.sql",
       "migrations/postgres/002_gate.sql",
       "migrations/postgres/003_session_merge.sql",
       "migrations/postgres/004_session_order.sql",
-      "migrations/postgres/005_session_assignment.sql"
+      "migrations/postgres/005_session_assignment.sql",
+      "migrations/postgres/006_session_no_table.sql"
     ]
   },
   "queries": {
