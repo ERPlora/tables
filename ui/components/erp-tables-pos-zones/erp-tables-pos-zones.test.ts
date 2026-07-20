@@ -70,6 +70,54 @@ describe('erp-tables-pos-zones', () => {
 
     expect(detail?.table_id, 'la venta queda asociada a la mesa').toBe('tbl-1');
     expect((el as unknown as { open: boolean }).open, 'al elegir se cierra').toBe(false);
+    expect(el.shadowRoot.querySelector('ion-button.trigger'),
+      'el icono de Mesa permanece disponible después de asignarla').toBeTruthy();
+
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    expect([...el.shadowRoot.querySelectorAll('ion-button')].some((b) => b.textContent?.trim() === 'ui.removeTable'),
+      'Quitar mesa queda dentro de su selector, igual que Quitar cliente').toBe(true);
+  });
+
+  it('no cambia de mesa si sales informa de productos pendientes de enviar', async () => {
+    const el = await montar();
+    let cambios = 0;
+    el.addEventListener('erp:order-context', () => { cambios += 1; });
+    el.dispatchEvent(new CustomEvent('erp:pos-state', {
+      detail: { pending_count: 2, kitchen_enabled: true }, bubbles: false,
+    }));
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+
+    el.shadowRoot.querySelector<HTMLElement>('.mesa')!.click();
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+
+    expect(cambios, 'no emite un cambio de cuenta').toBe(0);
+    expect((el as unknown as { open: boolean }).open, 'mantiene el selector abierto para explicar el bloqueo').toBe(true);
+    expect((el as unknown as { error: string }).error).toContain('ui.sendPendingBeforeTable');
+  });
+
+  it('reemite la mesa restaurada cuando Ventas vuelve a montar sus slots', async () => {
+    const el = await montar();
+    const filler = el as unknown as {
+      selectedId?: string; selectedLabel: string; updateComplete: Promise<unknown>;
+    };
+    filler.selectedId = 'tbl-1';
+    filler.selectedLabel = 'Mesa 4';
+    await filler.updateComplete;
+
+    let detail: { table_id: string | null; label?: string; order_id?: string | null } | undefined;
+    el.addEventListener('erp:order-context', (e) => { detail = (e as CustomEvent).detail; });
+    el.dispatchEvent(new CustomEvent('erp:order-restored', {
+      detail: { order_id: 'ord-1' }, bubbles: false,
+    }));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(detail).toEqual({ table_id: 'tbl-1', label: 'Mesa 4', order_id: 'ord-1' });
   });
 });
 

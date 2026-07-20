@@ -89,6 +89,7 @@
     "errTableNumberRequired": "El número de mesa es obligatorio",
     "errZoneNameRequired": "El nombre de la zona es obligatorio",
     "close": "Cerrar",
-    "noTablesInZoneHint": "Crea mesas en el módulo Mesas."
+    "noTablesInZoneHint": "Crea mesas en el módulo Mesas.",
+    "sendPendingBeforeTable": "Envía primero los {count} productos pendientes de la comanda actual."
   }
 }

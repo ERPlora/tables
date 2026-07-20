@@ -9,7 +9,7 @@ var __decorateClass = (decorators, target, key, kind) => {
   return result;
 };
 
-// ../../node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/element-internals.js
+// node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/element-internals.js
 var ElementInternalsShim = class ElementInternals {
   get shadowRoot() {
     return this.__host.__shadowRoot;
@@ -88,7 +88,7 @@ var ElementInternalsShim = class ElementInternals {
   }
 };
 
-// ../../node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/events.js
+// node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/events.js
 var __classPrivateFieldSet = function(receiver, state, value, kind, f3) {
   if (kind === "m") throw new TypeError("Private method is not writable");
   if (kind === "a" && !f3) throw new TypeError("Private accessor was defined without a setter");
@@ -246,7 +246,7 @@ Object.defineProperties(CustomEventShim.prototype, {
 var EventShimWithRealType = EventShim;
 var CustomEventShimWithRealType = CustomEventShim;
 
-// ../../node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/css.js
+// node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/lib/css.js
 var _a2;
 var CSSRuleShim = (_a2 = class CSSRule {
   constructor() {
@@ -277,7 +277,7 @@ var CSSRuleShim = (_a2 = class CSSRule {
   }
 }, _a2.STYLE_RULE = 1, _a2.CHARSET_RULE = 2, _a2.IMPORT_RULE = 3, _a2.MEDIA_RULE = 4, _a2.FONT_FACE_RULE = 5, _a2.PAGE_RULE = 6, _a2.NAMESPACE_RULE = 10, _a2.KEYFRAMES_RULE = 7, _a2.KEYFRAME_RULE = 8, _a2.SUPPORTS_RULE = 12, _a2.COUNTER_STYLE_RULE = 11, _a2.FONT_FEATURE_VALUES_RULE = 14, _a2.MARGIN_RULE = 9, _a2);
 
-// ../../node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/index.js
+// node_modules/.pnpm/@lit-labs+ssr-dom-shim@1.6.0/node_modules/@lit-labs/ssr-dom-shim/index.js
 globalThis.Event ??= EventShimWithRealType;
 globalThis.CustomEvent ??= CustomEventShimWithRealType;
 var constructionToken = Symbol();
@@ -674,7 +674,7 @@ var CustomElementRegistryShimWithRealType = CustomElementRegistry;
 var customElements2 = new CustomElementRegistryShimWithRealType();
 var windowShim = new WindowShim(constructionToken);
 
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/css-tag.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
 var s = Symbol();
@@ -719,7 +719,7 @@ var c = e || void 0 === t.CSSStyleSheet ? (t5) => t5 : (t5) => t5 instanceof CSS
   return r(e5);
 })(t5) : t5;
 
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/reactive-element.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/reactive-element.js
 var { is: h, defineProperty: r2, getOwnPropertyDescriptor: o2, getOwnPropertyNames: n2, getOwnPropertySymbols: a, getPrototypeOf: c2 } = Object;
 var l = globalThis;
 l.customElements ??= customElements2;
@@ -942,7 +942,7 @@ var g = class extends (globalThis.HTMLElement ?? HTMLElementShimWithRealType) {
 };
 g.elementStyles = [], g.shadowRootOptions = { mode: "open" }, g[f("elementProperties")] = /* @__PURE__ */ new Map(), g[f("finalized")] = /* @__PURE__ */ new Map(), u?.({ ReactiveElement: g }), (l.reactiveElementVersions ??= []).push("2.1.2");
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/lit-html.js
+// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i2 = (t5) => t5;
 var s2 = t2.trustedTypes;
@@ -1197,7 +1197,7 @@ var D = (t5, i7, s5) => {
   return h4._$AI(t5), h4;
 };
 
-// ../../node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
+// node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i3 = class extends g {
   constructor() {
@@ -1226,7 +1226,7 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i3 });
 (s3.litElementVersions ??= []).push("4.2.2");
 
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/decorators/property.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/decorators/property.js
 var o5 = { attribute: true, type: String, converter: b, reflect: false, hasChanged: m };
 var r4 = (t5 = o5, e5, r6) => {
   const { kind: n6, metadata: i7 } = r6;
@@ -1256,19 +1256,19 @@ function n4(t5) {
   })(t5, e5, o7);
 }
 
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/decorators/state.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/node/decorators/state.js
 function r5(r6) {
   return n4({ ...r6, state: true, attribute: false });
 }
 
-// ../../node_modules/.pnpm/@erplora+outfitkit@file+..+outfitkit/node_modules/@erplora/outfitkit/dist/define.js
+// node_modules/.pnpm/@erplora+outfitkit@file+..+outfitkit/node_modules/@erplora/outfitkit/dist/define.js
 function define(tag, ctor) {
   if (typeof customElements !== "undefined" && !customElements.get(tag)) {
     customElements.define(tag, ctor);
   }
 }
 
-// locales/es.json
+// modules/tables/locales/es.json
 var es_default = {
   name: "Mesas",
   navigation: {
@@ -1360,11 +1360,12 @@ var es_default = {
     errTableNumberRequired: "El n\xFAmero de mesa es obligatorio",
     errZoneNameRequired: "El nombre de la zona es obligatorio",
     close: "Cerrar",
-    noTablesInZoneHint: "Crea mesas en el m\xF3dulo Mesas."
+    noTablesInZoneHint: "Crea mesas en el m\xF3dulo Mesas.",
+    sendPendingBeforeTable: "Env\xEDa primero los {count} productos pendientes de la comanda actual."
   }
 };
 
-// locales/en.json
+// modules/tables/locales/en.json
 var en_default = {
   name: "Tables",
   navigation: {
@@ -1456,11 +1457,12 @@ var en_default = {
     errTableNumberRequired: "The table number is required",
     errZoneNameRequired: "The zone name is required",
     close: "Close",
-    noTablesInZoneHint: "Create tables in the Tables module."
+    noTablesInZoneHint: "Create tables in the Tables module.",
+    sendPendingBeforeTable: "Send the {count} pending items in the current order first."
   }
 };
 
-// ui/components/erp-tables-canvas/erp-tables-canvas.ts
+// modules/tables/ui/components/erp-tables-canvas/erp-tables-canvas.ts
 var CATALOG = { es: es_default, en: en_default };
 var BOX = 72;
 var DRAG_THRESHOLD = 5;
@@ -1946,7 +1948,7 @@ __decorateClass([
 ], ErpTablesCanvas.prototype, "saving", 2);
 define("erp-tables-canvas", ErpTablesCanvas);
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive.js
+// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t5) => (...e5) => ({ _$litDirective$: t5, values: e5 });
 var i4 = class {
@@ -1966,7 +1968,7 @@ var i4 = class {
   }
 };
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive-helpers.js
+// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive-helpers.js
 var { I: t4 } = j;
 var i5 = (o7) => o7;
 var s4 = () => document.createComment("");
@@ -1999,7 +2001,7 @@ var h3 = (o7) => {
   o7._$AR(), o7._$AA.remove();
 };
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/repeat.js
+// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/repeat.js
 var u4 = (e5, s5, t5) => {
   const r6 = /* @__PURE__ */ new Map();
   for (let l3 = s5; l3 <= t5; l3++) r6.set(e5[l3], l3);
@@ -2052,7 +2054,7 @@ var c4 = e4(class extends i4 {
   }
 });
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/style-map.js
+// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/style-map.js
 var n5 = "important";
 var i6 = " !" + n5;
 var o6 = e4(class extends i4 {
@@ -2081,7 +2083,7 @@ var o6 = e4(class extends i4 {
   }
 });
 
-// ../../node_modules/.pnpm/@erplora+outfitkit@file+..+outfitkit/node_modules/@erplora/outfitkit/dist/shared/icons.js
+// node_modules/.pnpm/@erplora+outfitkit@file+..+outfitkit/node_modules/@erplora/outfitkit/dist/shared/icons.js
 var rawAdd = '<svg viewBox="0 0 512 512" width="1.2em" height="1.2em" ><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M256 112v288m144-144H112"/></svg>';
 var rawAlertCircle = '<svg viewBox="0 0 512 512" width="1.2em" height="1.2em" ><path fill="currentColor" d="M256 48C141.31 48 48 141.31 48 256s93.31 208 208 208s208-93.31 208-208S370.69 48 256 48m0 319.91a20 20 0 1 1 20-20a20 20 0 0 1-20 20m21.72-201.15l-5.74 122a16 16 0 0 1-32 0l-5.74-121.94v-.05a21.74 21.74 0 1 1 43.44 0Z"/></svg>';
 var rawAlertCircleOutline = '<svg viewBox="0 0 512 512" width="1.2em" height="1.2em" ><path fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="32" d="M448 256c0-106-86-192-192-192S64 150 64 256s86 192 192 192s192-86 192-192Z"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M250.26 166.05L256 288l5.73-121.95a5.74 5.74 0 0 0-5.79-6h0a5.74 5.74 0 0 0-5.68 6"/><path fill="currentColor" d="M256 367.91a20 20 0 1 1 20-20a20 20 0 0 1-20 20"/></svg>';
@@ -2229,7 +2231,7 @@ function okIcon(value) {
   return BY_NAME[value] ?? value;
 }
 
-// ../../node_modules/.pnpm/@erplora+outfitkit@file+..+outfitkit/node_modules/@erplora/outfitkit/dist/ok-data-table.js
+// node_modules/.pnpm/@erplora+outfitkit@file+..+outfitkit/node_modules/@erplora/outfitkit/dist/ok-data-table.js
 var CSV_BOM = "\uFEFF";
 function decodeCsvBuffer(buf) {
   let text;
@@ -3546,7 +3548,7 @@ __decorateClass2([
 ], OkDataTable.prototype, "menuOpen");
 define("ok-data-table", OkDataTable);
 
-// ../../node_modules/.pnpm/@erplora+module-sdk@file+..+hub+packages+module-sdk/node_modules/@erplora/module-sdk/src/index.ts
+// node_modules/.pnpm/@erplora+module-sdk@file+..+hub+packages+module-sdk/node_modules/@erplora/module-sdk/src/index.ts
 function isEmpty(v3) {
   return v3 === null || v3 === void 0 || v3 === "";
 }
@@ -3664,7 +3666,7 @@ function createListController(client, queryName, onChange = () => {
   return new ListController(client, queryName, onChange, opts);
 }
 
-// ui/components/erp-tables-floor-plan/erp-tables-floor-plan.ts
+// modules/tables/ui/components/erp-tables-floor-plan/erp-tables-floor-plan.ts
 var CATALOG2 = { es: es_default, en: en_default };
 var STATUS_KEY2 = {
   available: "ui.statusAvailable",
@@ -3842,13 +3844,13 @@ __decorateClass([
 ], ErpTablesFloorPlan.prototype, "zones", 2);
 define("erp-tables-floor-plan", ErpTablesFloorPlan);
 
-// ui/components/erp-tables-pos-zones/erp-tables-pos-zones.ts
+// modules/tables/ui/components/erp-tables-pos-zones/erp-tables-pos-zones.ts
 var CATALOG3 = { es: es_default, en: en_default };
 var STATUS_COLOR2 = {
-  available: "#2f9e44",
-  occupied: "#d9480f",
-  reserved: "#f08c00",
-  blocked: "#868e96"
+  available: "var(--ion-color-success, #2f9e44)",
+  occupied: "var(--ion-color-danger, #d9480f)",
+  reserved: "var(--ion-color-warning, #f08c00)",
+  blocked: "var(--ion-color-medium, #868e96)"
 };
 var STATUS_KEY3 = {
   available: "ui.statusAvailable",
@@ -3876,6 +3878,8 @@ var ErpTablesPosZones = class extends i3 {
     this.selectedLabel = "";
     this.loading = false;
     this.error = "";
+    this.pendingCount = 0;
+    this.kitchenEnabled = false;
     this.mode = "select";
     // Tras cobrar, el POS dispara este reset: la mesa queda pagada → cerramos su sesión (la libera).
     this.onReset = () => {
@@ -3886,6 +3890,12 @@ var ErpTablesPosZones = class extends i3 {
       this.mode = "select";
       this.actionSource = void 0;
       if (sid) void this.closeSession(sid);
+    };
+    this.onPosState = (e5) => {
+      const detail = e5.detail;
+      const value = Number(detail?.pending_count ?? 0);
+      this.pendingCount = Number.isFinite(value) ? Math.max(0, value) : 0;
+      this.kitchenEnabled = detail?.kitchen_enabled === true;
     };
     // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template se re-evalúan
     // con el nuevo `erplora.locale`.
@@ -3920,7 +3930,11 @@ var ErpTablesPosZones = class extends i3 {
      *  camarero no tenía forma de saber a qué mesa pertenecía lo que estaba viendo. */
     this.onOrderRestored = async (e5) => {
       const orderId = e5.detail?.order_id;
-      if (!orderId || this.selectedId) return;
+      if (!orderId) return;
+      if (this.selectedId) {
+        this.emit(this.selectedId, this.selectedLabel, orderId);
+        return;
+      }
       try {
         const r6 = await erplora3().query("tables.sessions.by_order", { order_id: orderId });
         const s5 = rows2(r6).find((x2) => x2.status === "active");
@@ -3947,20 +3961,12 @@ var ErpTablesPosZones = class extends i3 {
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
     .ctx { display:flex; align-items:center; gap:.15rem; }
     .trigger { --padding-start:.5rem; --padding-end:.5rem; }
-    /* Mesa asignada: badge compacto con su X. El aspa es el objetivo táctil de soltar la mesa. */
     ion-button.trigger ion-icon { font-size: calc(var(--pos-hdr-icon-size, 1.75rem) * 1.05); }
-    ion-chip.table-chip { --background:transparent; border-color:var(--ion-color-primary,#0091ce);
-      color:var(--ion-color-primary,#0091ce); height:2rem; margin:0; font-weight:700; }
     /* El icono hereda el tamaño que fija el TPV en la cabecera del carrito
        (la variable --pos-hdr-icon-size, que cruza el Shadow DOM); el fallback vale por si se monta
        en otro sitio.
        Material Symbols dibuja con menos trazo y menor viewBox que Ionicons, así que con el mismo
        número se ve MÁS PEQUEÑO: se compensa con el factor de abajo para que ópticamente cuadre. */
-    ion-chip.table-chip ion-icon:not(.chip-x) { font-size: calc(var(--pos-hdr-icon-size, 1.75rem) * 1.05); }
-    ion-chip.table-chip ion-label { font-size:.8rem; max-width:8rem; overflow:hidden;
-      text-overflow:ellipsis; white-space:nowrap; }
-    ion-chip.table-chip .chip-x { cursor:pointer; font-size:1.05rem; margin-inline-start:.15rem; }
-    ion-chip.table-chip .chip-x:hover { opacity:.7; }
     .trigger[data-assigned] { --color: var(--ion-color-primary,#0091ce); }
     .name { font-size:.8rem; font-weight:700; color:var(--ion-color-primary,#0091ce); max-width:9rem;
             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -4005,6 +4011,7 @@ var ErpTablesPosZones = class extends i3 {
   }
   connectedCallback() {
     super.connectedCallback();
+    this.addEventListener("erp:pos-state", this.onPosState);
     this.addEventListener("erp:order-context-reset", this.onReset);
     this.addEventListener("erp:order-linked", this.onOrderLinked);
     this.addEventListener("erp:order-restored", this.onOrderRestored);
@@ -4013,6 +4020,7 @@ var ErpTablesPosZones = class extends i3 {
     window.addEventListener("erplora:locale-changed", this.onLocaleChange);
   }
   disconnectedCallback() {
+    this.removeEventListener("erp:pos-state", this.onPosState);
     super.disconnectedCallback();
     this.removeEventListener("erp:order-context-reset", this.onReset);
     this.removeEventListener("erp:order-linked", this.onOrderLinked);
@@ -4092,6 +4100,10 @@ var ErpTablesPosZones = class extends i3 {
     }
     if (t5.id === this.selectedId) return;
     this.error = "";
+    if (this.kitchenEnabled && this.pendingCount > 0) {
+      this.error = erplora3().t(CATALOG3, "ui.sendPendingBeforeTable", { count: this.pendingCount });
+      return;
+    }
     if (this.sessionId && this.selectedId && this.selectedId !== t5.id) {
       const prev = await this.activeSessionInfo(this.selectedId);
       if (!prev?.order_id) {
@@ -4121,6 +4133,11 @@ var ErpTablesPosZones = class extends i3 {
     void this.refreshTables();
   }
   async clear() {
+    if (this.kitchenEnabled && this.pendingCount > 0) {
+      this.error = erplora3().t(CATALOG3, "ui.sendPendingBeforeTable", { count: this.pendingCount });
+      this.open = true;
+      return;
+    }
     if (this.sessionId) {
       const sid = this.sessionId;
       this.sessionId = void 0;
@@ -4229,26 +4246,12 @@ var ErpTablesPosZones = class extends i3 {
     const srcNum = this.actionSource?.number ?? "";
     const title = this.mode === "transfer" ? t5("ui.transferTitle", { number: srcNum }) : this.mode === "merge" ? t5("ui.mergeTitle", { number: srcNum }) : t5("ui.chooseTable");
     return b2`
-      ${this.selectedId ? b2`
-          <!-- Mesa asignada: badge con su nombre y una X para soltarla. Sustituye al botón de texto
-               'Quitar mesa', que estaba escondido en el pie del modal: aquí se ve qué mesa llevas y
-               se quita de un toque. Si la comanda tiene productos NO se pierde: el POS la aparca. -->
-          <ion-chip class="table-chip" outline @click=${() => this.openPicker()}
-                    title=${this.selectedLabel} aria-label=${this.selectedLabel}>
-            <ion-icon name="ms-table-restaurant"></ion-icon>
-            <ion-label>${this.selectedLabel}</ion-label>
-            <ion-icon name="close-circle" class="chip-x" role="button" tabindex="0"
-                      aria-label=${t5("ui.removeTable")} title=${t5("ui.removeTable")}
-                      @click=${(e5) => {
-      e5.stopPropagation();
-      void this.clear();
-    }}></ion-icon>
-          </ion-chip>` : b2`
-          <ion-button class="trigger" fill="clear" size="small"
-            aria-label=${t5("ui.assignTable")} title=${t5("ui.assignTable")}
-            @click=${() => this.openPicker()}>
-            <ion-icon slot="icon-only" name="ms-table-restaurant-outline"></ion-icon>
-          </ion-button>`}
+      <ion-button class="trigger" fill="clear" size="small" ?data-assigned=${!!this.selectedId}
+        aria-label=${this.selectedId ? `${t5("ui.assignTable")}: ${this.selectedLabel}` : t5("ui.assignTable")}
+        title=${this.selectedId ? `${t5("ui.assignTable")}: ${this.selectedLabel}` : t5("ui.assignTable")}
+        @click=${() => this.openPicker()}>
+        <ion-icon slot="icon-only" name=${this.selectedId ? "ms-table-restaurant" : "ms-table-restaurant-outline"}></ion-icon>
+      </ion-button>
 
       <dialog class="sheet" aria-label=${title}
         @close=${() => {
@@ -4314,6 +4317,9 @@ var ErpTablesPosZones = class extends i3 {
         </div>
 
         <div class="foot">
+          ${!inAction && this.selectedId ? b2`<ion-button color="danger" fill="clear" size="small" @click=${() => void this.clear()}>
+                ${t5("ui.removeTable")}
+              </ion-button>` : A}
           ${inAction ? b2`<ion-button fill="clear" size="small" @click=${() => this.cancelAction()}>${t5("ui.cancel")}</ion-button>` : A}
         </div>
       </dialog>
@@ -4355,6 +4361,12 @@ __decorateClass([
 __decorateClass([
   r5()
 ], ErpTablesPosZones.prototype, "error", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "pendingCount", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "kitchenEnabled", 2);
 __decorateClass([
   r5()
 ], ErpTablesPosZones.prototype, "mode", 2);

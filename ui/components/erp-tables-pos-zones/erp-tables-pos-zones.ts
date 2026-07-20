@@ -37,10 +37,10 @@ interface ErploraLike {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  available: '#2f9e44',
-  occupied: '#d9480f',
-  reserved: '#f08c00',
-  blocked: '#868e96',
+  available: 'var(--ion-color-success, #2f9e44)',
+  occupied: 'var(--ion-color-danger, #d9480f)',
+  reserved: 'var(--ion-color-warning, #f08c00)',
+  blocked: 'var(--ion-color-medium, #868e96)',
 };
 
 const STATUS_KEY: Record<string, string> = {
@@ -67,20 +67,12 @@ export class ErpTablesPosZones extends LitElement {
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
     .ctx { display:flex; align-items:center; gap:.15rem; }
     .trigger { --padding-start:.5rem; --padding-end:.5rem; }
-    /* Mesa asignada: badge compacto con su X. El aspa es el objetivo táctil de soltar la mesa. */
     ion-button.trigger ion-icon { font-size: calc(var(--pos-hdr-icon-size, 1.75rem) * 1.05); }
-    ion-chip.table-chip { --background:transparent; border-color:var(--ion-color-primary,#0091ce);
-      color:var(--ion-color-primary,#0091ce); height:2rem; margin:0; font-weight:700; }
     /* El icono hereda el tamaño que fija el TPV en la cabecera del carrito
        (la variable --pos-hdr-icon-size, que cruza el Shadow DOM); el fallback vale por si se monta
        en otro sitio.
        Material Symbols dibuja con menos trazo y menor viewBox que Ionicons, así que con el mismo
        número se ve MÁS PEQUEÑO: se compensa con el factor de abajo para que ópticamente cuadre. */
-    ion-chip.table-chip ion-icon:not(.chip-x) { font-size: calc(var(--pos-hdr-icon-size, 1.75rem) * 1.05); }
-    ion-chip.table-chip ion-label { font-size:.8rem; max-width:8rem; overflow:hidden;
-      text-overflow:ellipsis; white-space:nowrap; }
-    ion-chip.table-chip .chip-x { cursor:pointer; font-size:1.05rem; margin-inline-start:.15rem; }
-    ion-chip.table-chip .chip-x:hover { opacity:.7; }
     .trigger[data-assigned] { --color: var(--ion-color-primary,#0091ce); }
     .name { font-size:.8rem; font-weight:700; color:var(--ion-color-primary,#0091ce); max-width:9rem;
             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -131,6 +123,10 @@ export class ErpTablesPosZones extends LitElement {
   @state() private selectedLabel = '';
   @state() private loading = false;
   @state() private error = '';
+  /** Sales solo comparte el contador, nunca las líneas. Con pendientes de cocina no se cambia de
+   *  cuenta/mesa: primero hay que validar la comanda actual. */
+  @state() private pendingCount = 0;
+  @state() private kitchenEnabled = false;
   /** Modo del selector: `select` = elegir mesa; `transfer`/`merge` = elegir mesa DESTINO tras el
    *  menú ⋮ de una mesa ocupada (punto 4/3). */
   @state() private mode: 'select' | 'transfer' | 'merge' = 'select';
@@ -151,12 +147,20 @@ export class ErpTablesPosZones extends LitElement {
     if (sid) void this.closeSession(sid);
   };
 
+  private readonly onPosState = (e: Event): void => {
+    const detail = (e as CustomEvent<{ pending_count?: number; kitchen_enabled?: boolean }>).detail;
+    const value = Number(detail?.pending_count ?? 0);
+    this.pendingCount = Number.isFinite(value) ? Math.max(0, value) : 0;
+    this.kitchenEnabled = detail?.kitchen_enabled === true;
+  };
+
   // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template se re-evalúan
   // con el nuevo `erplora.locale`.
   private readonly onLocaleChange = (): void => this.requestUpdate();
 
   connectedCallback() {
     super.connectedCallback();
+    this.addEventListener('erp:pos-state', this.onPosState);
     this.addEventListener('erp:order-context-reset', this.onReset);
     this.addEventListener('erp:order-linked', this.onOrderLinked);
     this.addEventListener('erp:order-restored', this.onOrderRestored);
@@ -166,6 +170,7 @@ export class ErpTablesPosZones extends LitElement {
   }
 
   disconnectedCallback() {
+    this.removeEventListener('erp:pos-state', this.onPosState);
     super.disconnectedCallback();
     this.removeEventListener('erp:order-context-reset', this.onReset);
     this.removeEventListener('erp:order-linked', this.onOrderLinked);
@@ -233,7 +238,15 @@ export class ErpTablesPosZones extends LitElement {
    *  camarero no tenía forma de saber a qué mesa pertenecía lo que estaba viendo. */
   private readonly onOrderRestored = async (e: Event): Promise<void> => {
     const orderId = (e as CustomEvent<{ order_id?: string }>).detail?.order_id;
-    if (!orderId || this.selectedId) return;
+    if (!orderId) return;
+    // El host puede avisar dos veces: una durante su restauración y otra al terminar de montar
+    // los slots. Si la primera llega antes de que Ventas escuche `erp:order-context`, Mesas ya
+    // tiene la selección pero el ticket todavía no conoce su etiqueta. Reemitir es idempotente y
+    // garantiza que ambos módulos converjan aunque se carguen en distinto orden.
+    if (this.selectedId) {
+      this.emit(this.selectedId, this.selectedLabel, orderId);
+      return;
+    }
     try {
       const r = await erplora().query('tables.sessions.by_order', { order_id: orderId });
       const s = rows<{ session_id?: string; table_id?: string; table_number?: string; status?: string }>(r)
@@ -297,6 +310,10 @@ export class ErpTablesPosZones extends LitElement {
     if (this.mode === 'merge') { if (this.isValidTarget(t)) await this.doMerge(t); return; }
     if (t.id === this.selectedId) return;
     this.error = '';
+    if (this.kitchenEnabled && this.pendingCount > 0) {
+      this.error = erplora().t(CATALOG, 'ui.sendPendingBeforeTable', { count: this.pendingCount });
+      return;
+    }
     // Cambiar de mesa antes de cobrar: libera la anterior SOLO si no tiene comanda.
     //
     // ADR-0141: la sesión es la JUNCTION mesa↔pedido, así que cerrarla PIERDE el enlace con la
@@ -340,6 +357,11 @@ export class ErpTablesPosZones extends LitElement {
     // Quitar la mesa = APARCAR la sesión (decisión Ioan 2026-07-19): la mesa queda libre y la
     // sesión sobrevive como «aparcada» (ADR-0146), recuperable. Cerrarla era terminal: la
     // cuenta perdía su rastro de servicio.
+    if (this.kitchenEnabled && this.pendingCount > 0) {
+      this.error = erplora().t(CATALOG, 'ui.sendPendingBeforeTable', { count: this.pendingCount });
+      this.open = true;
+      return;
+    }
     if (this.sessionId) {
       const sid = this.sessionId;
       this.sessionId = undefined;
@@ -452,29 +474,16 @@ export class ErpTablesPosZones extends LitElement {
     const title = this.mode === 'transfer' ? t('ui.transferTitle', { number: srcNum })
       : this.mode === 'merge' ? t('ui.mergeTitle', { number: srcNum })
       : t('ui.chooseTable');
-    // Botón propio (ADR-0043 B): el POS monta este WC en el header (slot sales.pos.assign) como UN
-    // botón-icono independiente del de cliente. Abre SU modal; al elegir mesa se cierra y emite
-    // `erp:order-context`. El nombre de la mesa asignada lo muestra el chip del POS, no este botón.
+    // Botón propio (ADR-0043 B): permanece SIEMPRE libre en el header para asignar/cambiar mesa.
+    // La mesa elegida se muestra como contexto de la cuenta, igual que el cliente; dentro del
+    // selector queda la acción de retirarla. Así elegir Mesa 6 no sustituye el botón por un chip.
     return html`
-      ${this.selectedId
-        ? html`
-          <!-- Mesa asignada: badge con su nombre y una X para soltarla. Sustituye al botón de texto
-               'Quitar mesa', que estaba escondido en el pie del modal: aquí se ve qué mesa llevas y
-               se quita de un toque. Si la comanda tiene productos NO se pierde: el POS la aparca. -->
-          <ion-chip class="table-chip" outline @click=${() => this.openPicker()}
-                    title=${this.selectedLabel} aria-label=${this.selectedLabel}>
-            <ion-icon name="ms-table-restaurant"></ion-icon>
-            <ion-label>${this.selectedLabel}</ion-label>
-            <ion-icon name="close-circle" class="chip-x" role="button" tabindex="0"
-                      aria-label=${t('ui.removeTable')} title=${t('ui.removeTable')}
-                      @click=${(e: Event) => { e.stopPropagation(); void this.clear(); }}></ion-icon>
-          </ion-chip>`
-        : html`
-          <ion-button class="trigger" fill="clear" size="small"
-            aria-label=${t('ui.assignTable')} title=${t('ui.assignTable')}
-            @click=${() => this.openPicker()}>
-            <ion-icon slot="icon-only" name="ms-table-restaurant-outline"></ion-icon>
-          </ion-button>`}
+      <ion-button class="trigger" fill="clear" size="small" ?data-assigned=${!!this.selectedId}
+        aria-label=${this.selectedId ? `${t('ui.assignTable')}: ${this.selectedLabel}` : t('ui.assignTable')}
+        title=${this.selectedId ? `${t('ui.assignTable')}: ${this.selectedLabel}` : t('ui.assignTable')}
+        @click=${() => this.openPicker()}>
+        <ion-icon slot="icon-only" name=${this.selectedId ? 'ms-table-restaurant' : 'ms-table-restaurant-outline'}></ion-icon>
+      </ion-button>
 
       <dialog class="sheet" aria-label=${title}
         @close=${() => { this.open = false; }}
@@ -540,6 +549,11 @@ export class ErpTablesPosZones extends LitElement {
         </div>
 
         <div class="foot">
+          ${!inAction && this.selectedId
+            ? html`<ion-button color="danger" fill="clear" size="small" @click=${() => void this.clear()}>
+                ${t('ui.removeTable')}
+              </ion-button>`
+            : nothing}
           ${inAction
             ? html`<ion-button fill="clear" size="small" @click=${() => this.cancelAction()}>${t('ui.cancel')}</ion-button>`
             : nothing}

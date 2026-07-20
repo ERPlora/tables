@@ -89,6 +89,7 @@
     "errTableNumberRequired": "The table number is required",
     "errZoneNameRequired": "The zone name is required",
     "close": "Close",
-    "noTablesInZoneHint": "Create tables in the Tables module."
+    "noTablesInZoneHint": "Create tables in the Tables module.",
+    "sendPendingBeforeTable": "Send the {count} pending items in the current order first."
   }
 }
