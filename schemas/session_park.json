@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "tables.sessions.park",
+  "description": "Aparca una cuenta abierta: suelta la mesa sin cerrar la cuenta (ADR-0146). La interfaz manda solo la intención; el motivo del tramo lo fija el comando.",
+  "type": "object",
+  "required": ["session_id"],
+  "additionalProperties": false,
+  "properties": {
+    "session_id": { "type": "string", "minLength": 1 },
+    "operation_id": { "type": "string", "default": "" }
+  }
+}

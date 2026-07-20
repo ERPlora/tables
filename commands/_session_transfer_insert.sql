@@ -4,14 +4,17 @@
 -- la mesa destino existe, está activa y `available` (evaluado tras liberar la
 -- origen, dentro de ESTA transacción). El handler pasa :new_session_id
 -- (de context.new_ids).
+-- ADR-0141: la sesión nueva ARRASTRA el `order_id` de la origen. Transferir una mesa NO mueve la
+-- comanda: mueve a qué mesa apunta el MISMO pedido, así que los productos se conservan solos (antes
+-- el carrito era un blob por table_id y había que copiarlo; ahora solo viaja la asociación).
 INSERT INTO tables_session
   (id, hub_id, table_id, opened_at, closed_at, guests_count, waiter_id,
-   status, notes, transferred_from_id,
+   status, notes, transferred_from_id, order_id,
    is_deleted, created_by, updated_by, created_at, updated_at)
 SELECT
   :new_session_id, :hub_id, t.id, :now, NULL,
   s.guests_count, s.waiter_id,
-  'active', s.notes, s.id,
+  'active', s.notes, s.id, s.order_id,
   0, :current_user_id, :current_user_id, :now, :now
 FROM tables_session s
 JOIN tables_table t

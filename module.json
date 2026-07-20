@@ -1,7 +1,7 @@
 {
   "id": "tables",
   "name": "Tables",
-  "version": "2.1.7",
+  "version": "2.2.1",
   "agent": {
     "description": "Manages restaurant floor plan zones, tables, and table sessions: create/update/delete zones and tables, open/close/transfer sessions, and bulk-create tables.",
     "keywords": [
@@ -87,7 +87,7 @@
   ],
   "provides_slots": [
     {
-      "slot": "sales.pos.order_context",
+      "slot": "sales.pos.assign",
       "component": "erp-tables-pos-zones",
       "permission": "tables.view_table",
       "priority": 100
@@ -96,7 +96,19 @@
   "migrations": {
     "sqlite": [
       "migrations/sqlite/001_init.sql",
-      "migrations/sqlite/002_gate.sql"
+      "migrations/sqlite/002_gate.sql",
+      "migrations/sqlite/003_session_merge.sql",
+      "migrations/sqlite/004_session_order.sql",
+      "migrations/sqlite/005_session_assignment.sql",
+      "migrations/sqlite/006_session_no_table.sql"
+    ],
+    "postgres": [
+      "migrations/postgres/001_init.sql",
+      "migrations/postgres/002_gate.sql",
+      "migrations/postgres/003_session_merge.sql",
+      "migrations/postgres/004_session_order.sql",
+      "migrations/postgres/005_session_assignment.sql",
+      "migrations/postgres/006_session_no_table.sql"
     ]
   },
   "queries": {
@@ -264,6 +276,14 @@
       "ai": {
         "description": "Lists active or historical table sessions"
       }
+    },
+    "tables.sessions.by_order": {
+      "permission": "tables.view_tablesession",
+      "expose_api": true,
+      "sql": "queries/session_by_order.sql",
+      "ai": {
+        "description": "Resolves the TABLE linked to a given order id via the table-session junction (ADR-0141). Used by kitchen to route a dine-in ticket without sales carrying table_id."
+      }
     }
   },
   "commands": {
@@ -427,6 +447,21 @@
         "description": "Transfers the active session from one table to another"
       }
     },
+    "tables.sessions.merge": {
+      "permission": "tables.change_tablesession",
+      "schema": "schemas/session_merge.json",
+      "handler": {
+        "type": "wasm",
+        "file": "dist/handler.wasm",
+        "function": "merge_session"
+      },
+      "emit": [
+        "tables.session.merged"
+      ],
+      "ai": {
+        "description": "Merges the active session of one table into another occupied table (combines their tickets and frees the origin table)"
+      }
+    },
     "tables.sessions.delete": {
       "permission": "tables.delete_tablesession",
       "schema": "schemas/session_delete.json",
@@ -454,6 +489,7 @@
       "permission": "tables.add_tablesession",
       "sql": [
         "commands/_session_open_insert.sql",
+        "commands/_assignment_open.sql",
         "commands/_session_open_occupy.sql",
         "commands/_session_open_assert.sql",
         "commands/_gate_clear.sql"
@@ -463,6 +499,7 @@
       "permission": "tables.change_tablesession",
       "sql": [
         "commands/_session_close_update.sql",
+        "commands/_assignment_release_closed.sql",
         "commands/_session_close_free.sql",
         "commands/_session_close_assert.sql",
         "commands/_gate_clear.sql"
@@ -472,10 +509,22 @@
       "permission": "tables.change_tablesession",
       "sql": [
         "commands/_session_transfer_close.sql",
+        "commands/_assignment_release_transferred.sql",
         "commands/_session_transfer_free.sql",
         "commands/_session_transfer_insert.sql",
         "commands/_session_transfer_occupy.sql",
+        "commands/_assignment_transfer_open.sql",
         "commands/_session_transfer_assert.sql",
+        "commands/_gate_clear.sql"
+      ]
+    },
+    "tables._session_merge": {
+      "permission": "tables.change_tablesession",
+      "sql": [
+        "commands/_session_merge_close.sql",
+        "commands/_assignment_release_merged.sql",
+        "commands/_session_merge_free.sql",
+        "commands/_session_merge_assert.sql",
         "commands/_gate_clear.sql"
       ]
     },
@@ -502,9 +551,73 @@
         "commands/_table_delete_assert.sql",
         "commands/_gate_clear.sql"
       ]
+    },
+    "tables.sessions.link_order": {
+      "permission": "tables.add_tablesession",
+      "transaction": true,
+      "sql": [
+        "commands/session_link_order.sql"
+      ],
+      "ai": {
+        "description": "Links the active session of a table to an open order (ADR-0141 table-order junction). Called by the POS when it opens an order while a table is selected."
+      }
+    },
+    "tables._session_close_by_order": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "sql": [
+        "commands/_assignment_release_by_order.sql",
+        "commands/_table_free_by_order.sql",
+        "commands/_session_close_by_order.sql"
+      ],
+      "ai": {
+        "description": "Internal: closes the table session (and its history segment) when its order ends — paid or voided (ADR-0146). Listener target, not called directly."
+      }
+    },
+    "tables.sessions.park": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "sql": [
+        "commands/_assignment_release_parked.sql",
+        "commands/_table_free_by_session.sql",
+        "commands/_session_park.sql"
+      ],
+      "schema": "schemas/session_park.json",
+      "emit": [
+        "tables.session.parked"
+      ],
+      "ai": {
+        "description": "Parks an open check: releases the table WITHOUT closing the account (ADR-0146). The session stays alive (guests, waiter, start time) and its history segment closes with reason `parked`; parking never opens a new segment, because a parked check is not sitting at any table."
+      }
+    },
+    "tables.sessions.restore": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "sql": [
+        "commands/_session_restore.sql",
+        "commands/_assignment_restore.sql",
+        "commands/_table_occupy_by_session.sql"
+      ],
+      "schema": "schemas/session_restore.json",
+      "emit": [
+        "tables.session.restored"
+      ],
+      "ai": {
+        "description": "Seats a parked check at a table again (the same one or another) — ADR-0146. Opens a new history segment with reason `restored`."
+      }
     }
   },
   "ui": {
     "entry": "dist/tables.esm.js"
+  },
+  "events": {
+    "listen": {
+      "order.completed": {
+        "command": "tables._session_close_by_order"
+      },
+      "sale.voided": {
+        "command": "tables._session_close_by_order"
+      }
+    }
   }
 }

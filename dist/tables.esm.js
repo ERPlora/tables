@@ -1272,17 +1272,38 @@ function define(tag, ctor) {
 var es_default = {
   name: "Mesas",
   navigation: {
-    floor_plan: { label: "Plano de sala" },
-    zones: { label: "Zonas" },
-    tables: { label: "Mesas" },
-    sessions: { label: "Sesiones" },
-    settings: { label: "Ajustes" }
+    floor_plan: {
+      label: "Plano de sala"
+    },
+    zones: {
+      label: "Zonas"
+    },
+    tables: {
+      label: "Mesas"
+    },
+    sessions: {
+      label: "Sesiones"
+    },
+    settings: {
+      label: "Ajustes"
+    }
   },
   ui: {
     floorPlan: "Plano de sala",
     assignTable: "Asignar mesa",
     chooseTable: "Elegir mesa",
     removeTable: "Quitar mesa",
+    tableActions: "Opciones de mesa",
+    transfer: "Transferir",
+    merge: "Fusionar",
+    cancel: "Cancelar",
+    transferTitle: "Transferir {number} a\u2026",
+    mergeTitle: "Fusionar {number} con\u2026",
+    pickFreeTable: "Elige una mesa libre",
+    pickOccupiedTable: "Elige una mesa ocupada",
+    errNoActiveSession: "Esa mesa no tiene comanda abierta",
+    errTransfer: "No se pudo transferir la mesa",
+    errMerge: "No se pudieron fusionar las mesas",
     tableLabel: "Mesa {number}",
     paxCount: "{count} pax",
     noTablesInZone: "Sin mesas en esta zona.",
@@ -1337,7 +1358,10 @@ var es_default = {
     errSaveZone: "No se pudo guardar la zona",
     errDeleteZone: "No se pudo borrar la zona (\xBFtiene mesas?)",
     errTableNumberRequired: "El n\xFAmero de mesa es obligatorio",
-    errZoneNameRequired: "El nombre de la zona es obligatorio"
+    errZoneNameRequired: "El nombre de la zona es obligatorio",
+    close: "Cerrar",
+    noTablesInZoneHint: "Crea mesas en el m\xF3dulo Mesas.",
+    sendPendingBeforeTable: "Env\xEDa primero los {count} productos pendientes de la comanda actual."
   }
 };
 
@@ -1345,17 +1369,38 @@ var es_default = {
 var en_default = {
   name: "Tables",
   navigation: {
-    floor_plan: { label: "Floor Plan" },
-    zones: { label: "Zones" },
-    tables: { label: "Tables" },
-    sessions: { label: "Sessions" },
-    settings: { label: "Settings" }
+    floor_plan: {
+      label: "Floor Plan"
+    },
+    zones: {
+      label: "Zones"
+    },
+    tables: {
+      label: "Tables"
+    },
+    sessions: {
+      label: "Sessions"
+    },
+    settings: {
+      label: "Settings"
+    }
   },
   ui: {
     floorPlan: "Floor Plan",
     assignTable: "Assign table",
     chooseTable: "Choose table",
     removeTable: "Remove table",
+    tableActions: "Table options",
+    transfer: "Transfer",
+    merge: "Merge",
+    cancel: "Cancel",
+    transferTitle: "Transfer {number} to\u2026",
+    mergeTitle: "Merge {number} with\u2026",
+    pickFreeTable: "Pick a free table",
+    pickOccupiedTable: "Pick an occupied table",
+    errNoActiveSession: "That table has no open order",
+    errTransfer: "Could not transfer the table",
+    errMerge: "Could not merge the tables",
     tableLabel: "Table {number}",
     paxCount: "{count} pax",
     noTablesInZone: "No tables in this zone.",
@@ -1410,7 +1455,10 @@ var en_default = {
     errSaveZone: "Could not save the zone",
     errDeleteZone: "Could not delete the zone (does it have tables?)",
     errTableNumberRequired: "The table number is required",
-    errZoneNameRequired: "The zone name is required"
+    errZoneNameRequired: "The zone name is required",
+    close: "Close",
+    noTablesInZoneHint: "Create tables in the Tables module.",
+    sendPendingBeforeTable: "Send the {count} pending items in the current order first."
   }
 };
 
@@ -2184,6 +2232,16 @@ function okIcon(value) {
 }
 
 // node_modules/.pnpm/@erplora+outfitkit@file+..+outfitkit/node_modules/@erplora/outfitkit/dist/ok-data-table.js
+var CSV_BOM = "\uFEFF";
+function decodeCsvBuffer(buf) {
+  let text;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(buf);
+  } catch {
+    text = new TextDecoder("windows-1252").decode(buf);
+  }
+  return text.charCodeAt(0) === 65279 ? text.slice(1) : text;
+}
 var __defProp2 = Object.defineProperty;
 var __decorateClass2 = (decorators, target, key, kind) => {
   var result = void 0;
@@ -2321,7 +2379,7 @@ var OkDataTable = class extends i3 {
     .tk-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.18); z-index: 19; }
     .drawer { position: absolute; top: 0; right: 0; height: 100%; width: 340px; max-width: 88%;
       background: var(--background); border-left: 1px solid var(--border-color);
-      box-shadow: -10px 0 28px rgba(0, 0, 0, 0.10); display: flex; flex-direction: column; z-index: 20;
+      display: flex; flex-direction: column; z-index: 20;
       animation: tk-slide-in 0.18s ease; }
     @keyframes tk-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
     .drawer .dh { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
@@ -2588,7 +2646,7 @@ var OkDataTable = class extends i3 {
     const head = cols.map((c5) => this.csvEscape(c5.key)).join(",");
     const lines = this.rows.map((r6) => cols.map((c5) => this.csvEscape(r6[c5.key])).join(","));
     const csv = [head, ...lines].join("\r\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([CSV_BOM + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a3 = document.createElement("a");
     a3.href = url;
@@ -2636,7 +2694,7 @@ var OkDataTable = class extends i3 {
     const input = ev.target;
     const file = input.files?.[0];
     if (!file) return;
-    const text = await file.text();
+    const text = decodeCsvBuffer(await file.arrayBuffer());
     const { headers, rows: rows3 } = this.parseCsv(text);
     this.emit("csvImport", { headers, rows: rows3 });
     this.emit("import", { headers, rows: rows3 });
@@ -3754,7 +3812,7 @@ var ErpTablesFloorPlan = class extends i3 {
     return b2`<div class="page">
         ${this.formError ? b2`<p class="err">${this.formError}</p>` : A}
         ${this.ctrl?.error ? b2`<p class="err">${this.ctrl.error}</p>` : A}
-        <ok-data-table .serverSide=${true} .fill=${true} .addable=${true} .columns=${this.columns} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyTables")} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
+        <ok-data-table .serverSide=${true} .fill=${true} .addable=${true} .columns=${this.columns} .views=${true} .cardTitle=${(r6) => String(r6.name || r6.number || "\u2014")} .cardIcon=${() => "grid-outline"} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyTables")} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
           <!-- Alta de mesa: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
                solo con el panel abierto, el «+» de la barra abriría un panel vacío. -->
           <form slot="create" class="form" @submit=${(e5) => this.createTable(e5)}>
@@ -3789,10 +3847,10 @@ define("erp-tables-floor-plan", ErpTablesFloorPlan);
 // modules/tables/ui/components/erp-tables-pos-zones/erp-tables-pos-zones.ts
 var CATALOG3 = { es: es_default, en: en_default };
 var STATUS_COLOR2 = {
-  available: "#2f9e44",
-  occupied: "#d9480f",
-  reserved: "#f08c00",
-  blocked: "#868e96"
+  available: "var(--ion-color-success, #2f9e44)",
+  occupied: "var(--ion-color-danger, #d9480f)",
+  reserved: "var(--ion-color-warning, #f08c00)",
+  blocked: "var(--ion-color-medium, #868e96)"
 };
 var STATUS_KEY3 = {
   available: "ui.statusAvailable",
@@ -3820,46 +3878,155 @@ var ErpTablesPosZones = class extends i3 {
     this.selectedLabel = "";
     this.loading = false;
     this.error = "";
+    this.pendingCount = 0;
+    this.kitchenEnabled = false;
+    this.mode = "select";
     // Tras cobrar, el POS dispara este reset: la mesa queda pagada → cerramos su sesión (la libera).
     this.onReset = () => {
       const sid = this.sessionId;
       this.selectedId = void 0;
       this.selectedLabel = "";
       this.sessionId = void 0;
+      this.mode = "select";
+      this.actionSource = void 0;
       if (sid) void this.closeSession(sid);
+    };
+    this.onPosState = (e5) => {
+      const detail = e5.detail;
+      const value = Number(detail?.pending_count ?? 0);
+      this.pendingCount = Number.isFinite(value) ? Math.max(0, value) : 0;
+      this.kitchenEnabled = detail?.kitchen_enabled === true;
     };
     // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template se re-evalúan
     // con el nuevo `erplora.locale`.
     this.onLocaleChange = () => this.requestUpdate();
+    /** El TPV aparcó la cuenta → esta mesa se suelta, pero la cuenta sigue viva (ADR-0146).
+     *
+     *  La sesión pasa a `parked` conservando comensales, camarero y desde cuándo se atiende; su tramo
+     *  de historial se cierra con motivo `parked`, y la mesa queda libre para otros. */
+    /** El TPV suelta la cuenta DE LA PANTALLA («Dejar en la mesa»): se limpia SOLO la selección
+     *  local — ni park ni close. La mesa sigue ocupada con su cuenta, recuperable tocándola. */
+    this.onOrderDetached = () => {
+      this.sessionId = void 0;
+      this.selectedId = void 0;
+      this.selectedLabel = "";
+    };
+    this.onOrderParked = async () => {
+      if (!this.sessionId) return;
+      const sid = this.sessionId;
+      this.sessionId = void 0;
+      this.selectedId = void 0;
+      this.selectedLabel = "";
+      try {
+        await erplora3().command("tables.sessions.park", { session_id: sid });
+      } catch {
+      }
+      void this.refreshTables();
+    };
+    /** El TPV reanudó un pedido tras recargar → recupera SU mesa desde la junction (ADR-0144).
+     *
+     *  `sales` no sabe de mesas, así que no puede restaurar este contexto: lo hace su dueño. Sin
+     *  esto, al recargar el TPV la comanda aparecía «sin mesa» aunque la mesa siguiera ocupada, y el
+     *  camarero no tenía forma de saber a qué mesa pertenecía lo que estaba viendo. */
+    this.onOrderRestored = async (e5) => {
+      const orderId = e5.detail?.order_id;
+      if (!orderId) return;
+      if (this.selectedId) {
+        this.emit(this.selectedId, this.selectedLabel, orderId);
+        return;
+      }
+      try {
+        const r6 = await erplora3().query("tables.sessions.by_order", { order_id: orderId });
+        const s5 = rows2(r6).find((x2) => x2.status === "active");
+        if (!s5?.table_id) return;
+        this.sessionId = s5.session_id;
+        this.selectedId = s5.table_id;
+        this.selectedLabel = erplora3().t(CATALOG3, "ui.tableLabel", { number: s5.table_number ?? "" });
+        this.emit(s5.table_id, this.selectedLabel, orderId);
+      } catch {
+      }
+    };
+    /** El POS abrió un pedido con esta mesa seleccionada → se escribe la junction (ADR-0141). */
+    this.onOrderLinked = async (e5) => {
+      const d3 = e5.detail;
+      if (!d3?.order_id || !this.selectedId) return;
+      try {
+        await erplora3().command("tables.sessions.link_order", { table_id: this.selectedId, order_id: d3.order_id });
+      } catch {
+      }
+    };
   }
   static {
     this.styles = i`
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
-    .open { width:100%; }
-    .scrim { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:60; }
-    .sheet { background:var(--ion-background-color,#fff); border-radius:16px; padding:1rem; width:min(94vw,32rem); max-height:90vh; overflow:auto; box-shadow:0 12px 48px rgba(0,0,0,.35); }
+    .ctx { display:flex; align-items:center; gap:.15rem; }
+    .trigger { --padding-start:.5rem; --padding-end:.5rem; }
+    ion-button.trigger ion-icon { font-size: calc(var(--pos-hdr-icon-size, 1.75rem) * 1.05); }
+    /* El icono hereda el tamaño que fija el TPV en la cabecera del carrito
+       (la variable --pos-hdr-icon-size, que cruza el Shadow DOM); el fallback vale por si se monta
+       en otro sitio.
+       Material Symbols dibuja con menos trazo y menor viewBox que Ionicons, así que con el mismo
+       número se ve MÁS PEQUEÑO: se compensa con el factor de abajo para que ópticamente cuadre. */
+    .trigger[data-assigned] { --color: var(--ion-color-primary,#0091ce); }
+    .name { font-size:.8rem; font-weight:700; color:var(--ion-color-primary,#0091ce); max-width:9rem;
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    /* <dialog> nativo: showModal() lo pinta en el TOP LAYER del navegador, inmune al containing
+       block del ion-toolbar donde vive el botón (transform/contain atrapan a position:fixed). Y
+       sigue en el shadow root → conserva este CSS. */
+    dialog.sheet { border:none; border-radius:16px; padding:1rem; width:min(94vw,32rem); max-height:90vh; overflow:auto;
+      background:var(--ion-background-color,#fff); color:var(--ion-text-color,#1c1b18); box-shadow:0 12px 48px rgba(0,0,0,.35); }
+    dialog.sheet::backdrop { background:rgba(0,0,0,.45); }
     .sheet-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; }
     .sheet-h .t { font-size:1.2rem; font-weight:700; }
     .x { background:none; border:none; font-size:1.3rem; cursor:pointer; color:#8b897f; }
     .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr)); gap:.6rem; margin-top:.8rem; }
-    .mesa { border:2px solid; border-radius:12px; padding:.6rem .4rem; cursor:pointer; text-align:center; background:var(--ion-background-color,#fff); transition:transform .05s; }
+    .mesa-wrap { position:relative; }
+    .mesa { width:100%; border:2px solid; border-radius:12px; padding:.6rem .4rem; cursor:pointer; text-align:center; background:var(--ion-background-color,#fff); transition:transform .05s; }
     .mesa:active { transform:scale(.96); }
     .mesa[aria-pressed=true] { outline:3px solid var(--ion-color-primary,#0091ce); outline-offset:1px; }
+    .mesa[disabled] { opacity:.35; cursor:not-allowed; }
+    .mesa.target { outline:2px dashed var(--ion-color-primary,#0091ce); outline-offset:1px; }
     .mesa .n { font-weight:700; font-size:1.05rem; }
     .mesa .c { font-size:.75rem; color:#8b897f; }
     .mesa .s { font-size:.65rem; text-transform:uppercase; letter-spacing:.03em; font-weight:600; }
-    .empty { color:#8b897f; text-align:center; padding:1.5rem 0; }
+    /* Botón ⋮ (more-vert) en la esquina de cada mesa OCUPADA: abre transferir/fusionar. */
+    .kebab { position:absolute; top:2px; right:2px; z-index:1; width:1.6rem; height:1.6rem; display:flex;
+      align-items:center; justify-content:center; border:none; border-radius:50%; background:rgba(0,0,0,.06);
+      color:var(--ion-text-color,#1c1b18); cursor:pointer; font-size:1rem; line-height:1; }
+    .kebab:hover { background:rgba(0,0,0,.14); }
+    /* Menú de acciones (tras ⋮) y banner de "elige destino". */
+    .actions { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin:.6rem 0; padding:.6rem .7rem;
+      border-radius:12px; background:var(--ion-color-light,#f4f5f8); }
+    .actions .lbl { font-weight:700; margin-right:auto; }
+    .hint { margin:.6rem 0; padding:.5rem .7rem; border-radius:10px; background:var(--ion-color-light,#f4f5f8);
+      font-size:.85rem; color:#8b897f; }
+    /* Empty-state con aire: icono + qué pasa + qué hacer (antes: texto estrujado en un panel
+       encogido — el panel toma un ancho mínimo digno aunque no haya mesas). */
+    .empty { color:#8b897f; text-align:center; padding:1.6rem 1rem; min-width:16rem; }
+    .empty ion-icon { font-size:2rem; opacity:.5; display:block; margin:0 auto .4rem; }
+    .empty p { margin:.15rem 0; }
+    .empty .empty-hint { font-size:.82rem; opacity:.75; }
     .foot { display:flex; justify-content:space-between; align-items:center; margin-top:1rem; }
   `;
   }
   connectedCallback() {
     super.connectedCallback();
+    this.addEventListener("erp:pos-state", this.onPosState);
     this.addEventListener("erp:order-context-reset", this.onReset);
+    this.addEventListener("erp:order-linked", this.onOrderLinked);
+    this.addEventListener("erp:order-restored", this.onOrderRestored);
+    this.addEventListener("erp:order-parked", this.onOrderParked);
+    this.addEventListener("erp:order-detached", this.onOrderDetached);
     window.addEventListener("erplora:locale-changed", this.onLocaleChange);
   }
   disconnectedCallback() {
+    this.removeEventListener("erp:pos-state", this.onPosState);
     super.disconnectedCallback();
     this.removeEventListener("erp:order-context-reset", this.onReset);
+    this.removeEventListener("erp:order-linked", this.onOrderLinked);
+    this.removeEventListener("erp:order-restored", this.onOrderRestored);
+    this.removeEventListener("erp:order-parked", this.onOrderParked);
+    this.removeEventListener("erp:order-detached", this.onOrderDetached);
     window.removeEventListener("erplora:locale-changed", this.onLocaleChange);
   }
   async openPicker() {
@@ -3880,18 +4047,22 @@ var ErpTablesPosZones = class extends i3 {
       this.loading = false;
     }
   }
-  emit(table_id, label) {
+  emit(table_id, label, order_id) {
     this.dispatchEvent(new CustomEvent("erp:order-context", {
-      detail: { table_id, label },
+      detail: { table_id, label, order_id: order_id ?? null },
       bubbles: true,
       composed: true
     }));
   }
   /** Id de la sesión `active` de una mesa (para reanudar/cerrar), o undefined si no hay. */
   async activeSessionFor(tableId) {
+    return (await this.activeSessionInfo(tableId))?.id;
+  }
+  /** Sesión activa de una mesa CON su pedido enlazado (junction ADR-0141). */
+  async activeSessionInfo(tableId) {
     try {
       const r6 = await erplora3().query("tables.sessions.list", { f_table_id: tableId, f_status: "active", limit: 1 });
-      return rows2(r6)[0]?.id;
+      return rows2(r6)[0];
     } catch {
       return void 0;
     }
@@ -3910,17 +4081,38 @@ var ErpTablesPosZones = class extends i3 {
     } catch {
     }
   }
+  /** ¿Es `t` un destino válido para el modo activo? transfer→mesa libre; merge→mesa ocupada;
+   *  nunca la propia mesa origen. */
+  isValidTarget(t5) {
+    if (t5.id === this.actionSource?.id) return false;
+    if (this.mode === "transfer") return t5.status === "available";
+    if (this.mode === "merge") return t5.status !== "available";
+    return true;
+  }
   async pick(t5) {
-    if (t5.id === this.selectedId) {
-      this.open = false;
+    if (this.mode === "transfer") {
+      if (this.isValidTarget(t5)) await this.doTransfer(t5);
       return;
     }
+    if (this.mode === "merge") {
+      if (this.isValidTarget(t5)) await this.doMerge(t5);
+      return;
+    }
+    if (t5.id === this.selectedId) return;
     this.error = "";
+    if (this.kitchenEnabled && this.pendingCount > 0) {
+      this.error = erplora3().t(CATALOG3, "ui.sendPendingBeforeTable", { count: this.pendingCount });
+      return;
+    }
     if (this.sessionId && this.selectedId && this.selectedId !== t5.id) {
-      await this.closeSession(this.sessionId);
+      const prev = await this.activeSessionInfo(this.selectedId);
+      if (!prev?.order_id) {
+        await this.closeSession(this.sessionId);
+      }
       this.sessionId = void 0;
     }
     let sessionId;
+    let linkedOrderId;
     if (t5.status === "available") {
       try {
         await erplora3().command("tables.sessions.open", { table_id: t5.id });
@@ -3929,23 +4121,118 @@ var ErpTablesPosZones = class extends i3 {
         this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errOccupyTable");
       }
     } else {
-      sessionId = await this.activeSessionFor(t5.id);
+      const info = await this.activeSessionInfo(t5.id);
+      sessionId = info?.id;
+      linkedOrderId = info?.order_id || void 0;
     }
     this.sessionId = sessionId;
     this.selectedId = t5.id;
     this.selectedLabel = erplora3().t(CATALOG3, "ui.tableLabel", { number: t5.number });
-    this.emit(t5.id, this.selectedLabel);
+    this.emit(t5.id, this.selectedLabel, linkedOrderId ?? null);
     this.open = false;
     void this.refreshTables();
   }
   async clear() {
+    if (this.kitchenEnabled && this.pendingCount > 0) {
+      this.error = erplora3().t(CATALOG3, "ui.sendPendingBeforeTable", { count: this.pendingCount });
+      this.open = true;
+      return;
+    }
     if (this.sessionId) {
-      await this.closeSession(this.sessionId);
+      const sid = this.sessionId;
       this.sessionId = void 0;
+      try {
+        await erplora3().command("tables.sessions.park", { session_id: sid });
+      } catch {
+      }
     }
     this.selectedId = void 0;
     this.selectedLabel = "";
     this.emit(null, "");
+    this.open = false;
+    void this.refreshTables();
+  }
+  // ── Transferir / Fusionar (menú ⋮ de una mesa ocupada) ───────────────────────
+  /** Abre el menú de acciones (⋮) sobre una mesa ocupada. Detiene la propagación para no
+   *  disparar el `pick` de la celda. */
+  openActions(t5, e5) {
+    e5.stopPropagation();
+    this.error = "";
+    this.actionSource = { id: t5.id, number: t5.number };
+    this.mode = "select";
+  }
+  startTransfer() {
+    this.mode = "transfer";
+  }
+  startMerge() {
+    this.mode = "merge";
+  }
+  cancelAction() {
+    this.mode = "select";
+    this.actionSource = void 0;
+  }
+  /** Emite hacia el POS el movimiento de comanda (mover en transfer, combinar en merge). El POS
+   *  (erp-pos-touch/desktop) mueve/fusiona el carrito por `table_id`; contrato por evento DOM. */
+  emitCartMove(type, fromId, target, orders = {}) {
+    this.dispatchEvent(new CustomEvent(type, {
+      detail: {
+        from_table_id: fromId,
+        to_table_id: target.id,
+        from_order_id: orders.from ?? null,
+        to_order_id: orders.to ?? null,
+        to_label: erplora3().t(CATALOG3, "ui.tableLabel", { number: target.number })
+      },
+      bubbles: true,
+      composed: true
+    }));
+  }
+  async doTransfer(target) {
+    const src = this.actionSource;
+    if (!src) return;
+    const info = await this.activeSessionInfo(src.id);
+    const sid = info?.id;
+    const srcOrderId = info?.order_id || void 0;
+    if (!sid) {
+      this.error = erplora3().t(CATALOG3, "ui.errNoActiveSession");
+      return;
+    }
+    try {
+      await erplora3().command("tables.sessions.transfer", { session_id: sid, target_table_id: target.id });
+      this.emitCartMove("erp:order-transfer", src.id, target, { from: srcOrderId, to: srcOrderId });
+      await this.afterMove(src.id, target);
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errTransfer");
+    }
+  }
+  async doMerge(target) {
+    const src = this.actionSource;
+    if (!src) return;
+    const info = await this.activeSessionInfo(src.id);
+    const sid = info?.id;
+    const srcOrderId = info?.order_id || void 0;
+    const dstOrderId = (await this.activeSessionInfo(target.id))?.order_id || void 0;
+    if (!sid) {
+      this.error = erplora3().t(CATALOG3, "ui.errNoActiveSession");
+      return;
+    }
+    try {
+      await erplora3().command("tables.sessions.merge", { session_id: sid, target_table_id: target.id });
+      this.emitCartMove("erp:order-merge", src.id, target, { from: srcOrderId, to: dstOrderId });
+      await this.afterMove(src.id, target);
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errMerge");
+    }
+  }
+  /** Tras transferir/fusionar: la comanda vive ahora en el DESTINO. Si SEGUÍAMOS en la mesa origen,
+   *  la selección pasa a la mesa destino (si no, el POS conserva la mesa que estuviera atendiendo). */
+  async afterMove(srcId, target) {
+    if (this.selectedId === srcId) {
+      this.selectedId = target.id;
+      this.sessionId = await this.activeSessionFor(target.id);
+      this.selectedLabel = erplora3().t(CATALOG3, "ui.tableLabel", { number: target.number });
+    }
+    this.mode = "select";
+    this.actionSource = void 0;
     this.open = false;
     void this.refreshTables();
   }
@@ -3955,49 +4242,99 @@ var ErpTablesPosZones = class extends i3 {
   }
   render() {
     const t5 = (k2, params) => erplora3().t(CATALOG3, k2, params);
+    const inAction = this.mode !== "select";
+    const srcNum = this.actionSource?.number ?? "";
+    const title = this.mode === "transfer" ? t5("ui.transferTitle", { number: srcNum }) : this.mode === "merge" ? t5("ui.mergeTitle", { number: srcNum }) : t5("ui.chooseTable");
     return b2`
-      <ion-button class="open" fill=${this.selectedId ? "solid" : "outline"} size="small" @click=${() => this.openPicker()}>
-        ${this.selectedLabel || t5("ui.assignTable")}
+      <ion-button class="trigger" fill="clear" size="small" ?data-assigned=${!!this.selectedId}
+        aria-label=${this.selectedId ? `${t5("ui.assignTable")}: ${this.selectedLabel}` : t5("ui.assignTable")}
+        title=${this.selectedId ? `${t5("ui.assignTable")}: ${this.selectedLabel}` : t5("ui.assignTable")}
+        @click=${() => this.openPicker()}>
+        <ion-icon slot="icon-only" name=${this.selectedId ? "ms-table-restaurant" : "ms-table-restaurant-outline"}></ion-icon>
       </ion-button>
 
-      ${this.open ? b2`<div class="scrim" @click=${(e5) => {
-      if (e5.target.classList.contains("scrim")) this.open = false;
-    }}>
-            <div class="sheet">
-              <div class="sheet-h">
-                <span class="t">${t5("ui.chooseTable")}</span>
-                <button class="x" @click=${() => {
+      <dialog class="sheet" aria-label=${title}
+        @close=${() => {
       this.open = false;
-    }}>✕</button>
-              </div>
+    }}
+        @click=${(e5) => {
+      if (e5.target === e5.currentTarget) this.open = false;
+    }}>
+        <div class="sheet-h">
+          <span class="t">${title}</span>
+          <ion-button class="close" fill="clear" size="small" aria-label=${t5("ui.close")} @click=${() => {
+      this.open = false;
+    }}>
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </div>
 
-              ${this.error ? b2`<p style="color:#d9480f">${this.error}</p>` : A}
+        ${this.error ? b2`<p style="color:#d9480f">${this.error}</p>` : A}
 
-              ${this.zones.length ? b2`<ion-segment scrollable value=${this.activeZone}
-                    @ionChange=${(e5) => {
+        ${this.actionSource && !inAction ? b2`<div class="actions">
+              <span class="lbl">${t5("ui.tableLabel", { number: srcNum })}</span>
+              <ion-button size="small" fill="outline" @click=${() => this.startTransfer()}>
+                <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>${t5("ui.transfer")}
+              </ion-button>
+              <ion-button size="small" fill="outline" @click=${() => this.startMerge()}>
+                <ion-icon slot="start" name="git-merge-outline"></ion-icon>${t5("ui.merge")}
+              </ion-button>
+            </div>` : A}
+        ${inAction ? b2`<div class="hint">${this.mode === "transfer" ? t5("ui.pickFreeTable") : t5("ui.pickOccupiedTable")}</div>` : A}
+
+        ${this.zones.length ? b2`<ion-segment scrollable value=${this.activeZone}
+              @ionChange=${(e5) => {
       this.activeZone = e5.detail.value;
     }}>
-                    ${this.zones.map((z2) => b2`<ion-segment-button value=${z2.id}><ion-label>${z2.name}</ion-label></ion-segment-button>`)}
-                  </ion-segment>` : A}
+              ${this.zones.map((z2) => b2`<ion-segment-button value=${z2.id}><ion-label>${z2.name}</ion-label></ion-segment-button>`)}
+            </ion-segment>` : A}
 
-              <div class="grid">
-                ${this.tablesInZone.map((tb) => b2`
-                  <button class="mesa" aria-pressed=${this.selectedId === tb.id}
-                    style=${`border-color:${STATUS_COLOR2[tb.status] ?? "#d9d6cf"}`} @click=${() => this.pick(tb)}>
-                    <div class="n">${tb.number}</div>
-                    <div class="c">${t5("ui.paxCount", { count: tb.capacity })}</div>
-                    <div class="s" style=${`color:${STATUS_COLOR2[tb.status] ?? "#868e96"}`}>${t5(STATUS_KEY3[tb.status] ?? tb.status)}</div>
-                  </button>`)}
-                ${!this.loading && !this.tablesInZone.length ? b2`<div class="empty">${t5("ui.noTablesInZone")}</div>` : A}
-                ${this.loading ? b2`<div class="empty">${t5("ui.loading")}</div>` : A}
-              </div>
+        <div class="grid">
+          ${this.tablesInZone.map((tb) => {
+      const validTarget = inAction && this.isValidTarget(tb);
+      const showKebab = !inAction && tb.status === "occupied";
+      return b2`
+            <div class="mesa-wrap">
+              ${showKebab ? b2`<button class="kebab" aria-label=${t5("ui.tableActions")} @click=${(e5) => this.openActions(tb, e5)}>
+                    <ion-icon name="ellipsis-vertical"></ion-icon>
+                  </button>` : A}
+              <button class="mesa ${validTarget ? "target" : ""}" aria-pressed=${this.selectedId === tb.id}
+                ?disabled=${inAction && !validTarget}
+                style=${`border-color:${STATUS_COLOR2[tb.status] ?? "#d9d6cf"}`} @click=${() => this.pick(tb)}>
+                <div class="n">${tb.number}</div>
+                <div class="c">${t5("ui.paxCount", { count: tb.capacity })}</div>
+                <div class="s" style=${`color:${STATUS_COLOR2[tb.status] ?? "#868e96"}`}>${t5(STATUS_KEY3[tb.status] ?? tb.status)}</div>
+              </button>
+            </div>`;
+    })}
+          ${!this.loading && !this.tablesInZone.length ? b2`
+            <div class="empty">
+              <ion-icon name="grid-outline"></ion-icon>
+              <p>${t5("ui.noTablesInZone")}</p>
+              <p class="empty-hint">${t5("ui.noTablesInZoneHint")}</p>
+            </div>` : A}
+          ${this.loading ? b2`<div class="empty">${t5("ui.loading")}</div>` : A}
+        </div>
 
-              <div class="foot">
-                <ion-button fill="clear" size="small" ?disabled=${!this.selectedId} @click=${() => this.clear()}>${t5("ui.removeTable")}</ion-button>
-              </div>
-            </div>
-          </div>` : A}
+        <div class="foot">
+          ${!inAction && this.selectedId ? b2`<ion-button color="danger" fill="clear" size="small" @click=${() => void this.clear()}>
+                ${t5("ui.removeTable")}
+              </ion-button>` : A}
+          ${inAction ? b2`<ion-button fill="clear" size="small" @click=${() => this.cancelAction()}>${t5("ui.cancel")}</ion-button>` : A}
+        </div>
+      </dialog>
     `;
+  }
+  /** Sincroniza `open` ↔ el <dialog> nativo: showModal() usa el top layer y escapa cualquier trap.
+   *  try/catch porque happy-dom (tests) no implementa showModal/close. */
+  updated() {
+    const d3 = this.renderRoot.querySelector("dialog");
+    if (!d3) return;
+    try {
+      if (this.open && !d3.open) d3.showModal();
+      else if (!this.open && d3.open) d3.close();
+    } catch {
+    }
   }
 };
 __decorateClass([
@@ -4024,4 +4361,16 @@ __decorateClass([
 __decorateClass([
   r5()
 ], ErpTablesPosZones.prototype, "error", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "pendingCount", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "kitchenEnabled", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "mode", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "actionSource", 2);
 define("erp-tables-pos-zones", ErpTablesPosZones);
