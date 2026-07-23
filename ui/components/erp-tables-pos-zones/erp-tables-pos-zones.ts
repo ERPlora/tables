@@ -1,6 +1,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { state } from 'lit/decorators.js';
 import { define } from '@erplora/outfitkit/define';
+import '@erplora/outfitkit/ok-empty-state';
 // Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
@@ -79,7 +80,7 @@ export class ErpTablesPosZones extends LitElement {
     /* <dialog> nativo: showModal() lo pinta en el TOP LAYER del navegador, inmune al containing
        block del ion-toolbar donde vive el botón (transform/contain atrapan a position:fixed). Y
        sigue en el shadow root → conserva este CSS. */
-    dialog.sheet { border:none; border-radius:16px; padding:1rem; width:min(94vw,32rem); max-height:90vh; overflow:auto;
+    dialog.sheet { border:none; border-radius: var(--ok-radius-lg, 16px); padding:1rem; width:min(94vw,32rem); max-height:90vh; overflow:auto;
       background:var(--ion-background-color,#fff); color:var(--ion-text-color,#1c1b18); box-shadow:0 12px 48px rgba(0,0,0,.35); }
     dialog.sheet::backdrop { background:rgba(0,0,0,.45); }
     .sheet-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; }
@@ -87,7 +88,7 @@ export class ErpTablesPosZones extends LitElement {
     .x { background:none; border:none; font-size:1.3rem; cursor:pointer; color:#8b897f; }
     .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr)); gap:.6rem; margin-top:.8rem; }
     .mesa-wrap { position:relative; }
-    .mesa { width:100%; border:2px solid; border-radius:12px; padding:.6rem .4rem; cursor:pointer; text-align:center; background:var(--ion-background-color,#fff); transition:transform .05s; }
+    .mesa { width:100%; border:2px solid; border-radius: var(--ok-radius, 12px); padding:.6rem .4rem; cursor:pointer; text-align:center; background:var(--ion-background-color,#fff); transition:transform .05s; }
     .mesa:active { transform:scale(.96); }
     .mesa[aria-pressed=true] { outline:3px solid var(--ion-color-primary,#0091ce); outline-offset:1px; }
     .mesa[disabled] { opacity:.35; cursor:not-allowed; }
@@ -97,14 +98,14 @@ export class ErpTablesPosZones extends LitElement {
     .mesa .s { font-size:.65rem; text-transform:uppercase; letter-spacing:.03em; font-weight:600; }
     /* Botón ⋮ (more-vert) en la esquina de cada mesa OCUPADA: abre transferir/fusionar. */
     .kebab { position:absolute; top:2px; right:2px; z-index:1; width:1.6rem; height:1.6rem; display:flex;
-      align-items:center; justify-content:center; border:none; border-radius:50%; background:rgba(0,0,0,.06);
+      align-items:center; justify-content:center; border:none; border-radius: var(--ok-radius-pill, 50%); background:rgba(0,0,0,.06);
       color:var(--ion-text-color,#1c1b18); cursor:pointer; font-size:1rem; line-height:1; }
     .kebab:hover { background:rgba(0,0,0,.14); }
     /* Menú de acciones (tras ⋮) y banner de "elige destino". */
     .actions { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin:.6rem 0; padding:.6rem .7rem;
-      border-radius:12px; background:var(--ion-color-light,#f4f5f8); }
+      border-radius: var(--ok-radius, 12px); background:var(--ion-color-light,#f4f5f8); }
     .actions .lbl { font-weight:700; margin-right:auto; }
-    .hint { margin:.6rem 0; padding:.5rem .7rem; border-radius:10px; background:var(--ion-color-light,#f4f5f8);
+    .hint { margin:.6rem 0; padding:.5rem .7rem; border-radius: var(--ok-radius-sm, 10px); background:var(--ion-color-light,#f4f5f8);
       font-size:.85rem; color:#8b897f; }
     /* Empty-state con aire: icono + qué pasa + qué hacer (antes: texto estrujado en un panel
        encogido — el panel toma un ancho mínimo digno aunque no haya mesas). */
@@ -540,11 +541,7 @@ export class ErpTablesPosZones extends LitElement {
             </div>`;
           })}
           ${!this.loading && !this.tablesInZone.length ? html`
-            <div class="empty">
-              <ion-icon name="grid-outline"></ion-icon>
-              <p>${t('ui.noTablesInZone')}</p>
-              <p class="empty-hint">${t('ui.noTablesInZoneHint')}</p>
-            </div>` : nothing}
+            <ok-empty-state icon="grid-outline" heading=${t('ui.noTablesInZone')} message=${t('ui.noTablesInZoneHint')}></ok-empty-state>` : nothing}
           ${this.loading ? html`<div class="empty">${t('ui.loading')}</div>` : nothing}
         </div>
 

@@ -1,6 +1,8 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { state } from 'lit/decorators.js';
 import { define } from '@erplora/outfitkit/define';
+import '@erplora/outfitkit/ok-inline-feedback';
+import '@erplora/outfitkit/ok-empty-state';
 // Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
@@ -71,15 +73,15 @@ export class ErpTablesCanvas extends LitElement {
     .zonebar ion-segment { flex:1; }
     .legend { display:flex; gap:.8rem; flex-wrap:wrap; margin:.2rem 0 .6rem; font-size:.75rem; color:#8b897f; }
     .legend span { display:inline-flex; align-items:center; gap:.3rem; }
-    .dot { width:.7rem; height:.7rem; border-radius:50%; display:inline-block; }
-    .canvas { position:relative; height:60vh; min-height:22rem; border:1px dashed var(--ion-border-color,#cfcabd); border-radius:14px; background:
+    .dot { width:.7rem; height:.7rem; border-radius: var(--ok-radius-pill, 50%); display:inline-block; }
+    .canvas { position:relative; height:60vh; min-height:22rem; border:1px dashed var(--ion-border-color,#cfcabd); border-radius: var(--ok-radius, 14px); background:
         repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px),
         repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px);
       overflow:hidden; touch-action:none; }
-    .mesa { position:absolute; width:${BOX}px; height:${BOX}px; border:2px solid; border-radius:12px;
+    .mesa { position:absolute; width:${BOX}px; height:${BOX}px; border:2px solid; border-radius: var(--ok-radius, 12px);
       display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:grab;
       background:var(--ion-background-color,#fff); user-select:none; box-shadow:0 1px 4px rgba(0,0,0,.12); }
-    .mesa.round { border-radius:50%; }
+    .mesa.round { border-radius: var(--ok-radius-pill, 50%); }
     .mesa.dragging { cursor:grabbing; opacity:.85; box-shadow:0 6px 18px rgba(0,0,0,.28); z-index:5; }
     .mesa .n { font-weight:700; font-size:1.05rem; }
     .mesa .c { font-size:.7rem; color:#8b897f; }
@@ -88,7 +90,7 @@ export class ErpTablesCanvas extends LitElement {
     .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#8b897f; text-align:center; padding:1rem; }
     /* Sheet de edición (en el shadow → conserva estilos) */
     .scrim { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:60; }
-    .sheet { background:var(--ion-background-color,#fff); border-radius:16px; padding:1rem; width:min(94vw,26rem); max-height:90vh; overflow:auto; box-shadow:0 12px 48px rgba(0,0,0,.35); }
+    .sheet { background:var(--ion-background-color,#fff); border-radius: var(--ok-radius-lg, 16px); padding:1rem; width:min(94vw,26rem); max-height:90vh; overflow:auto; box-shadow:0 12px 48px rgba(0,0,0,.35); }
     .sheet-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; }
     .sheet-h .t { font-size:1.2rem; font-weight:700; }
     .x { background:none; border:none; font-size:1.3rem; cursor:pointer; color:#8b897f; }
@@ -388,7 +390,7 @@ export class ErpTablesCanvas extends LitElement {
         <ion-button size="small" ?disabled=${!this.zones.length} @click=${() => this.addTable()}>${t('ui.addTable')}</ion-button>
       </header>
 
-      ${this.error ? html`<p class="err">${this.error}</p>` : nothing}
+      ${this.error ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : nothing}
 
       ${this.zones.length
         ? html`<div class="zonebar">
@@ -416,8 +418,8 @@ export class ErpTablesCanvas extends LitElement {
             <div class="n">${tb.number}</div>
             <div class="c">${t('ui.paxCount', { count: tb.capacity })}</div>
           </div>`)}
-        ${!this.loading && !this.zones.length ? html`<div class="empty">${t('ui.createZoneToStart')}</div>` : nothing}
-        ${!this.loading && this.zones.length && !this.tablesInZone.length ? html`<div class="empty">${t('ui.noTablesInZonePrompt')}</div>` : nothing}
+        ${!this.loading && !this.zones.length ? html`<ok-empty-state icon="grid-outline" message=${t('ui.createZoneToStart')}></ok-empty-state>` : nothing}
+        ${!this.loading && this.zones.length && !this.tablesInZone.length ? html`<ok-empty-state icon="square-outline" message=${t('ui.noTablesInZonePrompt')}></ok-empty-state>` : nothing}
         ${this.loading ? html`<div class="empty">${t('ui.loading')}</div>` : nothing}
       </div>
       <p class="hint">${t('ui.canvasHint')}</p>
