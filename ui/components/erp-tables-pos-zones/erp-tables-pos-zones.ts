@@ -1,7 +1,6 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { state } from 'lit/decorators.js';
 import { define } from '@erplora/outfitkit/define';
-import '@erplora/outfitkit/ok-empty-state';
 // Catálogo i18n del módulo (ADR-0055): esbuild inlinea estos JSON en el `dist` del WC. Los textos
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
@@ -541,7 +540,11 @@ export class ErpTablesPosZones extends LitElement {
             </div>`;
           })}
           ${!this.loading && !this.tablesInZone.length ? html`
-            <ok-empty-state icon="grid-outline" heading=${t('ui.noTablesInZone')} message=${t('ui.noTablesInZoneHint')}></ok-empty-state>` : nothing}
+            <div class="empty">
+              <ion-icon name="grid-outline"></ion-icon>
+              <p>${t('ui.noTablesInZone')}</p>
+              <p class="empty-hint">${t('ui.noTablesInZoneHint')}</p>
+            </div>` : nothing}
           ${this.loading ? html`<div class="empty">${t('ui.loading')}</div>` : nothing}
         </div>
 
