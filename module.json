@@ -100,7 +100,8 @@
       "migrations/postgres/003_session_merge.sql",
       "migrations/postgres/004_session_order.sql",
       "migrations/postgres/005_session_assignment.sql",
-      "migrations/postgres/006_session_no_table.sql"
+      "migrations/postgres/006_session_no_table.sql",
+      "migrations/postgres/007_session_history_fk.sql"
     ]
   },
   "queries": {

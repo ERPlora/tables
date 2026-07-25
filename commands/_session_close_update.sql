@@ -2,11 +2,15 @@
 -- Lo invoca el handler WASM `close_session` (command privado `tables._session_close`).
 -- Solo aplica si la sesión está `active`; merge opcional de :notes (se añade en
 -- línea nueva a las notas existentes). Runtime inyecta :hub_id, :current_user_id, :now.
+--
+-- `:notes` se usa SOLO dentro de la comparación de la guarda; cuando el POS cierra sin notas el
+-- driver lo binda como NULL sin tipo y Postgres no puede inferirlo -> 42P08 (issue #20). El CAST
+-- explícito le da tipo al parámetro (SQLite no lo sufría por su tipado dinámico).
 UPDATE tables_session SET
   status     = 'closed',
   closed_at  = :now,
   notes      = CASE
-                 WHEN :notes IS NOT NULL AND :notes <> '' THEN
+                 WHEN CAST(:notes AS TEXT) IS NOT NULL AND CAST(:notes AS TEXT) <> '' THEN
                    CASE WHEN notes IS NULL OR notes = '' THEN :notes
                         ELSE notes || '
 ' || :notes END
