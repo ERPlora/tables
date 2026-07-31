@@ -942,7 +942,7 @@ var g = class extends (globalThis.HTMLElement ?? HTMLElementShimWithRealType) {
 };
 g.elementStyles = [], g.shadowRootOptions = { mode: "open" }, g[f("elementProperties")] = /* @__PURE__ */ new Map(), g[f("finalized")] = /* @__PURE__ */ new Map(), u?.({ ReactiveElement: g }), (l.reactiveElementVersions ??= []).push("2.1.2");
 
-// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/lit-html.js
+// ../module-toolkit/node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i2 = (t5) => t5;
 var s2 = t2.trustedTypes;
@@ -1197,7 +1197,7 @@ var D = (t5, i7, s5) => {
   return h4._$AI(t5), h4;
 };
 
-// node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
+// ../module-toolkit/node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i3 = class extends g {
   constructor() {
@@ -1956,6 +1956,43 @@ function rows(r6) {
   if (r6 && typeof r6 === "object" && Array.isArray(r6.rows)) return r6.rows;
   return [];
 }
+var AUTO_GAP = 16;
+var AUTO_CELL = BOX + AUTO_GAP;
+var AUTO_COLS = 4;
+function sinCoordenadas(t5) {
+  return !t5.position_x && !t5.position_y;
+}
+function autoLayoutTables(tables) {
+  const ocupadas = new Set(tables.filter((t5) => !sinCoordenadas(t5)).map((t5) => `${t5.position_x},${t5.position_y}`));
+  let col = 0;
+  let row = 0;
+  const out = [];
+  for (const t5 of tables) {
+    if (!sinCoordenadas(t5)) {
+      out.push(t5);
+      continue;
+    }
+    let x2 = AUTO_GAP + col * AUTO_CELL;
+    let y3 = AUTO_GAP + row * AUTO_CELL;
+    while (ocupadas.has(`${x2},${y3}`)) {
+      col++;
+      if (col >= AUTO_COLS) {
+        col = 0;
+        row++;
+      }
+      x2 = AUTO_GAP + col * AUTO_CELL;
+      y3 = AUTO_GAP + row * AUTO_CELL;
+    }
+    ocupadas.add(`${x2},${y3}`);
+    out.push({ ...t5, position_x: x2, position_y: y3 });
+    col++;
+    if (col >= AUTO_COLS) {
+      col = 0;
+      row++;
+    }
+  }
+  return out;
+}
 var ErpTablesCanvas = class extends i3 {
   constructor() {
     super(...arguments);
@@ -2043,7 +2080,7 @@ var ErpTablesCanvas = class extends i3 {
         erplora().queryAll("tables.tables.list", { sort: "number", dir: "asc" }).catch(() => [])
       ]);
       this.zones = rows(z2);
-      this.tables = rows(t5).map((m4) => ({
+      this.tables = autoLayoutTables(rows(t5).map((m4) => ({
         ...m4,
         capacity: Number(m4.capacity) || 1,
         is_active: Number(m4.is_active),
@@ -2051,7 +2088,7 @@ var ErpTablesCanvas = class extends i3 {
         position_y: Number(m4.position_y) || 0,
         width: Number(m4.width) || BOX,
         height: Number(m4.height) || BOX
-      }));
+      })));
       if (!this.activeZone || !this.zones.some((zo) => zo.id === this.activeZone)) {
         this.activeZone = this.zones[0]?.id ?? "";
       }
@@ -2413,7 +2450,7 @@ __decorateClass([
 ], ErpTablesCanvas.prototype, "saving", 2);
 define("erp-tables-canvas", ErpTablesCanvas);
 
-// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive.js
+// ../module-toolkit/node_modules/lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t5) => (...e5) => ({ _$litDirective$: t5, values: e5 });
 var i4 = class {
@@ -2433,7 +2470,7 @@ var i4 = class {
   }
 };
 
-// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive-helpers.js
+// ../module-toolkit/node_modules/lit-html/directive-helpers.js
 var { I: t4 } = j;
 var i5 = (o7) => o7;
 var s4 = () => document.createComment("");
@@ -2466,7 +2503,7 @@ var h3 = (o7) => {
   o7._$AR(), o7._$AA.remove();
 };
 
-// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/repeat.js
+// ../module-toolkit/node_modules/lit-html/directives/repeat.js
 var u4 = (e5, s5, t5) => {
   const r6 = /* @__PURE__ */ new Map();
   for (let l3 = s5; l3 <= t5; l3++) r6.set(e5[l3], l3);
@@ -2519,7 +2556,7 @@ var c4 = e4(class extends i4 {
   }
 });
 
-// node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/style-map.js
+// ../module-toolkit/node_modules/lit-html/directives/style-map.js
 var n5 = "important";
 var i6 = " !" + n5;
 var o6 = e4(class extends i4 {
@@ -2897,6 +2934,13 @@ var OkDataTable = class extends i3 {
     .empty .empty-ic { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: 999px; background: var(--header-background); font-size: 26px; }
 
     .actions { display: flex; gap: 0.25rem; justify-content: flex-end; }
+    /* Las acciones de fila son icon-only y de tamaño small en escritorio. En tablet/móvil se
+     * amplía el host completo (no solo el icono) para que el área táctil alcance 44×44 px. */
+    @media (pointer: coarse), (max-width: 834px) {
+      .actions ion-button { min-width: 44px; min-height: 44px; margin: 0; }
+      .toolbtn { width: 44px; height: 44px; }
+      .pager .nav ion-button { min-width: 44px; min-height: 44px; margin: 0; }
+    }
     /* Spinner de acción en curso (loading): contenido dentro del ion-button small (Ionic lo fija
      * a 28px en el :host, por eso width/height y no font-size). Cubre tabla y tarjetas: los
      * botones de fila siempre van dentro de .actions. */

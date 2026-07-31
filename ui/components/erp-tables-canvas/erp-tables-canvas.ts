@@ -62,6 +62,49 @@ function rows<T>(r: unknown): T[] {
   return [];
 }
 
+// #271 — las mesas de un blueprint/seed llegan SIN posición (0,0) y colapsaban en la esquina
+// superior izquierda, apiladas. Las creadas a mano (`addTable`) sí calculaban un offset en cascada;
+// las importadas no. Esto reparte en un grid las mesas cuyo (x,y) es (0,0) (sin pisar a las que
+// ya tienen coords reales) para que el plano se vea usable nada más cargar. El usuario luego las
+// arrastra y persiste la posición final con `tables.tables.move`.
+const AUTO_GAP = 16;       // px de margen entre celdas
+const AUTO_CELL = BOX + AUTO_GAP; // paso del grid (una mesa por celda)
+const AUTO_COLS = 4;       // nº de columnas del grid de fallback
+
+/** `true` si la mesa no tiene una posición real (0,0 = default del Number(m)||0 en reload). */
+function sinCoordenadas(t: Table): boolean {
+  return !t.position_x && !t.position_y;
+}
+
+/** Reparte las mesas sin coords sobre un grid, respetando las que ya tienen posición. */
+function autoLayoutTables(tables: Table[]): Table[] {
+  // Primero recoge las posiciones ya ocupadas por mesas con coords reales (para no pisarlas).
+  const ocupadas = new Set(tables.filter((t) => !sinCoordenadas(t)).map((t) => `${t.position_x},${t.position_y}`));
+  let col = 0;
+  let row = 0;
+  const out: Table[] = [];
+  for (const t of tables) {
+    if (!sinCoordenadas(t)) {
+      out.push(t);
+      continue;
+    }
+    // Busca la próxima celda libre (saltando las ocupadas por mesas con coords reales).
+    let x = AUTO_GAP + col * AUTO_CELL;
+    let y = AUTO_GAP + row * AUTO_CELL;
+    while (ocupadas.has(`${x},${y}`)) {
+      col++;
+      if (col >= AUTO_COLS) { col = 0; row++; }
+      x = AUTO_GAP + col * AUTO_CELL;
+      y = AUTO_GAP + row * AUTO_CELL;
+    }
+    ocupadas.add(`${x},${y}`);
+    out.push({ ...t, position_x: x, position_y: y });
+    col++;
+    if (col >= AUTO_COLS) { col = 0; row++; }
+  }
+  return out;
+}
+
 export class ErpTablesCanvas extends LitElement {
   static styles = css`
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
@@ -156,7 +199,7 @@ export class ErpTablesCanvas extends LitElement {
         erplora().queryAll('tables.tables.list', { sort: 'number', dir: 'asc' }).catch(() => []),
       ]);
       this.zones = rows<Zone>(z);
-      this.tables = rows<Table>(t).map((m) => ({
+      this.tables = autoLayoutTables(rows<Table>(t).map((m) => ({
         ...m,
         capacity: Number(m.capacity) || 1,
         is_active: Number(m.is_active),
@@ -164,7 +207,7 @@ export class ErpTablesCanvas extends LitElement {
         position_y: Number(m.position_y) || 0,
         width: Number(m.width) || BOX,
         height: Number(m.height) || BOX,
-      }));
+      })));
       if (!this.activeZone || !this.zones.some((zo) => zo.id === this.activeZone)) {
         this.activeZone = this.zones[0]?.id ?? '';
       }
