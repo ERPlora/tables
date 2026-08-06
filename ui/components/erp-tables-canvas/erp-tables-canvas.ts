@@ -23,6 +23,22 @@ interface Zone { id: string; name: string; color?: string; sort_order?: number; 
 interface Table {
   id: string; number: string; name: string; capacity: number; shape: string; status: string;
   is_active: number; zone_id: string | null; position_x: number; position_y: number; width: number; height: number;
+  // tables#12: la retención viva de la mesa, servida por `tables.tables.list`. La leyenda
+  // «Reservada» existía desde el principio pero nunca se alcanzaba porque nadie escribía el estado;
+  // ahora que se pinta, el plano dice además DE QUIÉN es y a qué hora.
+  reserved_for?: string | null;
+  reserved_from?: string | null;
+  reserved_until?: string | null;
+  reserved_party_size?: number | null;
+}
+
+/** `2026-08-07T21:00:00+00:00` → `21:00`, en la hora del dispositivo: la sala mira el reloj de
+ *  pared, y una fecha ISO entera no cabe sobre una mesa del plano. */
+function hhmm(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 interface ErploraLike {
@@ -128,6 +144,10 @@ export class ErpTablesCanvas extends LitElement {
     .mesa.dragging { cursor:grabbing; opacity:.85; box-shadow:0 6px 18px rgba(0,0,0,.28); z-index:5; }
     .mesa .n { font-weight:700; font-size:1.05rem; }
     .mesa .c { font-size:.7rem; color:#8b897f; }
+    /* Nombre y hora de la reserva. Es lo que convierte el color ambar en informacion util:
+       sin esto el encargado ve «reservada» y no sabe si le da tiempo a sentar a alguien. */
+    .mesa .hold { font-size:.62rem; color:var(--ion-color-warning,#f08c00); font-weight:600;
+      max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .hint { color:#8b897f; font-size:.85rem; margin:.5rem 0 0; }
     .err { color:#d9480f; font-weight:600; }
     .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#8b897f; text-align:center; padding:1rem; }
@@ -456,10 +476,18 @@ export class ErpTablesCanvas extends LitElement {
         ${this.tablesInZone.map((tb) => html`
           <div class=${`mesa ${tb.shape === 'round' ? 'round' : ''} ${tb.id === this.dragId && this.dragMoved ? 'dragging' : ''}`}
             style=${`left:${tb.position_x}px; top:${tb.position_y}px; border-color:${STATUS_COLOR[tb.status] ?? '#d9d6cf'}`}
-            title=${t('ui.tableTooltip', { status: STATUS_KEY[tb.status] ? t(STATUS_KEY[tb.status]) : tb.status, count: tb.capacity })}
+            title=${[
+              t('ui.tableTooltip', { status: STATUS_KEY[tb.status] ? t(STATUS_KEY[tb.status]) : tb.status, count: tb.capacity }),
+              tb.reserved_for
+                ? `${t('ui.reservedFor', { name: tb.reserved_for })} ${[hhmm(tb.reserved_from), hhmm(tb.reserved_until)].filter(Boolean).join('–')}`.trim()
+                : '',
+            ].filter(Boolean).join(' · ')}
             @pointerdown=${(e: PointerEvent) => this.onPointerDown(tb, e)}>
             <div class="n">${tb.number}</div>
             <div class="c">${t('ui.paxCount', { count: tb.capacity })}</div>
+            ${tb.reserved_for
+              ? html`<div class="hold">${tb.reserved_for}${tb.reserved_from ? ` · ${hhmm(tb.reserved_from)}` : ''}</div>`
+              : nothing}
           </div>`)}
         ${!this.loading && !this.zones.length ? html`<ok-empty-state icon="grid-outline" message=${t('ui.createZoneToStart')}></ok-empty-state>` : nothing}
         ${!this.loading && this.zones.length && !this.tablesInZone.length ? html`<ok-empty-state icon="square-outline" message=${t('ui.noTablesInZonePrompt')}></ok-empty-state>` : nothing}
