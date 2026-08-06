@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tables.tables.hold payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["table_id", "source", "source_ref", "held_from", "held_until"],
+  "properties": {
+    "table_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "UUID de la mesa que se retiene"
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Módulo que pide la retención (`reservations`) o `manual` si la pone el encargado"
+    },
+    "source_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Referencia OPACA de la fila de origen (id de la reserva). Junto a `source` es la clave de idempotencia: reentregar la confirmación no retiene dos veces"
+    },
+    "held_from": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ISO-8601: desde cuándo la mesa deja de venderse"
+    },
+    "held_until": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ISO-8601: cuándo caduca sola. Es lo que impide que un no-show deje la mesa muerta el resto del servicio"
+    },
+    "party_size": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Comensales de la reserva (0 = desconocido)"
+    },
+    "label": {
+      "type": "string",
+      "description": "Nombre que el plano pinta sobre la mesa; sin él, «Reservada» es solo un color"
+    }
+  }
+}

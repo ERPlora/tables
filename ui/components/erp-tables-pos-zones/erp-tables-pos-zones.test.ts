@@ -294,4 +294,81 @@ describe('la X del chip aparca la sesión, no la cierra', () => {
     expect(comandos).not.toContain('tables.sessions.close');
     expect(filler.selectedId).toBeUndefined();
   });
+
+  it('el menu ⋮ de una mesa ocupada ofrece DIVIDIR la cuenta (tables#12)', async () => {
+    // Cuatro comensales que quieren pagar por separado: hasta #12 el TPV no tenía por dónde. La
+    // división se pide sobre la MISMA mesa (dos cuentas, un mantel), así que —a diferencia de
+    // transferir/fusionar— no manda a elegir mesa destino: se ejecuta y se avisa a `sales`, que es
+    // quien reparte las líneas.
+    const comandos: { name: string; payload?: Record<string, unknown> }[] = [];
+    (globalThis as Record<string, unknown>).erplora = {
+      ...((globalThis as Record<string, unknown>).erplora as object),
+      queryAll: async (name: string) => {
+        if (name.includes('zone')) return [ZONA];
+        if (name === 'tables.sessions.list') return [{ id: 'ses-1', table_id: 'tbl-1', status: 'active', order_id: 'ord-1' }];
+        return [{ ...MESA, status: 'occupied' }];
+      },
+      query: async (name: string) => {
+        if (name.includes('zone')) return [ZONA];
+        if (name === 'tables.sessions.list') return [{ id: 'ses-1', table_id: 'tbl-1', status: 'active', order_id: 'ord-1' }];
+        return [{ ...MESA, status: 'occupied' }];
+      },
+      command: async (name: string, payload?: Record<string, unknown>) => {
+        comandos.push({ name, payload });
+        return { new_ids: ['ses-2'] };
+      },
+    };
+    const el = await montar();
+    let split: { table_id?: string; from_order_id?: string; session_id?: string } | undefined;
+    el.addEventListener('erp:order-split', (e) => { split = (e as CustomEvent).detail; });
+
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+
+    el.shadowRoot.querySelector<HTMLElement>('.kebab')!.click();
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+
+    const acciones = [...el.shadowRoot.querySelectorAll('.actions ion-button')];
+    const dividir = acciones.find((b) => b.textContent?.includes('ui.split'));
+    expect(dividir, 'el menú ⋮ debe ofrecer Dividir junto a Transferir y Fusionar').toBeTruthy();
+
+    (dividir as HTMLElement).click();
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+
+    const cmd = comandos.find((c) => c.name === 'tables.sessions.split');
+    expect(cmd, 'dividir ejecuta tables.sessions.split').toBeTruthy();
+    expect(cmd?.payload?.session_id, 'sobre la cuenta viva de la mesa').toBe('ses-1');
+    expect(split?.from_order_id, 'sales recibe el pedido de la cuenta original').toBe('ord-1');
+    expect(split?.session_id, 'y a qué cuenta nueva colgar el pedido que cree').toBe('ses-2');
+  });
+
+  it('una mesa reservada se pinta con su reserva, no solo con un color (tables#12)', async () => {
+    // La leyenda «Reservada» existía desde el principio pero era inalcanzable. Ahora que se pinta,
+    // tiene que decir DE QUIÉN es y HASTA cuándo: un color no le dice al encargado si le da tiempo
+    // a sentar a alguien antes.
+    (globalThis as Record<string, unknown>).erplora = {
+      ...((globalThis as Record<string, unknown>).erplora as object),
+      queryAll: async (name: string) => (name.includes('zone') ? [ZONA] : [{
+        ...MESA, status: 'reserved', reserved_for: 'Ana', reserved_party_size: 4,
+        reserved_from: '2026-08-07T21:00:00+00:00', reserved_until: '2026-08-07T23:00:00+00:00',
+      }]),
+    };
+    const el = await montar();
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+
+    const mesa = el.shadowRoot.querySelector('.mesa');
+    expect(mesa?.textContent, 'el nombre de la reserva se pinta sobre la mesa').toContain('Ana');
+    // La hora se pinta en la zona horaria DEL DISPOSITIVO —el encargado lee la hora de su reloj de
+    // pared, no UTC—, así que la aserción va sobre la forma y no sobre un número concreto: fijar
+    // «21:00» solo pasaría en un runner en UTC.
+    const title = mesa?.getAttribute('title') ?? '';
+    expect(title, 'con los comensales').toContain('Ana (4)');
+    expect(title, 'y la franja horaria al alcance').toMatch(/\d{2}:\d{2}–\d{2}:\d{2}/);
+  });
 });

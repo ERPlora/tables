@@ -22,6 +22,12 @@ interface Zone { id: string; name: string; }
 interface Table {
   id: string; number: string; name: string; capacity: number;
   status: string; zone_id: string | null; zone: string | null;
+  // tables#12: retención viva de la mesa (`tables.tables.list`). Sin nombre ni hora, «Reservada»
+  // es solo un color y el encargado no sabe si le da tiempo a sentar a alguien antes.
+  reserved_for?: string | null;
+  reserved_from?: string | null;
+  reserved_until?: string | null;
+  reserved_party_size?: number | null;
 }
 
 interface ErploraLike {
@@ -54,6 +60,25 @@ function erplora(): ErploraLike {
   const c = (globalThis as { erplora?: ErploraLike }).erplora;
   if (!c) throw new Error('erplora SDK no inicializado por el shell');
   return c;
+}
+
+/** `2026-08-07T21:00:00+00:00` → `21:00`, en la zona horaria del dispositivo. La sala razona en
+ *  horas, no en ISO; una fecha entera no cabe en la celda de una mesa. */
+function hhmm(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Tooltip de una mesa retenida: quién, cuántos y en qué franja. Lo que no cabe pintado en la
+ *  celda sigue estando a un hover/long-press de distancia. */
+function holdTitle(t: { reserved_for?: string | null; reserved_from?: string | null;
+  reserved_until?: string | null; reserved_party_size?: number | null; }): string {
+  if (!t.reserved_for) return '';
+  const span = [hhmm(t.reserved_from), hhmm(t.reserved_until)].filter(Boolean).join('–');
+  const pax = t.reserved_party_size ? ` (${t.reserved_party_size})` : '';
+  return `${t.reserved_for}${pax}${span ? ` · ${span}` : ''}`;
 }
 
 function rows<T>(r: unknown): T[] {
@@ -95,6 +120,10 @@ export class ErpTablesPosZones extends LitElement {
     .mesa .n { font-weight:700; font-size:1.05rem; }
     .mesa .c { font-size:.75rem; color:#8b897f; }
     .mesa .s { font-size:.65rem; text-transform:uppercase; letter-spacing:.03em; font-weight:600; }
+    /* Nombre y hora de la reserva viva. Cabe en la celda porque es lo unico que el encargado
+       necesita de un vistazo; el resto va en el tooltip. */
+    .mesa .hold { font-size:.65rem; color:var(--ion-color-warning,#f08c00); font-weight:600;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     /* Botón ⋮ (more-vert) en la esquina de cada mesa OCUPADA: abre transferir/fusionar. */
     .kebab { position:absolute; top:2px; right:2px; z-index:1; width:1.6rem; height:1.6rem; display:flex;
       align-items:center; justify-content:center; border:none; border-radius: var(--ok-radius-pill, 50%); background:rgba(0,0,0,.06);
@@ -299,7 +328,7 @@ export class ErpTablesPosZones extends LitElement {
    *  nunca la propia mesa origen. */
   private isValidTarget(t: Table): boolean {
     if (t.id === this.actionSource?.id) return false;
-    if (this.mode === 'transfer') return t.status === 'available';
+    if (this.mode === 'transfer') return t.status === 'available' || t.status === 'reserved';
     if (this.mode === 'merge') return t.status !== 'available';
     return true;
   }
@@ -330,20 +359,23 @@ export class ErpTablesPosZones extends LitElement {
     }
     let sessionId: string | undefined;
     let linkedOrderId: string | undefined; // ADR-0141: pedido que ya tiene abierto esta mesa
-    if (t.status === 'available') {
-      // Mesa libre → ocupar (abrir sesión). El runtime rechaza si dejó de estar disponible.
+    // Manda la CUENTA VIVA, no el color de la mesa. Si la mesa ya tiene una, se reanuda con su
+    // pedido (ADR-0141: la sesión es la junction mesa↔pedido); si no la tiene, se abre.
+    //
+    // tables#12: antes esto se decidía por `status === 'available'`, y una mesa `reserved` —que
+    // desde #12 sí existe— caía en la rama de «reanudar» sin sesión que reanudar: el TPV se quedaba
+    // con mesa y sin cuenta. Sentar una reserva es exactamente abrir su primera cuenta.
+    const live = await this.activeSessionInfo(t.id);
+    if (live) {
+      sessionId = live.id;
+      linkedOrderId = live.order_id || undefined;
+    } else {
       try {
         await erplora().command('tables.sessions.open', { table_id: t.id });
         sessionId = await this.activeSessionFor(t.id);
       } catch (e) {
         this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errOccupyTable');
       }
-    } else {
-      // Mesa ya ocupada/reservada → reanudar su sesión activa (no abrir otra) Y su pedido, para que
-      // el POS recupere la comanda tal cual quedó (ADR-0141: la sesión es la junction mesa↔pedido).
-      const info = await this.activeSessionInfo(t.id);
-      sessionId = info?.id;
-      linkedOrderId = info?.order_id || undefined;
     }
     this.sessionId = sessionId;
     this.selectedId = t.id;
@@ -387,6 +419,38 @@ export class ErpTablesPosZones extends LitElement {
 
   private startTransfer() { this.mode = 'transfer'; }
   private startMerge() { this.mode = 'merge'; }
+
+  /** tables#12 — dividir la cuenta. A diferencia de transferir/fusionar NO pide mesa destino: la
+   *  segunda cuenta se queda en la misma mesa (dos cuentas, un mantel), que es lo que pide la sala.
+   *  `tables` abre la cuenta; las líneas y los importes los reparte `sales` al recibir el evento. */
+  private async doSplit() {
+    const src = this.actionSource;
+    if (!src) return;
+    const info = await this.activeSessionInfo(src.id);
+    if (!info?.id) { this.error = erplora().t(CATALOG, 'ui.errNoActiveSession'); return; }
+    try {
+      const res = await erplora().command<{ new_ids?: string[] }>(
+        'tables.sessions.split', { session_id: info.id });
+      // La cuenta nueva nace SIN pedido: `sales` materializa el suyo y lo cuelga de ella con
+      // `tables.sessions.link_order`, por eso viaja su id (sin él, el pedido aterrizaría en la
+      // cuenta original y las dos mitades cobrarían la misma comanda).
+      this.dispatchEvent(new CustomEvent('erp:order-split', {
+        detail: {
+          table_id: src.id,
+          from_order_id: info.order_id ?? null,
+          session_id: res?.new_ids?.[0] ?? null,
+          label: erplora().t(CATALOG, 'ui.tableLabel', { number: src.number }),
+        },
+        bubbles: true, composed: true,
+      }));
+      this.mode = 'select';
+      this.actionSource = undefined;
+      this.open = false;
+      void this.refreshTables();
+    } catch (e) {
+      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errSplit');
+    }
+  }
   private cancelAction() { this.mode = 'select'; this.actionSource = undefined; }
 
   /** Emite hacia el POS el movimiento de comanda (mover en transfer, combinar en merge). El POS
@@ -506,6 +570,9 @@ export class ErpTablesPosZones extends LitElement {
               <ion-button size="small" fill="outline" @click=${() => this.startMerge()}>
                 <ion-icon slot="start" name="git-merge-outline"></ion-icon>${t('ui.merge')}
               </ion-button>
+              <ion-button size="small" fill="outline" @click=${() => void this.doSplit()}>
+                <ion-icon slot="start" name="git-branch-outline"></ion-icon>${t('ui.split')}
+              </ion-button>
             </div>`
           : nothing}
         ${inAction
@@ -532,10 +599,14 @@ export class ErpTablesPosZones extends LitElement {
                 : nothing}
               <button class="mesa ${validTarget ? 'target' : ''}" aria-pressed=${this.selectedId === tb.id}
                 ?disabled=${inAction && !validTarget}
+                title=${holdTitle(tb) || nothing}
                 style=${`border-color:${STATUS_COLOR[tb.status] ?? '#d9d6cf'}`} @click=${() => this.pick(tb)}>
                 <div class="n">${tb.number}</div>
                 <div class="c">${t('ui.paxCount', { count: tb.capacity })}</div>
                 <div class="s" style=${`color:${STATUS_COLOR[tb.status] ?? '#868e96'}`}>${t(STATUS_KEY[tb.status] ?? tb.status)}</div>
+                ${tb.reserved_for
+                  ? html`<div class="hold">${tb.reserved_for}${tb.reserved_from ? html` · ${hhmm(tb.reserved_from)}` : nothing}</div>`
+                  : nothing}
               </button>
             </div>`;
           })}

@@ -1761,6 +1761,7 @@ var es_default = {
     tableActions: "Opciones de mesa",
     transfer: "Transferir",
     merge: "Fusionar",
+    split: "Dividir cuenta",
     cancel: "Cancelar",
     transferTitle: "Transferir {number} a\u2026",
     mergeTitle: "Fusionar {number} con\u2026",
@@ -1769,6 +1770,7 @@ var es_default = {
     errNoActiveSession: "Esa mesa no tiene comanda abierta",
     errTransfer: "No se pudo transferir la mesa",
     errMerge: "No se pudieron fusionar las mesas",
+    errSplit: "No se pudo dividir la cuenta",
     tableLabel: "Mesa {number}",
     paxCount: "{count} pax",
     noTablesInZone: "Sin mesas en esta zona.",
@@ -1808,6 +1810,7 @@ var es_default = {
     statusAvailable: "Disponible",
     statusOccupied: "Ocupada",
     statusReserved: "Reservada",
+    reservedFor: "Reservada para {name}",
     statusBlocked: "Bloqueada",
     shapeSquare: "Cuadrada",
     shapeRound: "Redonda",
@@ -1858,6 +1861,7 @@ var en_default = {
     tableActions: "Table options",
     transfer: "Transfer",
     merge: "Merge",
+    split: "Split check",
     cancel: "Cancel",
     transferTitle: "Transfer {number} to\u2026",
     mergeTitle: "Merge {number} with\u2026",
@@ -1866,6 +1870,7 @@ var en_default = {
     errNoActiveSession: "That table has no open order",
     errTransfer: "Could not transfer the table",
     errMerge: "Could not merge the tables",
+    errSplit: "Could not split the check",
     tableLabel: "Table {number}",
     paxCount: "{count} pax",
     noTablesInZone: "No tables in this zone.",
@@ -1905,6 +1910,7 @@ var en_default = {
     statusAvailable: "Available",
     statusOccupied: "Occupied",
     statusReserved: "Reserved",
+    reservedFor: "Reserved for {name}",
     statusBlocked: "Blocked",
     shapeSquare: "Square",
     shapeRound: "Round",
@@ -1929,6 +1935,12 @@ var en_default = {
 
 // modules/tables/ui/components/erp-tables-canvas/erp-tables-canvas.ts
 var CATALOG = { es: es_default, en: en_default };
+function hhmm(iso) {
+  if (!iso) return "";
+  const d3 = new Date(iso);
+  if (Number.isNaN(d3.getTime())) return "";
+  return `${String(d3.getHours()).padStart(2, "0")}:${String(d3.getMinutes()).padStart(2, "0")}`;
+}
 var BOX = 72;
 var DRAG_THRESHOLD = 5;
 var SHAPES = ["square", "round", "rectangle"];
@@ -2035,6 +2047,10 @@ var ErpTablesCanvas = class extends i3 {
     .mesa.dragging { cursor:grabbing; opacity:.85; box-shadow:0 6px 18px rgba(0,0,0,.28); z-index:5; }
     .mesa .n { font-weight:700; font-size:1.05rem; }
     .mesa .c { font-size:.7rem; color:#8b897f; }
+    /* Nombre y hora de la reserva. Es lo que convierte el color ambar en informacion util:
+       sin esto el encargado ve «reservada» y no sabe si le da tiempo a sentar a alguien. */
+    .mesa .hold { font-size:.62rem; color:var(--ion-color-warning,#f08c00); font-weight:600;
+      max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .hint { color:#8b897f; font-size:.85rem; margin:.5rem 0 0; }
     .err { color:#d9480f; font-weight:600; }
     .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#8b897f; text-align:center; padding:1rem; }
@@ -2336,10 +2352,14 @@ var ErpTablesCanvas = class extends i3 {
         ${this.tablesInZone.map((tb) => b2`
           <div class=${`mesa ${tb.shape === "round" ? "round" : ""} ${tb.id === this.dragId && this.dragMoved ? "dragging" : ""}`}
             style=${`left:${tb.position_x}px; top:${tb.position_y}px; border-color:${STATUS_COLOR[tb.status] ?? "#d9d6cf"}`}
-            title=${t5("ui.tableTooltip", { status: STATUS_KEY[tb.status] ? t5(STATUS_KEY[tb.status]) : tb.status, count: tb.capacity })}
+            title=${[
+      t5("ui.tableTooltip", { status: STATUS_KEY[tb.status] ? t5(STATUS_KEY[tb.status]) : tb.status, count: tb.capacity }),
+      tb.reserved_for ? `${t5("ui.reservedFor", { name: tb.reserved_for })} ${[hhmm(tb.reserved_from), hhmm(tb.reserved_until)].filter(Boolean).join("\u2013")}`.trim() : ""
+    ].filter(Boolean).join(" \xB7 ")}
             @pointerdown=${(e5) => this.onPointerDown(tb, e5)}>
             <div class="n">${tb.number}</div>
             <div class="c">${t5("ui.paxCount", { count: tb.capacity })}</div>
+            ${tb.reserved_for ? b2`<div class="hold">${tb.reserved_for}${tb.reserved_from ? ` \xB7 ${hhmm(tb.reserved_from)}` : ""}</div>` : A}
           </div>`)}
         ${!this.loading && !this.zones.length ? b2`<ok-empty-state icon="grid-outline" message=${t5("ui.createZoneToStart")}></ok-empty-state>` : A}
         ${!this.loading && this.zones.length && !this.tablesInZone.length ? b2`<ok-empty-state icon="square-outline" message=${t5("ui.noTablesInZonePrompt")}></ok-empty-state>` : A}
@@ -2677,7 +2697,7 @@ var ES_LABELS = {
   recordSingular: "registro",
   recordPlural: "registros"
 };
-var OkDataTable = class extends i3 {
+var _OkDataTable = class _OkDataTable2 extends i3 {
   constructor() {
     super(...arguments);
     this.columns = [];
@@ -2715,6 +2735,7 @@ var OkDataTable = class extends i3 {
     this.filterDraft = {};
     this.panel = "none";
     this.viewMode = "table";
+    this.isMobile = false;
     this.hiddenKeys = /* @__PURE__ */ new Set();
     this.internalSelection = /* @__PURE__ */ new Set();
     this.menuOpen = false;
@@ -2961,15 +2982,36 @@ var OkDataTable = class extends i3 {
     ion-button { --box-shadow: none; }
   `;
   }
+  static {
+    this.MOBILE_BREAKPOINT = 640;
+  }
   connectedCallback() {
     super.connectedCallback();
     if (typeof window !== "undefined") {
       window.addEventListener("erplora:locale-changed", this.onLocaleChanged);
     }
+    if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+      this.mq = window.matchMedia(`(max-width: ${_OkDataTable2.MOBILE_BREAKPOINT}px)`);
+      this.isMobile = this.mq.matches;
+      const handler = (e5) => {
+        const matches = "matches" in e5 ? e5.matches : this.mq?.matches ?? false;
+        if (this.isMobile === matches) return;
+        this.isMobile = matches;
+        if (matches && this.cardViewEnabled) this.viewMode = "cards";
+        else if (!matches && this.viewMode === "cards") this.viewMode = "table";
+      };
+      this.mq.addEventListener("change", handler);
+      this._mqHandler = handler;
+    }
   }
   disconnectedCallback() {
     if (typeof window !== "undefined") {
       window.removeEventListener("erplora:locale-changed", this.onLocaleChanged);
+    }
+    if (this.mq) {
+      const handler = this._mqHandler;
+      if (handler) this.mq.removeEventListener("change", handler);
+      this.mq = void 0;
     }
     super.disconnectedCallback();
   }
@@ -3329,8 +3371,13 @@ var OkDataTable = class extends i3 {
   // forma robusta de arrancar en tarjetas sin depender de fijar `viewMode` por referencia (que
   // falla si la tabla monta detrás de un `v-if`/loading y el ref aún es null).
   firstUpdated() {
-    if (this.defaultView === "cards" && this.cardViewEnabled) this.viewMode = "cards";
-    else if (this.defaultView === "table") this.viewMode = "table";
+    if (this.isMobile && this.cardViewEnabled) {
+      this.viewMode = "cards";
+    } else if (this.defaultView === "cards" && this.cardViewEnabled) {
+      this.viewMode = "cards";
+    } else if (this.defaultView === "table") {
+      this.viewMode = "table";
+    }
   }
   setViewMode(mode) {
     if (this.viewMode === mode) return;
@@ -3814,151 +3861,155 @@ var OkDataTable = class extends i3 {
 };
 __decorateClass4([
   n4({ attribute: false })
-], OkDataTable.prototype, "columns");
+], _OkDataTable.prototype, "columns");
 __decorateClass4([
   n4({ attribute: false })
-], OkDataTable.prototype, "rows");
+], _OkDataTable.prototype, "rows");
 __decorateClass4([
   n4({ attribute: false })
-], OkDataTable.prototype, "searchKeys");
+], _OkDataTable.prototype, "searchKeys");
 __decorateClass4([
   n4({ attribute: "row-key-field" })
-], OkDataTable.prototype, "rowKeyField");
+], _OkDataTable.prototype, "rowKeyField");
 __decorateClass4([
   n4({ attribute: false })
-], OkDataTable.prototype, "rowKey");
+], _OkDataTable.prototype, "rowKey");
 __decorateClass4([
   n4({ type: Number, attribute: "page-size" })
-], OkDataTable.prototype, "pageSize");
+], _OkDataTable.prototype, "pageSize");
 __decorateClass4([
   n4({ attribute: "empty-message" })
-], OkDataTable.prototype, "emptyMessage");
+], _OkDataTable.prototype, "emptyMessage");
 __decorateClass4([
   n4({ attribute: "search-placeholder" })
-], OkDataTable.prototype, "searchPlaceholder");
+], _OkDataTable.prototype, "searchPlaceholder");
 __decorateClass4([
   n4({ attribute: false })
-], OkDataTable.prototype, "labels");
+], _OkDataTable.prototype, "labels");
 __decorateClass4([
   n4({ attribute: false })
-], OkDataTable.prototype, "actions");
+], _OkDataTable.prototype, "actions");
 __decorateClass4([
   n4({ type: Boolean })
-], OkDataTable.prototype, "addable");
+], _OkDataTable.prototype, "addable");
 __decorateClass4([
   n4({ attribute: false })
-], OkDataTable.prototype, "pageSizeOptions");
+], _OkDataTable.prototype, "pageSizeOptions");
 __decorateClass4([
   n4({ type: Boolean, reflect: true })
-], OkDataTable.prototype, "fill");
+], _OkDataTable.prototype, "fill");
 __decorateClass4([
   n4({ type: Boolean, attribute: "column-picker" })
-], OkDataTable.prototype, "columnPicker");
+], _OkDataTable.prototype, "columnPicker");
 __decorateClass4([
   n4({ type: Boolean })
-], OkDataTable.prototype, "csv");
+], _OkDataTable.prototype, "csv");
 __decorateClass4([
   n4({ attribute: "csv-name" })
-], OkDataTable.prototype, "csvName");
+], _OkDataTable.prototype, "csvName");
 __decorateClass4([
   n4({ type: Boolean, attribute: "server-side" })
-], OkDataTable.prototype, "serverSide");
+], _OkDataTable.prototype, "serverSide");
 __decorateClass4([
   n4({ type: Number })
-], OkDataTable.prototype, "total");
+], _OkDataTable.prototype, "total");
 __decorateClass4([
   n4({ type: Number })
-], OkDataTable.prototype, "page");
+], _OkDataTable.prototype, "page");
 __decorateClass4([
   n4({ type: Boolean })
-], OkDataTable.prototype, "searchable");
+], _OkDataTable.prototype, "searchable");
 __decorateClass4([
   n4({ type: String })
-], OkDataTable.prototype, "sort");
+], _OkDataTable.prototype, "sort");
 __decorateClass4([
   n4({ attribute: "sort-dir" })
-], OkDataTable.prototype, "sortDir");
+], _OkDataTable.prototype, "sortDir");
 __decorateClass4([
   n4()
-], OkDataTable.prototype, "title");
+], _OkDataTable.prototype, "title");
 __decorateClass4([
   n4({ attribute: false })
-], OkDataTable.prototype, "views");
+], _OkDataTable.prototype, "views");
 __decorateClass4([
   n4({ attribute: "default-view" })
-], OkDataTable.prototype, "defaultView");
+], _OkDataTable.prototype, "defaultView");
 __decorateClass4([
   n4({ type: Boolean })
-], OkDataTable.prototype, "exportable");
+], _OkDataTable.prototype, "exportable");
 __decorateClass4([
   n4({ type: Boolean })
-], OkDataTable.prototype, "importable");
+], _OkDataTable.prototype, "importable");
 __decorateClass4([
   n4({ type: Boolean, attribute: "column-selector" })
-], OkDataTable.prototype, "columnSelector");
+], _OkDataTable.prototype, "columnSelector");
 __decorateClass4([
   n4({ attribute: false })
-], OkDataTable.prototype, "pageSizes");
+], _OkDataTable.prototype, "pageSizes");
 __decorateClass4([
   n4({ type: Boolean })
-], OkDataTable.prototype, "selectable");
+], _OkDataTable.prototype, "selectable");
 __decorateClass4([
   n4({ attribute: false })
-], OkDataTable.prototype, "selectedKeys");
+], _OkDataTable.prototype, "selectedKeys");
 __decorateClass4([
   n4({ attribute: false })
-], OkDataTable.prototype, "primaryAction");
+], _OkDataTable.prototype, "primaryAction");
 __decorateClass4([
   n4({ type: Boolean })
-], OkDataTable.prototype, "inlineFilters");
+], _OkDataTable.prototype, "inlineFilters");
 __decorateClass4([
   n4({ attribute: false })
-], OkDataTable.prototype, "menuActions");
+], _OkDataTable.prototype, "menuActions");
 __decorateClass4([
   n4({ attribute: false })
-], OkDataTable.prototype, "cardTitle");
+], _OkDataTable.prototype, "cardTitle");
 __decorateClass4([
   n4({ attribute: false })
-], OkDataTable.prototype, "cardIcon");
+], _OkDataTable.prototype, "cardIcon");
 __decorateClass4([
   n4({ attribute: false })
-], OkDataTable.prototype, "renderCard");
+], _OkDataTable.prototype, "renderCard");
 __decorateClass4([
   r5()
-], OkDataTable.prototype, "q");
+], _OkDataTable.prototype, "q");
 __decorateClass4([
   r5()
-], OkDataTable.prototype, "clientPage");
+], _OkDataTable.prototype, "clientPage");
 __decorateClass4([
   r5()
-], OkDataTable.prototype, "clientPageSize");
+], _OkDataTable.prototype, "clientPageSize");
 __decorateClass4([
   r5()
-], OkDataTable.prototype, "clientSort");
+], _OkDataTable.prototype, "clientSort");
 __decorateClass4([
   r5()
-], OkDataTable.prototype, "clientSortDir");
+], _OkDataTable.prototype, "clientSortDir");
 __decorateClass4([
   r5()
-], OkDataTable.prototype, "clientFilters");
+], _OkDataTable.prototype, "clientFilters");
 __decorateClass4([
   r5()
-], OkDataTable.prototype, "filterDraft");
+], _OkDataTable.prototype, "filterDraft");
 __decorateClass4([
   r5()
-], OkDataTable.prototype, "panel");
+], _OkDataTable.prototype, "panel");
 __decorateClass4([
   r5()
-], OkDataTable.prototype, "viewMode");
+], _OkDataTable.prototype, "viewMode");
 __decorateClass4([
   r5()
-], OkDataTable.prototype, "hiddenKeys");
+], _OkDataTable.prototype, "isMobile");
 __decorateClass4([
   r5()
-], OkDataTable.prototype, "internalSelection");
+], _OkDataTable.prototype, "hiddenKeys");
 __decorateClass4([
   r5()
-], OkDataTable.prototype, "menuOpen");
+], _OkDataTable.prototype, "internalSelection");
+__decorateClass4([
+  r5()
+], _OkDataTable.prototype, "menuOpen");
+var OkDataTable = _OkDataTable;
 define("ok-data-table", OkDataTable);
 
 // ../hub/packages/module-sdk/src/index.ts
@@ -4276,6 +4327,18 @@ function erplora3() {
   if (!c5) throw new Error("erplora SDK no inicializado por el shell");
   return c5;
 }
+function hhmm2(iso) {
+  if (!iso) return "";
+  const d3 = new Date(iso);
+  if (Number.isNaN(d3.getTime())) return "";
+  return `${String(d3.getHours()).padStart(2, "0")}:${String(d3.getMinutes()).padStart(2, "0")}`;
+}
+function holdTitle(t5) {
+  if (!t5.reserved_for) return "";
+  const span = [hhmm2(t5.reserved_from), hhmm2(t5.reserved_until)].filter(Boolean).join("\u2013");
+  const pax = t5.reserved_party_size ? ` (${t5.reserved_party_size})` : "";
+  return `${t5.reserved_for}${pax}${span ? ` \xB7 ${span}` : ""}`;
+}
 function rows2(r6) {
   if (Array.isArray(r6)) return r6;
   if (r6 && typeof r6 === "object" && Array.isArray(r6.rows)) return r6.rows;
@@ -4402,6 +4465,10 @@ var ErpTablesPosZones = class extends i3 {
     .mesa .n { font-weight:700; font-size:1.05rem; }
     .mesa .c { font-size:.75rem; color:#8b897f; }
     .mesa .s { font-size:.65rem; text-transform:uppercase; letter-spacing:.03em; font-weight:600; }
+    /* Nombre y hora de la reserva viva. Cabe en la celda porque es lo unico que el encargado
+       necesita de un vistazo; el resto va en el tooltip. */
+    .mesa .hold { font-size:.65rem; color:var(--ion-color-warning,#f08c00); font-weight:600;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     /* Botón ⋮ (more-vert) en la esquina de cada mesa OCUPADA: abre transferir/fusionar. */
     .kebab { position:absolute; top:2px; right:2px; z-index:1; width:1.6rem; height:1.6rem; display:flex;
       align-items:center; justify-content:center; border:none; border-radius: var(--ok-radius-pill, 50%); background:rgba(0,0,0,.06);
@@ -4498,7 +4565,7 @@ var ErpTablesPosZones = class extends i3 {
    *  nunca la propia mesa origen. */
   isValidTarget(t5) {
     if (t5.id === this.actionSource?.id) return false;
-    if (this.mode === "transfer") return t5.status === "available";
+    if (this.mode === "transfer") return t5.status === "available" || t5.status === "reserved";
     if (this.mode === "merge") return t5.status !== "available";
     return true;
   }
@@ -4526,17 +4593,17 @@ var ErpTablesPosZones = class extends i3 {
     }
     let sessionId;
     let linkedOrderId;
-    if (t5.status === "available") {
+    const live = await this.activeSessionInfo(t5.id);
+    if (live) {
+      sessionId = live.id;
+      linkedOrderId = live.order_id || void 0;
+    } else {
       try {
         await erplora3().command("tables.sessions.open", { table_id: t5.id });
         sessionId = await this.activeSessionFor(t5.id);
       } catch (e5) {
         this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errOccupyTable");
       }
-    } else {
-      const info = await this.activeSessionInfo(t5.id);
-      sessionId = info?.id;
-      linkedOrderId = info?.order_id || void 0;
     }
     this.sessionId = sessionId;
     this.selectedId = t5.id;
@@ -4579,6 +4646,40 @@ var ErpTablesPosZones = class extends i3 {
   }
   startMerge() {
     this.mode = "merge";
+  }
+  /** tables#12 — dividir la cuenta. A diferencia de transferir/fusionar NO pide mesa destino: la
+   *  segunda cuenta se queda en la misma mesa (dos cuentas, un mantel), que es lo que pide la sala.
+   *  `tables` abre la cuenta; las líneas y los importes los reparte `sales` al recibir el evento. */
+  async doSplit() {
+    const src = this.actionSource;
+    if (!src) return;
+    const info = await this.activeSessionInfo(src.id);
+    if (!info?.id) {
+      this.error = erplora3().t(CATALOG3, "ui.errNoActiveSession");
+      return;
+    }
+    try {
+      const res = await erplora3().command(
+        "tables.sessions.split",
+        { session_id: info.id }
+      );
+      this.dispatchEvent(new CustomEvent("erp:order-split", {
+        detail: {
+          table_id: src.id,
+          from_order_id: info.order_id ?? null,
+          session_id: res?.new_ids?.[0] ?? null,
+          label: erplora3().t(CATALOG3, "ui.tableLabel", { number: src.number })
+        },
+        bubbles: true,
+        composed: true
+      }));
+      this.mode = "select";
+      this.actionSource = void 0;
+      this.open = false;
+      void this.refreshTables();
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errSplit");
+    }
   }
   cancelAction() {
     this.mode = "select";
@@ -4692,6 +4793,9 @@ var ErpTablesPosZones = class extends i3 {
               <ion-button size="small" fill="outline" @click=${() => this.startMerge()}>
                 <ion-icon slot="start" name="git-merge-outline"></ion-icon>${t5("ui.merge")}
               </ion-button>
+              <ion-button size="small" fill="outline" @click=${() => void this.doSplit()}>
+                <ion-icon slot="start" name="git-branch-outline"></ion-icon>${t5("ui.split")}
+              </ion-button>
             </div>` : A}
         ${inAction ? b2`<div class="hint">${this.mode === "transfer" ? t5("ui.pickFreeTable") : t5("ui.pickOccupiedTable")}</div>` : A}
 
@@ -4713,10 +4817,12 @@ var ErpTablesPosZones = class extends i3 {
                   </button>` : A}
               <button class="mesa ${validTarget ? "target" : ""}" aria-pressed=${this.selectedId === tb.id}
                 ?disabled=${inAction && !validTarget}
+                title=${holdTitle(tb) || A}
                 style=${`border-color:${STATUS_COLOR2[tb.status] ?? "#d9d6cf"}`} @click=${() => this.pick(tb)}>
                 <div class="n">${tb.number}</div>
                 <div class="c">${t5("ui.paxCount", { count: tb.capacity })}</div>
                 <div class="s" style=${`color:${STATUS_COLOR2[tb.status] ?? "#868e96"}`}>${t5(STATUS_KEY3[tb.status] ?? tb.status)}</div>
+                ${tb.reserved_for ? b2`<div class="hold">${tb.reserved_for}${tb.reserved_from ? b2` · ${hhmm2(tb.reserved_from)}` : A}</div>` : A}
               </button>
             </div>`;
     })}
