@@ -378,4 +378,58 @@ mod tests {
         let out2 = open_session_pure(input(json!({ "table_id": "mesa-5" }), 1)).expect("open sin order_id");
         assert!(out2.operations[0].params["order_id"].is_null(), "order_id es opcional → NULL");
     }
+
+    // ── split_session (dividir la cuenta, tables#12) ─────────────────────────
+
+    #[test]
+    fn split_session_opens_a_second_check_on_the_same_table_by_default() {
+        // Splitting a check is what a party asks for when they want separate bills. `tables`
+        // owns the SEATING side of it: a second live session on the same table, pointing back
+        // at the one it came from. The lines/amounts belong to `sales`, which links its new
+        // order to the new session afterwards.
+        let out = split_session_pure(input(
+            json!({ "session_id": "s-a", "guests_count": 2 }),
+            1,
+        ))
+        .expect("split with only the source session");
+
+        assert_eq!(out.operations.len(), 1, "one intention: the split");
+        let op = &out.operations[0];
+        assert_eq!(op.command, "tables._session_split");
+        assert_eq!(op.params["session_id"], json!("s-a"));
+        assert_eq!(op.params["new_session_id"], json!("id-0"), "the host owns the ids");
+        assert_eq!(op.params["guests_count"], json!(2));
+        assert!(
+            op.params["target_table_id"].is_null(),
+            "no target table = the second check stays on the SAME table (the SQL resolves it)"
+        );
+    }
+
+    #[test]
+    fn split_session_can_move_the_second_check_to_another_table() {
+        // The other half of the party moves to a free table: same command, explicit target.
+        let out = split_session_pure(input(
+            json!({ "session_id": "s-a", "target_table_id": "mesa-8" }),
+            1,
+        ))
+        .expect("split towards a free table");
+        assert_eq!(out.operations[0].params["target_table_id"], json!("mesa-8"));
+        assert_eq!(
+            out.operations[0].params["guests_count"],
+            json!(1),
+            "guests default to 1, never to 0"
+        );
+    }
+
+    #[test]
+    fn split_session_requires_the_source_session_and_an_id() {
+        assert!(
+            split_session_pure(input(json!({ "target_table_id": "mesa-8" }), 1)).is_err(),
+            "without the source session there is nothing to split"
+        );
+        assert!(
+            split_session_pure(input(json!({ "session_id": "s-a" }), 0)).is_err(),
+            "without context.new_ids the guest cannot invent the new session id"
+        );
+    }
 }
