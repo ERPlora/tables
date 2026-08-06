@@ -73,6 +73,12 @@ pub fn merge_session(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Out
 
 #[cfg(feature = "guest")]
 #[plugin_fn]
+pub fn split_session(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output>> {
+    split_session_pure(input.into_inner().into_value()).map(Json).map_err(guest_err)
+}
+
+#[cfg(feature = "guest")]
+#[plugin_fn]
 pub fn delete_zone(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output>> {
     delete_zone_pure(input.into_inner().into_value()).map(Json).map_err(guest_err)
 }
@@ -278,6 +284,37 @@ pub fn merge_session_pure(input: Value) -> Result<Output, String> {
     p.insert("target_table_id".into(), json!(target_table_id));
 
     Ok(Output { operations: vec![Operation::sql("tables._session_merge", p)], events: vec![] })
+}
+
+/// `{payload, context}` → intención `tables._session_split`.
+///
+/// Divide la cuenta: abre una SEGUNDA sesión viva sobre la misma mesa (o sobre otra, si media
+/// mesa se muda) sin cerrar la original. El handler es puro: no sabe en qué mesa está la cuenta
+/// origen — si no le mandan `target_table_id`, deja el destino en NULL y el SQL interno lo
+/// resuelve como «la mesa de la sesión origen». La cuenta nueva nace SIN pedido: el pedido lo
+/// materializa `sales` y lo engancha después con `tables.sessions.link_order`.
+pub fn split_session_pure(input: Value) -> Result<Output, String> {
+    let (payload, new_ids) = payload_and_ids(&input);
+
+    let session_id = req_str(&payload, "session_id")?;
+    let new_session_id = new_ids
+        .first()
+        .map(as_str)
+        .filter(|s| !s.is_empty())
+        .ok_or("context.new_ids vacío: el host no entregó ids")?;
+    let guests_count = match payload.get("guests_count") {
+        None | Some(Value::Null) => 1,
+        Some(v) => as_i64(v).filter(|n| *n >= 1).ok_or("`guests_count` debe ser un entero >= 1")?,
+    };
+
+    let mut p = Map::new();
+    p.insert("session_id".into(), json!(session_id));
+    p.insert("new_session_id".into(), json!(new_session_id));
+    p.insert("target_table_id".into(), opt_str(&payload, "target_table_id"));
+    p.insert("guests_count".into(), json!(guests_count));
+    p.insert("notes".into(), json!(as_str(payload.get("notes").unwrap_or(&Value::Null))));
+
+    Ok(Output { operations: vec![Operation::sql("tables._session_split", p)], events: vec![] })
 }
 
 /// `{payload, context}` → intención `tables._session_delete`.

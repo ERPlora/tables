@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tables.sessions.split payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["session_id"],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "UUID de la cuenta que se divide (debe seguir `active`; no se cierra)"
+    },
+    "target_table_id": {
+      "type": "string",
+      "description": "UUID de la mesa donde se sienta la cuenta nueva. Vacío = la MISMA mesa (dos cuentas, un mantel), que es el caso normal"
+    },
+    "guests_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Comensales que se llevan a la cuenta nueva (def. 1)"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Nota de la cuenta nueva (p. ej. «los del fondo»)"
+    }
+  }
+}

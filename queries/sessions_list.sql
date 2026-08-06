@@ -4,7 +4,10 @@
 SELECT s.id, s.table_id, t.number AS table_number, s.guests_count, s.status,
        s.waiter_id, s.opened_at, s.closed_at, s.notes,
        -- ADR-0141: pedido enlazado a esta mesa (junction). El POS lo usa para REANUDAR la comanda.
-       s.order_id
+       s.order_id,
+       -- tables#12: de qué cuenta salió esta, si la mesa tiene la cuenta dividida. El TPV lo
+       -- necesita para listar las cuentas de una mesa como cuentas y no como sesiones sueltas.
+       s.split_from_id
 FROM tables_session s
 LEFT JOIN tables_table t ON t.id = s.table_id AND t.is_deleted = 0
 WHERE s.hub_id = :hub_id AND s.is_deleted = 0

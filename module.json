@@ -102,7 +102,9 @@
       "migrations/postgres/004_session_order.sql",
       "migrations/postgres/005_session_assignment.sql",
       "migrations/postgres/006_session_no_table.sql",
-      "migrations/postgres/007_session_history_fk.sql"
+      "migrations/postgres/007_session_history_fk.sql",
+      "migrations/postgres/008_table_hold.sql",
+      "migrations/postgres/009_session_split.sql"
     ]
   },
   "queries": {
@@ -396,6 +398,47 @@
         "description": "Creates multiple tables at once within a zone"
       }
     },
+    "tables.tables.hold": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "schema": "schemas/table_hold.json",
+      "sql": [
+        "commands/table_hold_upsert.sql",
+        "commands/table_hold_mark.sql"
+      ],
+      "emit": [
+        "tables.table.held"
+      ],
+      "ai": {
+        "description": "Holds a table for a booking so the floor plan shows it as reserved"
+      }
+    },
+    "tables.tables.release_hold": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "schema": "schemas/table_release_hold.json",
+      "sql": [
+        "commands/table_hold_release.sql",
+        "commands/_hold_free_stale.sql"
+      ],
+      "emit": [
+        "tables.table.hold_released"
+      ],
+      "ai": {
+        "description": "Releases a table held for a booking that was cancelled or moved"
+      }
+    },
+    "tables.tables.expire_holds": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "sql": [
+        "commands/table_hold_expire.sql",
+        "commands/_hold_free_stale.sql"
+      ],
+      "emit": [
+        "tables.table.hold_released"
+      ]
+    },
     "tables.sessions.open": {
       "permission": "tables.add_tablesession",
       "schema": "schemas/session_open.json",
@@ -456,6 +499,21 @@
         "description": "Merges the active session of one table into another occupied table (combines their tickets and frees the origin table)"
       }
     },
+    "tables.sessions.split": {
+      "permission": "tables.change_tablesession",
+      "schema": "schemas/session_split.json",
+      "handler": {
+        "type": "wasm",
+        "file": "dist/handler.wasm",
+        "function": "split_session"
+      },
+      "emit": [
+        "tables.session.split"
+      ],
+      "ai": {
+        "description": "Splits a table check in two so each half of the party pays separately"
+      }
+    },
     "tables.sessions.delete": {
       "permission": "tables.delete_tablesession",
       "schema": "schemas/session_delete.json",
@@ -485,6 +543,7 @@
         "commands/_session_open_insert.sql",
         "commands/_assignment_open.sql",
         "commands/_session_open_occupy.sql",
+        "commands/_hold_consume_seated.sql",
         "commands/_session_open_assert.sql",
         "commands/_gate_clear.sql"
       ]
@@ -508,6 +567,8 @@
         "commands/_session_transfer_insert.sql",
         "commands/_session_transfer_occupy.sql",
         "commands/_assignment_transfer_open.sql",
+        "commands/_session_transfer_detach_order.sql",
+        "commands/_hold_consume_seated.sql",
         "commands/_session_transfer_assert.sql",
         "commands/_gate_clear.sql"
       ]
@@ -518,7 +579,21 @@
         "commands/_session_merge_close.sql",
         "commands/_assignment_release_merged.sql",
         "commands/_session_merge_free.sql",
+        "commands/_session_merge_adopt_order.sql",
+        "commands/_session_merge_detach_order.sql",
         "commands/_session_merge_assert.sql",
+        "commands/_gate_clear.sql"
+      ]
+    },
+    "tables._session_split": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "sql": [
+        "commands/_session_split_insert.sql",
+        "commands/_assignment_split_open.sql",
+        "commands/_session_split_occupy.sql",
+        "commands/_hold_consume_seated.sql",
+        "commands/_session_split_assert.sql",
         "commands/_gate_clear.sql"
       ]
     },
@@ -560,9 +635,9 @@
       "permission": "tables.change_tablesession",
       "transaction": true,
       "sql": [
+        "commands/_session_close_by_order.sql",
         "commands/_assignment_release_by_order.sql",
-        "commands/_table_free_by_order.sql",
-        "commands/_session_close_by_order.sql"
+        "commands/_table_free_by_order.sql"
       ],
       "ai": {
         "description": "Internal: closes the table session (and its history segment) when its order ends — paid or voided (ADR-0146). Listener target, not called directly."
@@ -590,7 +665,8 @@
       "sql": [
         "commands/_session_restore.sql",
         "commands/_assignment_restore.sql",
-        "commands/_table_occupy_by_session.sql"
+        "commands/_table_occupy_by_session.sql",
+        "commands/_hold_consume_seated.sql"
       ],
       "schema": "schemas/session_restore.json",
       "emit": [
@@ -613,5 +689,13 @@
         "command": "tables._session_close_by_order"
       }
     }
-  }
+  },
+  "scheduled_tasks": [
+    {
+      "name": "expire_table_holds",
+      "command": "tables.tables.expire_holds",
+      "cron": "*/15 * * * *",
+      "catch_up": false
+    }
+  ]
 }

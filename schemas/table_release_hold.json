@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tables.tables.release_hold payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source", "source_ref"],
+  "properties": {
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Módulo que puso la retención (`reservations` / `manual`)"
+    },
+    "source_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Referencia opaca de la fila de origen. Se suelta por la MISMA clave con la que se retuvo, no por mesa: una mesa puede tener varias reservas del día"
+    }
+  }
+}
