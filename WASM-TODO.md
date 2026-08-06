@@ -36,6 +36,15 @@ parte del dominio). Reglas:
  con `transferred_from_id = sesión origen`, y pone la mesa destino `occupied`.
 Razón WASM: 4 escrituras encadenadas en una transacción atómica.
 
+## split_session (`tables.sessions.split`) — tables#12
+Dividir la cuenta: cuatro comensales que quieren pagar por separado. Reglas:
+- Abre una SEGUNDA sesión `active` sobre la MISMA mesa (o sobre `target_table_id` si media mesa
+  se muda), con `split_from_id = sesión origen`. La origen **no se cierra**.
+- La cuenta nueva nace SIN `order_id`: el pedido lo materializa `sales` y lo cuelga de ella con
+  `tables.sessions.link_order` pasando su `session_id`.
+- Escribe su tramo de historial con motivo `split` (ya previsto en el CHECK de `005`).
+Razón WASM: 3 escrituras encadenadas + gate de estado vivo en una transacción atómica.
+
 ## delete_zone (`tables.zones.delete`)
 `TableService.delete_zone`. Guarda de integridad: cuenta mesas activas
 (`is_active=1`, `is_deleted=0`) con `zone_id` = zona; si > 0 → rechaza con
