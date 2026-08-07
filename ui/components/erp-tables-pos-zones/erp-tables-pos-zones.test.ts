@@ -372,3 +372,109 @@ describe('la X del chip aparca la sesión, no la cierra', () => {
     expect(title, 'y la franja horaria al alcance').toMatch(/\d{2}:\d{2}–\d{2}:\d{2}/);
   });
 });
+
+// ── tables#26 — `erp:order-linked` carries the account, not just the table ────────────────────
+//
+// Splitting a table (tables#12) leaves TWO live sessions on the same table. `link_order` without a
+// `session_id` resolves to the OLDEST one on purpose (back-compat with the single-account POS), so
+// a filler that drops the id makes the second order land on the first account: two sessions
+// pointing at the same order, and both halves charging the same ticket.
+//
+// `sales` (sales#61) already republishes the `session_id` it got in `erp:order-split`, opaque and
+// untouched. Honouring it here is what keeps the "one order = one session" invariant of tables#12.
+describe('erp:order-linked — the split order lands on ITS own account (tables#26)', () => {
+  /** Stubs the SDK and records every command call, so the payload can be asserted. */
+  function stubSdk() {
+    const calls: Array<{ name: string; payload?: Record<string, unknown> }> = [];
+    (globalThis as Record<string, unknown>).erplora = {
+      query: async () => [],
+      queryAll: async () => [],
+      command: async (name: string, payload?: Record<string, unknown>) => {
+        calls.push({ name, payload });
+        return {};
+      },
+      locale: 'es',
+      t: (_c: unknown, key: string) => key,
+    };
+    return { calls };
+  }
+
+  const linkCalls = (calls: Array<{ name: string; payload?: Record<string, unknown> }>) =>
+    calls.filter((c) => c.name === 'tables.sessions.link_order');
+
+  it('links by session_id when the event carries one, never by table', async () => {
+    const { calls } = stubSdk();
+    const el = await montar();
+    const filler = el as unknown as { selectedId?: string; updateComplete: Promise<unknown> };
+    // The table IS selected, and its live account is the ORIGINAL one (ses-1). The order that just
+    // arrived belongs to the NEW half (ses-2): linking by table would bury it in ses-1.
+    filler.selectedId = 'tbl-1';
+    await filler.updateComplete;
+
+    el.dispatchEvent(new CustomEvent('erp:order-linked', {
+      detail: { order_id: 'ord-2', session_id: 'ses-2' }, bubbles: false,
+    }));
+    await new Promise((r) => setTimeout(r, 0));
+
+    const [link] = linkCalls(calls);
+    expect(link, 'the link is written').toBeTruthy();
+    expect(link?.payload?.session_id, 'on the account sales pointed at').toBe('ses-2');
+    expect(link?.payload?.order_id).toBe('ord-2');
+    expect(link?.payload?.table_id,
+      'no table_id: it would resolve to the OLDEST account of the table').toBeUndefined();
+  });
+
+  it('links a split table that is NOT the selected one in the floor plan', async () => {
+    const { calls } = stubSdk();
+    const el = await montar();
+    // Splitting is asked from the ⋮ of any table in the plan, which need not be the selected one.
+    // Bailing out on a missing selection left the new account with no order at all.
+    const filler = el as unknown as { selectedId?: string; updateComplete: Promise<unknown> };
+    filler.selectedId = undefined;
+    await filler.updateComplete;
+
+    el.dispatchEvent(new CustomEvent('erp:order-linked', {
+      detail: { order_id: 'ord-2', session_id: 'ses-2' }, bubbles: false,
+    }));
+    await new Promise((r) => setTimeout(r, 0));
+
+    const [link] = linkCalls(calls);
+    expect(link?.payload, 'the account id is enough to write the link').toEqual({
+      session_id: 'ses-2', order_id: 'ord-2',
+    });
+  });
+
+  it('falls back to the selected table when the event carries no session_id', async () => {
+    const { calls } = stubSdk();
+    const el = await montar();
+    const filler = el as unknown as { selectedId?: string; updateComplete: Promise<unknown> };
+    filler.selectedId = 'tbl-1';
+    await filler.updateComplete;
+
+    // The single-account POS never splits, so it publishes no session_id: today's path must stand.
+    el.dispatchEvent(new CustomEvent('erp:order-linked', {
+      detail: { order_id: 'ord-1' }, bubbles: false,
+    }));
+    await new Promise((r) => setTimeout(r, 0));
+
+    const [link] = linkCalls(calls);
+    expect(link?.payload, 'unchanged behaviour for the undivided table').toEqual({
+      table_id: 'tbl-1', order_id: 'ord-1',
+    });
+  });
+
+  it('writes nothing when there is neither a session_id nor a selected table', async () => {
+    const { calls } = stubSdk();
+    const el = await montar();
+    const filler = el as unknown as { selectedId?: string; updateComplete: Promise<unknown> };
+    filler.selectedId = undefined;
+    await filler.updateComplete;
+
+    el.dispatchEvent(new CustomEvent('erp:order-linked', {
+      detail: { order_id: 'ord-1' }, bubbles: false,
+    }));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(linkCalls(calls), 'a counter order has no table to hang from').toEqual([]);
+  });
+});
