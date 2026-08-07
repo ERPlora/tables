@@ -695,7 +695,7 @@
       "name": "expire_table_holds",
       "command": "tables.tables.expire_holds",
       "cron": "*/15 * * * *",
-      "catch_up": false
+      "catch_up": "collapse"
     }
   ]
 }
