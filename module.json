@@ -280,6 +280,13 @@
       "ai": {
         "description": "Resolves the TABLE linked to a given order id via the table-session junction (ADR-0141). Used by kitchen to route a dine-in ticket without sales carrying table_id."
       }
+    },
+    "tables.floor.status": {
+      "permission": "tables.view_table",
+      "sql": "queries/floor_status.sql",
+      "ai": {
+        "description": "Reports whether the floor plan is set up: how many usable tables (not deleted, active) the hub has. One row, always. Read by the onboarding checklist."
+      }
     }
   },
   "commands": {
@@ -697,5 +704,22 @@
       "cron": "*/15 * * * *",
       "catch_up": "collapse"
     }
-  ]
+  ],
+  "setup": {
+    "query": "tables.floor.status",
+    "configured_when": [
+      {
+        "field": "usable_tables",
+        "truthy": true
+      }
+    ],
+    "title": "Your tables",
+    "description": "Add the tables of your dining room: without them there is no order per table, no split and no transfer.",
+    "icon": "map-outline",
+    "route": "/m/tables/tables",
+    "permission": "tables.add_table",
+    "countries": [],
+    "order": 100,
+    "required": false
+  }
 }
