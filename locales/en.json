@@ -94,5 +94,9 @@
     "close": "Close",
     "noTablesInZoneHint": "Create tables in the Tables module.",
     "sendPendingBeforeTable": "Send the {count} pending items in the current order first."
+  },
+  "setup": {
+    "title": "Your tables",
+    "description": "Add the tables of your dining room: without them there is no order per table, no split and no transfer."
   }
 }

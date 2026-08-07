@@ -94,5 +94,9 @@
     "close": "Cerrar",
     "noTablesInZoneHint": "Crea mesas en el módulo Mesas.",
     "sendPendingBeforeTable": "Envía primero los {count} productos pendientes de la comanda actual."
+  },
+  "setup": {
+    "title": "Tus mesas",
+    "description": "Añade las mesas de tu sala: sin ellas no hay comanda por mesa, ni dividir ni transferir."
   }
 }
