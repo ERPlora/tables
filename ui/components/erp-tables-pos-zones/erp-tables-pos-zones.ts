@@ -289,13 +289,27 @@ export class ErpTablesPosZones extends LitElement {
     } catch { /* si no se puede resolver, el TPV sigue: la comanda no depende de la mesa */ }
   };
 
-  /** El POS abrió un pedido con esta mesa seleccionada → se escribe la junction (ADR-0141). */
+  /** The POS opened an order → write the table↔order junction (ADR-0141).
+   *
+   *  tables#26: the event carries the ACCOUNT (`session_id`) whenever the POS knows it — `sales`
+   *  republishes, untouched, the id it got in `erp:order-split`. It has to win over the table:
+   *  `link_order` without a session resolves to the OLDEST account of the table (back-compat for
+   *  the single-account POS), so on a split table the second order would land on the first half,
+   *  leaving two sessions on the same order and both halves charging one ticket.
+   *
+   *  It also removes the dependency on the SELECTED table: splitting is asked from the ⋮ of any
+   *  table in the plan, which need not be the selected one — bailing out there left the new
+   *  account with no order. Without a `session_id`, today's path (selected table) stands. */
   private readonly onOrderLinked = async (e: Event): Promise<void> => {
-    const d = (e as CustomEvent<{ order_id?: string }>).detail;
-    if (!d?.order_id || !this.selectedId) return;
+    const d = (e as CustomEvent<{ order_id?: string; session_id?: string }>).detail;
+    if (!d?.order_id) return;
+    const target = d.session_id
+      ? { session_id: d.session_id, order_id: d.order_id }
+      : (this.selectedId ? { table_id: this.selectedId, order_id: d.order_id } : null);
+    if (!target) return; // counter/bar order: nothing to hang it from
     try {
-      await erplora().command('tables.sessions.link_order', { table_id: this.selectedId, order_id: d.order_id });
-    } catch { /* el enlace es operativo, no debe romper la venta */ }
+      await erplora().command('tables.sessions.link_order', target);
+    } catch { /* linking is operational, it must not break the sale */ }
   };
 
   /** Id de la sesión `active` de una mesa (para reanudar/cerrar), o undefined si no hay. */
