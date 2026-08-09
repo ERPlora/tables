@@ -1,7 +1,7 @@
 {
   "id": "tables",
   "name": "Tables",
-  "version": "2.2.12",
+  "version": "2.2.13",
   "description": "Restaurant floor plan: zones, tables and table sessions.",
   "agent": {
     "description": "Manages restaurant floor plan zones, tables, and table sessions: create/update/delete zones and tables, open/close/transfer sessions, and bulk-create tables.",
@@ -695,7 +695,25 @@
       "sale.voided": {
         "command": "tables._session_close_by_order"
       }
-    }
+    },
+    "emits": [
+      "tables.session.closed",
+      "tables.session.deleted",
+      "tables.session.merged",
+      "tables.session.opened",
+      "tables.session.parked",
+      "tables.session.restored",
+      "tables.session.split",
+      "tables.session.transferred",
+      "tables.table.created",
+      "tables.table.deleted",
+      "tables.table.held",
+      "tables.table.hold_released",
+      "tables.table.updated",
+      "tables.zone.created",
+      "tables.zone.deleted",
+      "tables.zone.updated"
+    ]
   },
   "scheduled_tasks": [
     {
