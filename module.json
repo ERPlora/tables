@@ -695,7 +695,25 @@
       "sale.voided": {
         "command": "tables._session_close_by_order"
       }
-    }
+    },
+    "emits": [
+      "tables.session.closed",
+      "tables.session.deleted",
+      "tables.session.merged",
+      "tables.session.opened",
+      "tables.session.parked",
+      "tables.session.restored",
+      "tables.session.split",
+      "tables.session.transferred",
+      "tables.table.created",
+      "tables.table.deleted",
+      "tables.table.held",
+      "tables.table.hold_released",
+      "tables.table.updated",
+      "tables.zone.created",
+      "tables.zone.deleted",
+      "tables.zone.updated"
+    ]
   },
   "scheduled_tasks": [
     {
