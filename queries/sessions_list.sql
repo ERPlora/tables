@@ -9,5 +9,5 @@ SELECT s.id, s.table_id, t.number AS table_number, s.guests_count, s.status,
        -- necesita para listar las cuentas de una mesa como cuentas y no como sesiones sueltas.
        s.split_from_id
 FROM tables_session s
-LEFT JOIN tables_table t ON t.id = s.table_id AND t.is_deleted = 0
+LEFT JOIN tables_table t ON t.id = s.table_id AND t.is_deleted = 0 AND t.hub_id = :hub_id
 WHERE s.hub_id = :hub_id AND s.is_deleted = 0

@@ -3,6 +3,6 @@
 SELECT s.id AS session_id, s.order_id, s.table_id, s.status,
        t.number AS table_number, t.name AS table_name, t.zone_id
 FROM tables_session s
-LEFT JOIN tables_table t ON t.id = s.table_id AND t.is_deleted = 0
+LEFT JOIN tables_table t ON t.id = s.table_id AND t.is_deleted = 0 AND t.hub_id = :hub_id
 WHERE s.order_id = :order_id AND s.hub_id = :hub_id AND s.is_deleted = 0
 ORDER BY s.opened_at DESC;

@@ -18,7 +18,7 @@ SELECT t.id, t.number, t.name, t.capacity, t.shape, t.status, t.is_active,
        h.held_until AS reserved_until,
        h.party_size AS reserved_party_size
 FROM tables_table t
-LEFT JOIN tables_zone z ON z.id = t.zone_id AND z.is_deleted = 0
+LEFT JOIN tables_zone z ON z.id = t.zone_id AND z.is_deleted = 0 AND z.hub_id = :hub_id
 LEFT JOIN LATERAL (
     SELECT hh.label, hh.held_from, hh.held_until, hh.party_size
     FROM tables_table_hold hh
