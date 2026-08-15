@@ -345,6 +345,12 @@
       ],
       "ai": {
         "description": "Creates a new table inside a zone"
+      },
+      "expect_rows": {
+        "op": "min",
+        "n": 1,
+        "error": "tables.zone_unavailable",
+        "message": "That zone is not available: it does not exist in this business or it has been deleted."
       }
     },
     "tables.tables.update": {
