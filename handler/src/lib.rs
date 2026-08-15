@@ -44,55 +44,73 @@ fn guest_err(msg: String) -> WithReturnCode<Error> {
 #[cfg(feature = "guest")]
 #[plugin_fn]
 pub fn bulk_create_tables(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output>> {
-    bulk_create_tables_pure(input.into_inner().into_value()).map(Json).map_err(guest_err)
+    bulk_create_tables_pure(input.into_inner().into_value())
+        .map(Json)
+        .map_err(guest_err)
 }
 
 #[cfg(feature = "guest")]
 #[plugin_fn]
 pub fn open_session(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output>> {
-    open_session_pure(input.into_inner().into_value()).map(Json).map_err(guest_err)
+    open_session_pure(input.into_inner().into_value())
+        .map(Json)
+        .map_err(guest_err)
 }
 
 #[cfg(feature = "guest")]
 #[plugin_fn]
 pub fn close_session(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output>> {
-    close_session_pure(input.into_inner().into_value()).map(Json).map_err(guest_err)
+    close_session_pure(input.into_inner().into_value())
+        .map(Json)
+        .map_err(guest_err)
 }
 
 #[cfg(feature = "guest")]
 #[plugin_fn]
 pub fn transfer_session(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output>> {
-    transfer_session_pure(input.into_inner().into_value()).map(Json).map_err(guest_err)
+    transfer_session_pure(input.into_inner().into_value())
+        .map(Json)
+        .map_err(guest_err)
 }
 
 #[cfg(feature = "guest")]
 #[plugin_fn]
 pub fn merge_session(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output>> {
-    merge_session_pure(input.into_inner().into_value()).map(Json).map_err(guest_err)
+    merge_session_pure(input.into_inner().into_value())
+        .map(Json)
+        .map_err(guest_err)
 }
 
 #[cfg(feature = "guest")]
 #[plugin_fn]
 pub fn split_session(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output>> {
-    split_session_pure(input.into_inner().into_value()).map(Json).map_err(guest_err)
+    split_session_pure(input.into_inner().into_value())
+        .map(Json)
+        .map_err(guest_err)
 }
 
 #[cfg(feature = "guest")]
 #[plugin_fn]
 pub fn delete_zone(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output>> {
-    delete_zone_pure(input.into_inner().into_value()).map(Json).map_err(guest_err)
+    delete_zone_pure(input.into_inner().into_value())
+        .map(Json)
+        .map_err(guest_err)
 }
 
 #[cfg(feature = "guest")]
 #[plugin_fn]
 pub fn delete_table(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output>> {
-    delete_table_pure(input.into_inner().into_value()).map(Json).map_err(guest_err)
+    delete_table_pure(input.into_inner().into_value())
+        .map(Json)
+        .map_err(guest_err)
 }
 
 #[cfg(feature = "guest")]
 #[plugin_fn]
 pub fn delete_session(input: Json<erplora_guest_sdk::Input>) -> FnResult<Json<Output>> {
-    delete_session_pure(input.into_inner().into_value()).map(Json).map_err(guest_err)
+    delete_session_pure(input.into_inner().into_value())
+        .map(Json)
+        .map_err(guest_err)
 }
 
 // ── helpers puros ────────────────────────────────────────────────────────────
@@ -168,10 +186,16 @@ pub fn bulk_create_tables_pure(input: Value) -> Result<Output, String> {
         .unwrap_or(4);
     let shape = {
         let s = as_str(payload.get("shape").unwrap_or(&Value::Null));
-        if s.is_empty() { "square".to_string() } else { s }
+        if s.is_empty() {
+            "square".to_string()
+        } else {
+            s
+        }
     };
     if !matches!(shape.as_str(), "square" | "round" | "rectangle") {
-        return Err(format!("`shape` inválido: `{shape}` (square|round|rectangle)"));
+        return Err(format!(
+            "`shape` inválido: `{shape}` (square|round|rectangle)"
+        ));
     }
 
     if new_ids.len() < count as usize {
@@ -187,7 +211,10 @@ pub fn bulk_create_tables_pure(input: Value) -> Result<Output, String> {
         let mut p = Map::new();
         p.insert("table_id".into(), json!(table_id));
         p.insert("zone_id".into(), json!(zone_id));
-        p.insert("number".into(), json!(format!("{prefix}{}", start_number + i)));
+        p.insert(
+            "number".into(),
+            json!(format!("{prefix}{}", start_number + i)),
+        );
         p.insert("name".into(), json!(""));
         p.insert("capacity".into(), json!(capacity));
         p.insert("position_x".into(), json!((i % 5) * 20));
@@ -199,7 +226,11 @@ pub fn bulk_create_tables_pure(input: Value) -> Result<Output, String> {
     }
 
     // El evento `tables.table.created` lo emite el command (declarado en module.json).
-    Ok(Output { operations: ops, events: vec![] })
+    Ok(Output {
+        operations: ops,
+        events: vec![],
+        ..Default::default()
+    })
 }
 
 // ── sesiones ─────────────────────────────────────────────────────────────────
@@ -211,7 +242,9 @@ pub fn open_session_pure(input: Value) -> Result<Output, String> {
     let table_id = req_str(&payload, "table_id")?;
     let guests_count = match payload.get("guests_count") {
         None | Some(Value::Null) => 1,
-        Some(v) => as_i64(v).filter(|n| *n >= 1).ok_or("`guests_count` debe ser un entero >= 1")?,
+        Some(v) => as_i64(v)
+            .filter(|n| *n >= 1)
+            .ok_or("`guests_count` debe ser un entero >= 1")?,
     };
     let session_id = new_ids
         .first()
@@ -224,13 +257,20 @@ pub fn open_session_pure(input: Value) -> Result<Output, String> {
     p.insert("table_id".into(), json!(table_id));
     p.insert("guests_count".into(), json!(guests_count));
     p.insert("waiter_id".into(), opt_str(&payload, "waiter_id"));
-    p.insert("notes".into(), json!(as_str(payload.get("notes").unwrap_or(&Value::Null))));
+    p.insert(
+        "notes".into(),
+        json!(as_str(payload.get("notes").unwrap_or(&Value::Null))),
+    );
     // ADR-0141: la sesión es la JUNCTION mesa↔pedido. `order_id` (opcional) enlaza esta mesa con el
     // pedido abierto de `sales`. `tables` OWNea la asociación; `sales` no conoce la mesa.
     p.insert("order_id".into(), opt_str(&payload, "order_id"));
 
     // El evento `tables.session.opened` lo emite el command (declarado).
-    Ok(Output { operations: vec![Operation::sql("tables._session_open", p)], events: vec![] })
+    Ok(Output {
+        operations: vec![Operation::sql("tables._session_open", p)],
+        events: vec![],
+        ..Default::default()
+    })
 }
 
 /// `{payload, context}` → intención `tables._session_close`.
@@ -242,7 +282,11 @@ pub fn close_session_pure(input: Value) -> Result<Output, String> {
     p.insert("session_id".into(), json!(session_id));
     p.insert("notes".into(), opt_str(&payload, "notes"));
 
-    Ok(Output { operations: vec![Operation::sql("tables._session_close", p)], events: vec![] })
+    Ok(Output {
+        operations: vec![Operation::sql("tables._session_close", p)],
+        events: vec![],
+        ..Default::default()
+    })
 }
 
 /// `{payload, context}` → intención `tables._session_transfer`.
@@ -262,7 +306,11 @@ pub fn transfer_session_pure(input: Value) -> Result<Output, String> {
     p.insert("target_table_id".into(), json!(target_table_id));
     p.insert("new_session_id".into(), json!(new_session_id));
 
-    Ok(Output { operations: vec![Operation::sql("tables._session_transfer", p)], events: vec![] })
+    Ok(Output {
+        operations: vec![Operation::sql("tables._session_transfer", p)],
+        events: vec![],
+        ..Default::default()
+    })
 }
 
 /// `{payload, context}` → intención `tables._session_merge`.
@@ -283,7 +331,11 @@ pub fn merge_session_pure(input: Value) -> Result<Output, String> {
     p.insert("session_id".into(), json!(session_id));
     p.insert("target_table_id".into(), json!(target_table_id));
 
-    Ok(Output { operations: vec![Operation::sql("tables._session_merge", p)], events: vec![] })
+    Ok(Output {
+        operations: vec![Operation::sql("tables._session_merge", p)],
+        events: vec![],
+        ..Default::default()
+    })
 }
 
 /// `{payload, context}` → intención `tables._session_split`.
@@ -304,17 +356,29 @@ pub fn split_session_pure(input: Value) -> Result<Output, String> {
         .ok_or("context.new_ids vacío: el host no entregó ids")?;
     let guests_count = match payload.get("guests_count") {
         None | Some(Value::Null) => 1,
-        Some(v) => as_i64(v).filter(|n| *n >= 1).ok_or("`guests_count` debe ser un entero >= 1")?,
+        Some(v) => as_i64(v)
+            .filter(|n| *n >= 1)
+            .ok_or("`guests_count` debe ser un entero >= 1")?,
     };
 
     let mut p = Map::new();
     p.insert("session_id".into(), json!(session_id));
     p.insert("new_session_id".into(), json!(new_session_id));
-    p.insert("target_table_id".into(), opt_str(&payload, "target_table_id"));
+    p.insert(
+        "target_table_id".into(),
+        opt_str(&payload, "target_table_id"),
+    );
     p.insert("guests_count".into(), json!(guests_count));
-    p.insert("notes".into(), json!(as_str(payload.get("notes").unwrap_or(&Value::Null))));
+    p.insert(
+        "notes".into(),
+        json!(as_str(payload.get("notes").unwrap_or(&Value::Null))),
+    );
 
-    Ok(Output { operations: vec![Operation::sql("tables._session_split", p)], events: vec![] })
+    Ok(Output {
+        operations: vec![Operation::sql("tables._session_split", p)],
+        events: vec![],
+        ..Default::default()
+    })
 }
 
 /// `{payload, context}` → intención `tables._session_delete`.
@@ -323,7 +387,11 @@ pub fn delete_session_pure(input: Value) -> Result<Output, String> {
     let session_id = req_str(&payload, "session_id")?;
     let mut p = Map::new();
     p.insert("session_id".into(), json!(session_id));
-    Ok(Output { operations: vec![Operation::sql("tables._session_delete", p)], events: vec![] })
+    Ok(Output {
+        operations: vec![Operation::sql("tables._session_delete", p)],
+        events: vec![],
+        ..Default::default()
+    })
 }
 
 // ── borrados con guarda (zona / mesa) ────────────────────────────────────────
@@ -334,7 +402,11 @@ pub fn delete_zone_pure(input: Value) -> Result<Output, String> {
     let zone_id = req_str(&payload, "zone_id")?;
     let mut p = Map::new();
     p.insert("zone_id".into(), json!(zone_id));
-    Ok(Output { operations: vec![Operation::sql("tables._zone_delete", p)], events: vec![] })
+    Ok(Output {
+        operations: vec![Operation::sql("tables._zone_delete", p)],
+        events: vec![],
+        ..Default::default()
+    })
 }
 
 /// `{payload, context}` → intención `tables._table_delete`.
@@ -343,7 +415,11 @@ pub fn delete_table_pure(input: Value) -> Result<Output, String> {
     let table_id = req_str(&payload, "table_id")?;
     let mut p = Map::new();
     p.insert("table_id".into(), json!(table_id));
-    Ok(Output { operations: vec![Operation::sql("tables._table_delete", p)], events: vec![] })
+    Ok(Output {
+        operations: vec![Operation::sql("tables._table_delete", p)],
+        events: vec![],
+        ..Default::default()
+    })
 }
 
 // ── tests (lógica pura, sin BD ni feature `guest`) ───────────────────────────
@@ -381,7 +457,10 @@ mod tests {
         assert_eq!(op.command, "tables._session_merge");
         assert_eq!(op.params["session_id"], json!("s-origen"));
         assert_eq!(op.params["target_table_id"], json!("mesa-destino"));
-        assert!(out.events.is_empty(), "el evento lo emite el command (declarado en module.json)");
+        assert!(
+            out.events.is_empty(),
+            "el evento lo emite el command (declarado en module.json)"
+        );
     }
 
     #[test]
@@ -404,16 +483,26 @@ mod tests {
         // `order_id` (opcional) y lo pasa a la intención para persistirlo en `tables_session.order_id`.
         // Así `tables` (satélite) OWNea la asociación; `sales` no conoce la mesa (dirección invertida).
         let out = open_session_pure(input(
-            json!({ "table_id": "mesa-5", "order_id": "ord-9" }), 1,
-        )).expect("open con table_id + order_id");
+            json!({ "table_id": "mesa-5", "order_id": "ord-9" }),
+            1,
+        ))
+        .expect("open con table_id + order_id");
         let op = &out.operations[0];
         assert_eq!(op.command, "tables._session_open");
-        assert_eq!(op.params["order_id"], json!("ord-9"), "el order_id viaja a la junction");
+        assert_eq!(
+            op.params["order_id"],
+            json!("ord-9"),
+            "el order_id viaja a la junction"
+        );
         assert_eq!(op.params["table_id"], json!("mesa-5"));
 
         // sin order_id (mesa ocupada antes de crear el pedido) → NULL, sigue funcionando.
-        let out2 = open_session_pure(input(json!({ "table_id": "mesa-5" }), 1)).expect("open sin order_id");
-        assert!(out2.operations[0].params["order_id"].is_null(), "order_id es opcional → NULL");
+        let out2 = open_session_pure(input(json!({ "table_id": "mesa-5" }), 1))
+            .expect("open sin order_id");
+        assert!(
+            out2.operations[0].params["order_id"].is_null(),
+            "order_id es opcional → NULL"
+        );
     }
 
     // ── split_session (dividir la cuenta, tables#12) ─────────────────────────
@@ -424,17 +513,18 @@ mod tests {
         // owns the SEATING side of it: a second live session on the same table, pointing back
         // at the one it came from. The lines/amounts belong to `sales`, which links its new
         // order to the new session afterwards.
-        let out = split_session_pure(input(
-            json!({ "session_id": "s-a", "guests_count": 2 }),
-            1,
-        ))
-        .expect("split with only the source session");
+        let out = split_session_pure(input(json!({ "session_id": "s-a", "guests_count": 2 }), 1))
+            .expect("split with only the source session");
 
         assert_eq!(out.operations.len(), 1, "one intention: the split");
         let op = &out.operations[0];
         assert_eq!(op.command, "tables._session_split");
         assert_eq!(op.params["session_id"], json!("s-a"));
-        assert_eq!(op.params["new_session_id"], json!("id-0"), "the host owns the ids");
+        assert_eq!(
+            op.params["new_session_id"],
+            json!("id-0"),
+            "the host owns the ids"
+        );
         assert_eq!(op.params["guests_count"], json!(2));
         assert!(
             op.params["target_table_id"].is_null(),
