@@ -1,5 +1,6 @@
 {
   "name": "Mesas",
+  "description": "Plano de sala del restaurante: zonas, mesas y sesiones de mesa.",
   "navigation": {
     "floor_plan": {
       "label": "Plano de sala"
