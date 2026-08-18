@@ -688,6 +688,25 @@
       "ai": {
         "description": "Seats a parked check at a table again (the same one or another) — ADR-0146. Opens a new history segment with reason `restored`."
       }
+    },
+    "tables._hold_from_reservation": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "sql": [
+        "commands/_hold_from_reservation_upsert.sql",
+        "commands/_hold_paint_reservation.sql",
+        "commands/_hold_from_reservation_release.sql",
+        "commands/_hold_free_stale.sql"
+      ]
+    },
+    "tables._hold_move_from_reservation": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "sql": [
+        "commands/_hold_move_from_reservation.sql",
+        "commands/_hold_paint_reservation.sql",
+        "commands/_hold_free_stale.sql"
+      ]
     }
   },
   "ui": {
@@ -700,6 +719,12 @@
       },
       "sale.voided": {
         "command": "tables._session_close_by_order"
+      },
+      "reservations.reservation.status_changed": {
+        "command": "tables._hold_from_reservation"
+      },
+      "reservations.reservation.updated": {
+        "command": "tables._hold_move_from_reservation"
       }
     },
     "emits": [
