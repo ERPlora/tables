@@ -16,6 +16,7 @@ beforeEach(() => {
   (globalThis as Record<string, unknown>).erplora = {
     query: async (name: string) => {
       if (name.includes('zone')) return [ZONA];
+      if (name.includes('session')) return []; // a free table has no live check
       if (name.includes('table')) return [MESA];
       return [];
     },
@@ -65,6 +66,11 @@ describe('erp-tables-pos-zones', () => {
     expect(el.shadowRoot.querySelector('.mesa'), 'pinta las mesas').toBeTruthy();
 
     el.shadowRoot.querySelector<HTMLElement>('.mesa')!.click();
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    // tables#32: a free table asks for the covers before seating; confirm the default.
+    el.shadowRoot.querySelector<HTMLElement>('.guests .seat')!.click();
     await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
     await new Promise((r) => setTimeout(r, 0));
 
@@ -506,5 +512,148 @@ describe('the table trigger icon is baked in dist/icons.json (tables#37)', () =>
     const name = el.shadowRoot.querySelector('ion-button.trigger ion-icon')?.getAttribute('name') ?? '';
     expect(name.startsWith('ms-'), 'no Material Symbols: only the ion: set is baked').toBe(false);
     expect(baked[name], `"${name}" is baked in dist/icons.json`).toBeTruthy();
+  });
+});
+
+// ── tables#32 — covers are asked when the party sits, shown on the table, correctable later ──
+//
+// `guests_count` existed end to end (schema, handler, SQL, list query) but no UI asked for it: every
+// table sat "1 pax" in silence — no per-cover average, no capacity warning, nothing for the kitchen.
+// Market decision (Toast, Lightspeed, Square): seating a table asks the cover count first, defaults
+// to the table capacity and offers a one-tap quick pick; the count is visible on the table and can
+// be corrected while the check is open.
+describe('covers on seating (tables#32)', () => {
+  const FREE6 = { id: 'tbl-6', number: '6', zone_id: 'z1', capacity: 6, status: 'available' };
+  const OCC = { id: 'tbl-1', number: '4', zone_id: 'z1', capacity: 4, status: 'occupied', live_guests: 3 };
+
+  function stub(tables: Array<Record<string, unknown>>) {
+    const calls: Array<{ name: string; payload?: Record<string, unknown> }> = [];
+    (globalThis as Record<string, unknown>).erplora = {
+      query: async (name: string, params?: Record<string, unknown>) => {
+        if (name.includes('zone')) return [ZONA];
+        // Only the occupied table has a live check; a free one must fall through to the prompt.
+        if (name === 'tables.sessions.list') return params?.f_table_id === 'tbl-1' ? [{ id: 'ses-1', table_id: 'tbl-1', status: 'active' }] : [];
+        return tables;
+      },
+      queryAll: async (name: string) => (name.includes('zone') ? [ZONA] : tables),
+      command: async (name: string, payload?: Record<string, unknown>) => { calls.push({ name, payload }); return {}; },
+      locale: 'es',
+      t: (_c: unknown, key: string, params?: Record<string, unknown>) =>
+        params ? `${key}:${Object.values(params).join(',')}` : key,
+    };
+    return { calls };
+  }
+  const tick = async (el: HTMLElement) => {
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+  };
+  async function abrirYTocar(el: HTMLElement & { shadowRoot: ShadowRoot }, selector = '.mesa') {
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await tick(el);
+    el.shadowRoot.querySelector<HTMLElement>(selector)!.click();
+    await tick(el);
+  }
+
+  it('touching a FREE table asks for the covers (default = capacity) instead of seating at once', async () => {
+    const { calls } = stub([FREE6]);
+    const el = await montar();
+    await abrirYTocar(el);
+    expect(calls.some((c) => c.name === 'tables.sessions.open'), 'no session yet: the covers come first').toBe(false);
+    const prompt = el.shadowRoot.querySelector('.guests');
+    expect(prompt, 'the covers prompt is shown').toBeTruthy();
+    expect(prompt!.querySelector('.guests .value')?.textContent?.trim(), 'defaults to the table capacity').toBe('6');
+    expect((el as unknown as { open: boolean }).open, 'the sheet stays open for the prompt').toBe(true);
+  });
+
+  it('confirming seats the party with the chosen covers (stepper +/−) and emits the context', async () => {
+    const { calls } = stub([FREE6]);
+    const el = await montar();
+    let detail: { table_id: string | null } | undefined;
+    el.addEventListener('erp:order-context', (e) => { detail = (e as CustomEvent).detail; });
+    await abrirYTocar(el);
+    el.shadowRoot.querySelector<HTMLElement>('.guests .minus')!.click();
+    el.shadowRoot.querySelector<HTMLElement>('.guests .minus')!.click();
+    await tick(el);
+    expect(el.shadowRoot.querySelector('.guests .value')?.textContent?.trim()).toBe('4');
+    el.shadowRoot.querySelector<HTMLElement>('.guests .seat')!.click();
+    await tick(el);
+    const open = calls.find((c) => c.name === 'tables.sessions.open');
+    expect(open?.payload, 'opens with the covers').toEqual({ table_id: 'tbl-6', guests_count: 4 });
+    expect(detail?.table_id).toBe('tbl-6');
+    expect((el as unknown as { open: boolean }).open, 'and closes the sheet').toBe(false);
+  });
+
+  it('a quick-pick chip seats the party in ONE tap', async () => {
+    const { calls } = stub([FREE6]);
+    const el = await montar();
+    await abrirYTocar(el);
+    const chip = [...el.shadowRoot.querySelectorAll<HTMLElement>('.guests .quick button')]
+      .find((b) => b.textContent?.trim() === '2');
+    expect(chip, 'quick chips 1..8').toBeTruthy();
+    chip!.click();
+    await tick(el);
+    expect(calls.find((c) => c.name === 'tables.sessions.open')?.payload).toEqual({ table_id: 'tbl-6', guests_count: 2 });
+  });
+
+  it('never goes below 1 and warns (without blocking) above the capacity', async () => {
+    const { calls } = stub([{ ...FREE6, capacity: 1 }]);
+    const el = await montar();
+    await abrirYTocar(el);
+    el.shadowRoot.querySelector<HTMLElement>('.guests .minus')!.click();
+    await tick(el);
+    expect(el.shadowRoot.querySelector('.guests .value')?.textContent?.trim(), 'floor at 1').toBe('1');
+    el.shadowRoot.querySelector<HTMLElement>('.guests .plus')!.click();
+    await tick(el);
+    expect(el.shadowRoot.querySelector('.guests .over'), 'over-capacity warning shown').toBeTruthy();
+    el.shadowRoot.querySelector<HTMLElement>('.guests .seat')!.click();
+    await tick(el);
+    expect(calls.find((c) => c.name === 'tables.sessions.open')?.payload?.guests_count, 'still seats').toBe(2);
+  });
+
+  it('cancelling the prompt seats nobody and keeps the plan', async () => {
+    const { calls } = stub([FREE6]);
+    const el = await montar();
+    await abrirYTocar(el);
+    el.shadowRoot.querySelector<HTMLElement>('.guests .back')!.click();
+    await tick(el);
+    expect(el.shadowRoot.querySelector('.guests')).toBeNull();
+    expect(calls.some((c) => c.name === 'tables.sessions.open')).toBe(false);
+    expect(el.shadowRoot.querySelector('.mesa'), 'back to the plan').toBeTruthy();
+  });
+
+  it('an OCCUPIED table shows the live covers of its party, not just the capacity', async () => {
+    stub([OCC]);
+    const el = await montar();
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await tick(el);
+    const cell = el.shadowRoot.querySelector('.mesa');
+    expect(cell?.textContent, 'live covers on the cell').toContain('ui.liveGuests:3');
+  });
+
+  it('the ⋮ menu of an occupied table lets the waiter correct the covers of the open check', async () => {
+    const { calls } = stub([OCC]);
+    const el = await montar();
+    await abrirYTocar(el, '.kebab');
+    const btn = [...el.shadowRoot.querySelectorAll<HTMLElement>('.actions ion-button')]
+      .find((b) => b.textContent?.includes('ui.guests'));
+    expect(btn, 'Guests action in the ⋮ menu').toBeTruthy();
+    btn!.click();
+    await tick(el);
+    expect(el.shadowRoot.querySelector('.guests .value')?.textContent?.trim(), 'pre-filled with the live covers').toBe('3');
+    el.shadowRoot.querySelector<HTMLElement>('.guests .plus')!.click();
+    await tick(el);
+    el.shadowRoot.querySelector<HTMLElement>('.guests .seat')!.click();
+    await tick(el);
+    const set = calls.find((c) => c.name === 'tables.sessions.set_guests');
+    expect(set?.payload, 'corrects the LIVE session').toEqual({ session_id: 'ses-1', guests_count: 4 });
+    expect(calls.some((c) => c.name === 'tables.sessions.open'), 'no new session').toBe(false);
+  });
+
+  it('the new keys exist in both catalogues', () => {
+    for (const k of ['guests', 'guestsTitle', 'seatGuests', 'liveGuests', 'overCapacity', 'saveGuests', 'back']) {
+      expect((esCatalog as { ui: Record<string, string> }).ui[k], `es ${k}`).toBeTruthy();
+      expect((enCatalog as { ui: Record<string, string> }).ui[k], `en ${k}`).toBeTruthy();
+    }
   });
 });

@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "tables.sessions.set_guests",
+  "description": "Corrects the covers of an open check (tables#32). Only active sessions are touched.",
+  "type": "object",
+  "required": ["session_id", "guests_count"],
+  "additionalProperties": false,
+  "properties": {
+    "session_id": { "type": "string", "minLength": 1 },
+    "guests_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Covers of the party (>= 1). Exceeding the table capacity is a UI warning, not a block."
+    }
+  }
+}

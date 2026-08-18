@@ -1774,6 +1774,14 @@ var es_default = {
     errSplit: "No se pudo dividir la cuenta",
     tableLabel: "Mesa {number}",
     paxCount: "{count} pax",
+    guests: "Comensales",
+    guestsTitle: "Comensales en la mesa {number}",
+    seatGuests: "Sentar {count}",
+    saveGuests: "Guardar",
+    liveGuests: "{count} comensales",
+    overCapacity: "Supera el aforo de la mesa ({capacity})",
+    back: "Atr\xE1s",
+    errSetGuests: "No se pudieron actualizar los comensales",
     noTablesInZone: "Sin mesas en esta zona.",
     noTablesInZonePrompt: "Sin mesas en esta zona. Pulsa \xABA\xF1adir mesa\xBB.",
     createZoneToStart: "Crea una zona para empezar a colocar mesas.",
@@ -1878,6 +1886,14 @@ var en_default = {
     errSplit: "Could not split the check",
     tableLabel: "Table {number}",
     paxCount: "{count} pax",
+    guests: "Guests",
+    guestsTitle: "Guests at table {number}",
+    seatGuests: "Seat {count}",
+    saveGuests: "Save",
+    liveGuests: "{count} guests",
+    overCapacity: "Above the table capacity ({capacity})",
+    back: "Back",
+    errSetGuests: "Could not update the guests",
     noTablesInZone: "No tables in this zone.",
     noTablesInZonePrompt: "No tables in this zone. Tap \u201CAdd table\u201D.",
     createZoneToStart: "Create a zone to start placing tables.",
@@ -4395,6 +4411,7 @@ var ErpTablesPosZones = class extends i3 {
       this.sessionId = void 0;
       this.mode = "select";
       this.actionSource = void 0;
+      this.guestsPrompt = void 0;
       if (sid) void this.closeSession(sid);
     };
     this.onPosState = (e5) => {
@@ -4528,6 +4545,26 @@ var ErpTablesPosZones = class extends i3 {
     .empty p { margin:.15rem 0; }
     .empty .empty-hint { font-size:.82rem; opacity:.75; }
     .foot { display:flex; justify-content:space-between; align-items:center; margin-top:1rem; }
+    /* tables#32: covers prompt. Touch targets >= 44px (tables#16): the stepper and the quick
+       chips are what a waiter taps with one hand while standing. */
+    .guests { display:flex; flex-direction:column; gap:.8rem; padding:.4rem 0; }
+    .guests .stepper { display:flex; align-items:center; justify-content:center; gap:1rem; }
+    .guests .stepper button { width:3rem; height:3rem; border-radius: var(--ok-radius-pill, 50%);
+      border:2px solid var(--ion-color-primary,#0091ce); background:var(--ion-background-color,#fff);
+      color:var(--ion-color-primary,#0091ce); font-size:1.5rem; line-height:1; cursor:pointer; }
+    .guests .stepper button:disabled { opacity:.35; cursor:not-allowed; }
+    .guests .value { font-size:2.4rem; font-weight:700; min-width:3rem; text-align:center; }
+    .guests .quick { display:grid; grid-template-columns: repeat(4, 1fr); gap:.5rem; }
+    .guests .quick button { min-height:2.75rem; border-radius: var(--ok-radius, 12px);
+      border:1px solid var(--ion-color-medium,#868e96); background:var(--ion-color-light,#f4f5f8);
+      color:var(--ion-text-color,#1c1b18); font-size:1.05rem; font-weight:600; cursor:pointer; }
+    .guests .quick button[aria-pressed=true] { border-color:var(--ion-color-primary,#0091ce);
+      color:var(--ion-color-primary,#0091ce); }
+    .guests .over { text-align:center; font-size:.85rem; color:var(--ion-color-warning,#f08c00); }
+    .guests .cta { display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
+    .guests .cta .seat { flex:1; }
+    .mesa .live { font-size:.75rem; font-weight:700; color:var(--ion-color-danger,#d9480f);
+      display:flex; align-items:center; justify-content:center; gap:.2rem; }
   `;
   }
   connectedCallback() {
@@ -4632,26 +4669,72 @@ var ErpTablesPosZones = class extends i3 {
       }
       this.sessionId = void 0;
     }
-    let sessionId;
-    let linkedOrderId;
     const live = await this.activeSessionInfo(t5.id);
     if (live) {
-      sessionId = live.id;
-      linkedOrderId = live.order_id || void 0;
-    } else {
-      try {
-        await erplora3().command("tables.sessions.open", { table_id: t5.id });
-        sessionId = await this.activeSessionFor(t5.id);
-      } catch (e5) {
-        this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errOccupyTable");
-      }
+      this.settle(t5, live.id, live.order_id || void 0);
+      return;
     }
+    const seed = t5.reserved_party_size && t5.reserved_party_size > 0 ? t5.reserved_party_size : t5.capacity;
+    this.guestsPrompt = { kind: "seat", table: t5, value: Math.max(1, Number(seed) || 1) };
+  }
+  /** Opens the check of a free table with `guests` covers and hands the table to the POS. */
+  async seat(t5, guests) {
+    let sessionId;
+    try {
+      await erplora3().command("tables.sessions.open", { table_id: t5.id, guests_count: guests });
+      sessionId = await this.activeSessionFor(t5.id);
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errOccupyTable");
+    }
+    this.guestsPrompt = void 0;
+    this.settle(t5, sessionId, void 0);
+  }
+  /** The table is the POS context now: remember its live check, tell the POS, close the sheet. */
+  settle(t5, sessionId, linkedOrderId) {
     this.sessionId = sessionId;
     this.selectedId = t5.id;
     this.selectedLabel = erplora3().t(CATALOG3, "ui.tableLabel", { number: t5.number });
     this.emit(t5.id, this.selectedLabel, linkedOrderId ?? null);
     this.open = false;
     void this.refreshTables();
+  }
+  // ── Covers prompt (tables#32) ────────────────────────────────────────────────
+  /** +/− reads the CURRENT value (two fast taps must not both apply to the same stale render). */
+  bumpGuests(delta) {
+    if (!this.guestsPrompt) return;
+    this.guestsPrompt = { ...this.guestsPrompt, value: Math.max(1, Math.floor(this.guestsPrompt.value + delta)) };
+  }
+  /** Confirm the prompt: seat the party (free table) or correct the live check (⋮ → Guests). */
+  async confirmGuests(value = this.guestsPrompt?.value) {
+    const p4 = this.guestsPrompt;
+    if (!p4 || !value) return;
+    if (p4.kind === "seat") {
+      await this.seat(p4.table, value);
+      return;
+    }
+    const info = await this.activeSessionInfo(p4.table.id);
+    if (!info?.id) {
+      this.error = erplora3().t(CATALOG3, "ui.errNoActiveSession");
+      return;
+    }
+    try {
+      await erplora3().command("tables.sessions.set_guests", { session_id: info.id, guests_count: value });
+      this.guestsPrompt = void 0;
+      this.actionSource = void 0;
+      void this.refreshTables();
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errSetGuests");
+    }
+  }
+  cancelGuests() {
+    this.guestsPrompt = void 0;
+  }
+  /** ⋮ → Guests: correct the covers of the live check, pre-filled with what the plan shows. */
+  startEditGuests() {
+    const src = this.actionSource;
+    const t5 = src && this.tables.find((x2) => x2.id === src.id);
+    if (!t5) return;
+    this.guestsPrompt = { kind: "edit", table: t5, value: Math.max(1, Number(t5.live_guests) || t5.capacity || 1) };
   }
   async clear() {
     if (this.kitchenEnabled && this.pendingCount > 0) {
@@ -4725,6 +4808,7 @@ var ErpTablesPosZones = class extends i3 {
   cancelAction() {
     this.mode = "select";
     this.actionSource = void 0;
+    this.guestsPrompt = void 0;
   }
   /** Emite hacia el POS el movimiento de comanda (mover en transfer, combinar en merge). El POS
    *  (erp-pos-touch/desktop) mueve/fusiona el carrito por `table_id`; contrato por evento DOM. */
@@ -4826,7 +4910,9 @@ var ErpTablesPosZones = class extends i3 {
 
         ${this.error ? b2`<p style="color:#d9480f">${this.error}</p>` : A}
 
-        ${this.actionSource && !inAction ? b2`<div class="actions">
+        ${this.guestsPrompt ? this.renderGuestsPrompt(t5) : A}
+
+        ${this.actionSource && !inAction && !this.guestsPrompt ? b2`<div class="actions">
               <span class="lbl">${t5("ui.tableLabel", { number: srcNum })}</span>
               <ion-button size="small" fill="outline" @click=${() => this.startTransfer()}>
                 <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>${t5("ui.transfer")}
@@ -4837,17 +4923,20 @@ var ErpTablesPosZones = class extends i3 {
               <ion-button size="small" fill="outline" @click=${() => void this.doSplit()}>
                 <ion-icon slot="start" name="git-branch-outline"></ion-icon>${t5("ui.split")}
               </ion-button>
+              <ion-button size="small" fill="outline" @click=${() => this.startEditGuests()}>
+                <ion-icon slot="start" name="people-outline"></ion-icon>${t5("ui.guests")}
+              </ion-button>
             </div>` : A}
         ${inAction ? b2`<div class="hint">${this.mode === "transfer" ? t5("ui.pickFreeTable") : t5("ui.pickOccupiedTable")}</div>` : A}
 
-        ${this.zones.length ? b2`<ion-segment scrollable value=${this.activeZone}
+        ${this.zones.length && !this.guestsPrompt ? b2`<ion-segment scrollable value=${this.activeZone}
               @ionChange=${(e5) => {
       this.activeZone = e5.detail.value;
     }}>
               ${this.zones.map((z2) => b2`<ion-segment-button value=${z2.id}><ion-label>${z2.name}</ion-label></ion-segment-button>`)}
             </ion-segment>` : A}
 
-        <div class="grid">
+        ${this.guestsPrompt ? A : b2`<div class="grid">
           ${this.tablesInZone.map((tb) => {
       const validTarget = inAction && this.isValidTarget(tb);
       const showKebab = !inAction && tb.status === "occupied";
@@ -4862,6 +4951,7 @@ var ErpTablesPosZones = class extends i3 {
                 style=${`border-color:${STATUS_COLOR2[tb.status] ?? "#d9d6cf"}`} @click=${() => this.pick(tb)}>
                 <div class="n">${tb.number}</div>
                 <div class="c">${t5("ui.paxCount", { count: tb.capacity })}</div>
+                ${tb.live_guests ? b2`<div class="live"><ion-icon name="people-outline"></ion-icon>${t5("ui.liveGuests", { count: tb.live_guests })}</div>` : A}
                 <div class="s" style=${`color:${STATUS_COLOR2[tb.status] ?? "#868e96"}`}>${t5(STATUS_KEY3[tb.status] ?? tb.status)}</div>
                 ${tb.reserved_for ? b2`<div class="hold">${tb.reserved_for}${tb.reserved_from ? b2` · ${hhmm2(tb.reserved_from)}` : A}</div>` : A}
               </button>
@@ -4874,7 +4964,7 @@ var ErpTablesPosZones = class extends i3 {
               <p class="empty-hint">${t5("ui.noTablesInZoneHint")}</p>
             </div>` : A}
           ${this.loading ? b2`<div class="empty">${t5("ui.loading")}</div>` : A}
-        </div>
+        </div>`}
 
         <div class="foot">
           ${!inAction && this.selectedId ? b2`<ion-button color="danger" fill="clear" size="small" @click=${() => void this.clear()}>
@@ -4884,6 +4974,30 @@ var ErpTablesPosZones = class extends i3 {
         </div>
       </dialog>
     `;
+  }
+  /** tables#32: the covers prompt — big stepper, quick chips 1..8 (one tap seats), CTA. */
+  renderGuestsPrompt(t5) {
+    const p4 = this.guestsPrompt;
+    const over = p4.value > p4.table.capacity;
+    const cta = p4.kind === "seat" ? t5("ui.seatGuests", { count: p4.value }) : t5("ui.saveGuests");
+    return b2`
+      <div class="guests" role="group" aria-label=${t5("ui.guestsTitle", { number: p4.table.number })}>
+        <div class="hint">${t5("ui.guestsTitle", { number: p4.table.number })} · ${t5("ui.paxCount", { count: p4.table.capacity })}</div>
+        <div class="stepper">
+          <button class="minus" aria-label="−" ?disabled=${p4.value <= 1} @click=${() => this.bumpGuests(-1)}>−</button>
+          <span class="value" aria-live="polite">${p4.value}</span>
+          <button class="plus" aria-label="+" @click=${() => this.bumpGuests(1)}>+</button>
+        </div>
+        <div class="quick">
+          ${[1, 2, 3, 4, 5, 6, 7, 8].map((n6) => b2`
+            <button aria-pressed=${p4.value === n6} @click=${() => void this.confirmGuests(n6)}>${n6}</button>`)}
+        </div>
+        ${over ? b2`<div class="over">${t5("ui.overCapacity", { capacity: p4.table.capacity })}</div>` : A}
+        <div class="cta">
+          <ion-button class="back" fill="clear" size="small" @click=${() => this.cancelGuests()}>${t5("ui.back")}</ion-button>
+          <ion-button class="seat" size="default" @click=${() => void this.confirmGuests()}>${cta}</ion-button>
+        </div>
+      </div>`;
   }
   /** Sincroniza `open` ↔ el <dialog> nativo: showModal() usa el top layer y escapa cualquier trap.
    *  try/catch porque happy-dom (tests) no implementa showModal/close. */
@@ -4933,4 +5047,7 @@ __decorateClass([
 __decorateClass([
   r5()
 ], ErpTablesPosZones.prototype, "actionSource", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "guestsPrompt", 2);
 define("erp-tables-pos-zones", ErpTablesPosZones);
