@@ -478,3 +478,33 @@ describe('erp:order-linked — the split order lands on ITS own account (tables#
     expect(linkCalls(calls), 'a counter order has no table to hang from').toEqual([]);
   });
 });
+
+// ── tables#37 — the trigger icon must travel in the module's own `dist/icons.json` ────────────
+//
+// The toolkit bakes ONLY the Iconify `ion:` set into the sidecar. The trigger used Material Symbols
+// (`ms-table-restaurant(-outline)`), which the current baker no longer resolves: `dist/icons.json`
+// had no entry for it, ion-icon tried the network, warned, and the button rendered BLANK. The
+// contract: whatever the trigger renders (assigned or not) is a key of the baked sidecar.
+import bakedIcons from '../../../dist/icons.json';
+
+describe('the table trigger icon is baked in dist/icons.json (tables#37)', () => {
+  const baked = bakedIcons as Record<string, string>;
+
+  it('unassigned: the icon name resolves in the sidecar', async () => {
+    const el = await montar();
+    const name = el.shadowRoot.querySelector('ion-button.trigger ion-icon')?.getAttribute('name') ?? '';
+    expect(name, 'the trigger has an icon name').toBeTruthy();
+    expect(name.startsWith('ms-'), 'no Material Symbols: only the ion: set is baked').toBe(false);
+    expect(baked[name], `"${name}" is baked in dist/icons.json`).toBeTruthy();
+  });
+
+  it('assigned: the icon name resolves in the sidecar too', async () => {
+    const el = await montar();
+    const filler = el as unknown as { selectedId?: string; updateComplete: Promise<unknown> };
+    filler.selectedId = 'tbl-1';
+    await filler.updateComplete;
+    const name = el.shadowRoot.querySelector('ion-button.trigger ion-icon')?.getAttribute('name') ?? '';
+    expect(name.startsWith('ms-'), 'no Material Symbols: only the ion: set is baked').toBe(false);
+    expect(baked[name], `"${name}" is baked in dist/icons.json`).toBeTruthy();
+  });
+});

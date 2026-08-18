@@ -92,12 +92,11 @@ export class ErpTablesPosZones extends LitElement {
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
     .ctx { display:flex; align-items:center; gap:.15rem; }
     .trigger { --padding-start:.5rem; --padding-end:.5rem; }
-    ion-button.trigger ion-icon { font-size: calc(var(--pos-hdr-icon-size, 1.75rem) * 1.05); }
-    /* El icono hereda el tamaño que fija el TPV en la cabecera del carrito
-       (la variable --pos-hdr-icon-size, que cruza el Shadow DOM); el fallback vale por si se monta
-       en otro sitio.
-       Material Symbols dibuja con menos trazo y menor viewBox que Ionicons, así que con el mismo
-       número se ve MÁS PEQUEÑO: se compensa con el factor de abajo para que ópticamente cuadre. */
+    ion-button.trigger ion-icon { font-size: var(--pos-hdr-icon-size, 1.75rem); }
+    /* The icon inherits the size the POS sets on the cart header (--pos-hdr-icon-size crosses the
+       Shadow DOM); the fallback covers mounting elsewhere. tables#37: the trigger is an ion: icon
+       again (grid / grid-outline, the same glyph the POS chip and the module's own Tables entry
+       use), so no optical compensation for a foreign set is needed — the toolkit only bakes ion:. */
     .trigger[data-assigned] { --color: var(--ion-color-primary,#0091ce); }
     .name { font-size:.8rem; font-weight:700; color:var(--ion-color-primary,#0091ce); max-width:9rem;
             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -560,7 +559,7 @@ export class ErpTablesPosZones extends LitElement {
         aria-label=${this.selectedId ? `${t('ui.assignTable')}: ${this.selectedLabel}` : t('ui.assignTable')}
         title=${this.selectedId ? `${t('ui.assignTable')}: ${this.selectedLabel}` : t('ui.assignTable')}
         @click=${() => this.openPicker()}>
-        <ion-icon slot="icon-only" name=${this.selectedId ? 'ms-table-restaurant' : 'ms-table-restaurant-outline'}></ion-icon>
+        <ion-icon slot="icon-only" name=${this.selectedId ? 'grid' : 'grid-outline'}></ion-icon>
       </ion-button>
 
       <dialog class="sheet" aria-label=${title}
