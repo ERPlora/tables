@@ -750,6 +750,7 @@
       "tables.session.restored",
       "tables.session.split",
       "tables.session.transferred",
+      "tables.session.updated",
       "tables.table.created",
       "tables.table.deleted",
       "tables.table.held",
