@@ -1838,7 +1838,28 @@ var es_default = {
     errZoneNameRequired: "El nombre de la zona es obligatorio",
     close: "Cerrar",
     noTablesInZoneHint: "Crea mesas en el m\xF3dulo Mesas.",
-    sendPendingBeforeTable: "Env\xEDa primero los {count} productos pendientes de la comanda actual."
+    sendPendingBeforeTable: "Env\xEDa primero los {count} productos pendientes de la comanda actual.",
+    colTables: "Mesas",
+    colAvailable: "Libres",
+    colOrder: "Orden",
+    colColor: "Color",
+    availableOfTotal: "{available} / {total}",
+    zoneActive: "Activa",
+    zoneInactive: "Inactiva",
+    actionEdit: "Editar",
+    actionDelete: "Borrar",
+    saveChanges: "Guardar cambios",
+    searchZone: "Buscar zona\u2026",
+    emptyZones: "No hay zonas. Pulsa \xAB+\xBB para crear la primera (Sal\xF3n, Terraza, Barra\u2026).",
+    deleteZoneTitle: "\xBFBorrar la zona?",
+    deleteZoneImpact: "{count} mesas en esta zona. Una zona con mesas no se puede borrar: mueve o borra antes sus mesas.",
+    colorPrimary: "Azul",
+    colorSecondary: "Cian",
+    colorTertiary: "Morado",
+    colorSuccess: "Verde",
+    colorWarning: "\xC1mbar",
+    colorDanger: "Rojo",
+    colorMedium: "Gris"
   },
   setup: {
     title: "Tus mesas",
@@ -1950,7 +1971,28 @@ var en_default = {
     errZoneNameRequired: "The zone name is required",
     close: "Close",
     noTablesInZoneHint: "Create tables in the Tables module.",
-    sendPendingBeforeTable: "Send the {count} pending items in the current order first."
+    sendPendingBeforeTable: "Send the {count} pending items in the current order first.",
+    colTables: "Tables",
+    colAvailable: "Available",
+    colOrder: "Order",
+    colColor: "Colour",
+    availableOfTotal: "{available} / {total}",
+    zoneActive: "Active",
+    zoneInactive: "Inactive",
+    actionEdit: "Edit",
+    actionDelete: "Delete",
+    saveChanges: "Save changes",
+    searchZone: "Search zone\u2026",
+    emptyZones: "No zones. Tap \xAB+\xBB to create the first one (Dining room, Terrace, Bar\u2026).",
+    deleteZoneTitle: "Delete zone?",
+    deleteZoneImpact: "{count} tables in this zone. A zone with tables cannot be deleted: move or delete its tables first.",
+    colorPrimary: "Blue",
+    colorSecondary: "Cyan",
+    colorTertiary: "Purple",
+    colorSuccess: "Green",
+    colorWarning: "Amber",
+    colorDanger: "Red",
+    colorMedium: "Grey"
   },
   setup: {
     title: "Your tables",
@@ -4059,6 +4101,81 @@ var OkDataTable = _OkDataTable;
 define("ok-data-table", OkDataTable);
 
 // ../hub/packages/module-sdk/src/index.ts
+var DATA_TABLE_LABELS_ES = {
+  search: "Buscar\u2026",
+  empty: "Sin resultados",
+  filters: "Filtros",
+  clear: "Limpiar",
+  apply: "Aplicar",
+  selected: "{n} seleccionados",
+  importCsv: "Importar CSV",
+  exportCsv: "Exportar CSV",
+  add: "A\xF1adir",
+  moreActions: "M\xE1s acciones",
+  rowsPerPage: "Filas por p\xE1gina",
+  perPageShort: "{n} / p\xE1g.",
+  viewList: "Vista lista",
+  viewCards: "Vista tarjetas",
+  columnsVisible: "Columnas visibles",
+  columns: "Columnas",
+  actions: "Acciones",
+  close: "Cerrar",
+  newRecord: "Nuevo",
+  form: "Formulario",
+  filterPlaceholder: "Filtrar\u2026",
+  from: "Desde",
+  to: "Hasta",
+  fromOf: "{label} desde",
+  toOf: "{label} hasta",
+  gte: "\u2265",
+  lte: "\u2264",
+  noValues: "Sin valores",
+  selectAll: "Seleccionar todo",
+  selectRow: "Seleccionar fila",
+  select: "Seleccionar",
+  showing: "Mostrando {from}\u2013{to} de",
+  recordSingular: "registro",
+  recordPlural: "registros"
+};
+var DATA_TABLE_LABELS_EN = {
+  search: "Search\u2026",
+  empty: "No results",
+  filters: "Filters",
+  clear: "Clear",
+  apply: "Apply",
+  selected: "{n} selected",
+  importCsv: "Import CSV",
+  exportCsv: "Export CSV",
+  add: "Add",
+  moreActions: "More actions",
+  rowsPerPage: "Rows per page",
+  perPageShort: "{n} / page",
+  viewList: "List view",
+  viewCards: "Card view",
+  columnsVisible: "Visible columns",
+  columns: "Columns",
+  actions: "Actions",
+  close: "Close",
+  newRecord: "New",
+  form: "Form",
+  filterPlaceholder: "Filter\u2026",
+  from: "From",
+  to: "To",
+  fromOf: "{label} from",
+  toOf: "{label} to",
+  gte: "\u2265",
+  lte: "\u2264",
+  noValues: "No values",
+  selectAll: "Select all",
+  selectRow: "Select row",
+  select: "Select",
+  showing: "Showing {from}\u2013{to} of",
+  recordSingular: "record",
+  recordPlural: "records"
+};
+function dataTableLabels(locale = "es") {
+  return locale.toLowerCase().startsWith("en") ? DATA_TABLE_LABELS_EN : DATA_TABLE_LABELS_ES;
+}
 function isEmpty(v3) {
   return v3 === null || v3 === void 0 || v3 === "";
 }
@@ -4194,6 +4311,7 @@ var ErpTablesFloorPlan = class extends i3 {
     super(...arguments);
     this.newNumber = "";
     this.newCapacity = "4";
+    this.newZoneId = "";
     this.saving = false;
     this.formError = "";
     this.tick = 0;
@@ -4299,7 +4417,7 @@ var ErpTablesFloorPlan = class extends i3 {
         number: this.newNumber.trim(),
         name: "",
         capacity: Number(this.newCapacity) || 4,
-        zone_id: null,
+        zone_id: this.newZoneId || null,
         shape: "square",
         position_x: 0,
         position_y: 0,
@@ -4328,6 +4446,10 @@ var ErpTablesFloorPlan = class extends i3 {
           <form slot="create" class="form" @submit=${(e5) => this.createTable(e5)}>
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.colNumber")} .value=${this.newNumber} @ionInput=${(e5) => this.newNumber = e5.target.value}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t5("ui.colCapacity")} type="number" min="1" .value=${this.newCapacity} @ionInput=${(e5) => this.newCapacity = e5.target.value}></ion-input>
+            <ion-select fill="outline" label-placement="floating" label=${t5("ui.fieldZone")} interface="popover" .value=${this.newZoneId} @ionChange=${(e5) => this.newZoneId = e5.detail.value || ""}>
+              <ion-select-option value="">${t5("ui.noZone")}</ion-select-option>
+              ${this.zones.map((z2) => b2`<ion-select-option value=${z2.id}>${z2.name}</ion-select-option>`)}
+            </ion-select>
             <ion-button type="submit" ?disabled=${this.saving || !this.newNumber}>${this.saving ? t5("ui.saving") : t5("ui.addTable")}</ion-button>
           </form>
         </ok-data-table>
@@ -4340,6 +4462,9 @@ __decorateClass([
 __decorateClass([
   r5()
 ], ErpTablesFloorPlan.prototype, "newCapacity", 2);
+__decorateClass([
+  r5()
+], ErpTablesFloorPlan.prototype, "newZoneId", 2);
 __decorateClass([
   r5()
 ], ErpTablesFloorPlan.prototype, "saving", 2);
@@ -5051,3 +5176,283 @@ __decorateClass([
   r5()
 ], ErpTablesPosZones.prototype, "guestsPrompt", 2);
 define("erp-tables-pos-zones", ErpTablesPosZones);
+
+// modules/tables/ui/components/erp-tables-zones/erp-tables-zones.ts
+var CATALOG4 = { es: es_default, en: en_default };
+var COLORS = ["primary", "secondary", "tertiary", "success", "warning", "danger", "medium"];
+var COLOR_KEY = {
+  primary: "ui.colorPrimary",
+  secondary: "ui.colorSecondary",
+  tertiary: "ui.colorTertiary",
+  success: "ui.colorSuccess",
+  warning: "ui.colorWarning",
+  danger: "ui.colorDanger",
+  medium: "ui.colorMedium"
+};
+function erplora4() {
+  const c5 = globalThis.erplora;
+  if (!c5) throw new Error("erplora SDK not initialised by the shell");
+  return c5;
+}
+function can(permission) {
+  const client = erplora4();
+  return typeof client.hasPermission === "function" ? client.hasPermission(permission) : true;
+}
+var EMPTY_FORM = { name: "", color: "primary", sortOrder: "0", isActive: true };
+var ErpTablesZones = class extends i3 {
+  constructor() {
+    super(...arguments);
+    this.form = { ...EMPTY_FORM };
+    this.editingId = null;
+    /** Row being edited: keeps the fields the form does not expose (`description`) on update. */
+    this.editRow = null;
+    this.deleteTarget = null;
+    this.saving = false;
+    this.formError = "";
+    this.onLocaleChange = () => this.requestUpdate();
+  }
+  static {
+    this.styles = i`
+    :host { display:flex; flex-direction:column; height:100%; min-height:0; font-family: system-ui, sans-serif; color: var(--ion-text-color, #1c1b18); }
+    .page { display:flex; flex-direction:column; min-height:0; flex:1 1 auto; gap:.75rem; }
+    .page > ok-data-table { flex:1 1 auto; min-height:0; }
+    .form { display:flex; flex-direction:column; gap:.7rem; }
+    .form .foot { display:flex; justify-content:flex-end; gap:.5rem; }
+    .swatch { display:inline-block; width:.9rem; height:.9rem; border-radius: var(--ok-radius-pill, 50%); vertical-align:middle; margin-right:.4rem; }
+    .off { color: var(--ok-muted, #8b897f); }
+  `;
+  }
+  get columns() {
+    const t5 = (k2, p4) => erplora4().t(CATALOG4, k2, p4);
+    return [
+      {
+        key: "name",
+        header: t5("ui.colName"),
+        sortable: true,
+        filterable: true,
+        filterType: "text",
+        render: (r6) => b2`<span class="swatch" style=${`background:var(--ion-color-${r6.color || "primary"})`}></span>${r6.name}`
+      },
+      { key: "table_count", header: t5("ui.colTables"), align: "right", sortable: true, format: (r6) => String(r6.table_count ?? 0) },
+      {
+        key: "available_tables_count",
+        header: t5("ui.colAvailable"),
+        align: "right",
+        sortable: true,
+        format: (r6) => t5("ui.availableOfTotal", { available: r6.available_tables_count ?? 0, total: r6.table_count ?? 0 })
+      },
+      { key: "sort_order", header: t5("ui.colOrder"), align: "right", sortable: true },
+      {
+        key: "is_active",
+        header: t5("ui.colStatus"),
+        sortable: true,
+        filterable: true,
+        filterType: "select",
+        options: [
+          { value: "1", label: t5("ui.zoneActive") },
+          { value: "0", label: t5("ui.zoneInactive") }
+        ],
+        format: (r6) => Number(r6.is_active) ? t5("ui.zoneActive") : t5("ui.zoneInactive")
+      }
+    ];
+  }
+  get actions() {
+    const t5 = (k2) => erplora4().t(CATALOG4, k2);
+    return [
+      ...can("tables.change_zone") ? [{ id: "edit", label: t5("ui.actionEdit"), icon: "create-outline" }] : [],
+      ...can("tables.delete_zone") ? [{ id: "delete", label: t5("ui.actionDelete"), icon: "trash-outline", color: "danger" }] : []
+    ];
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    window.addEventListener("erplora:locale-changed", this.onLocaleChange);
+  }
+  async firstUpdated() {
+    this.ctrl = createListController(erplora4(), "tables.zones.list", () => this.requestUpdate(), {
+      pageSize: 50,
+      sort: "sort_order",
+      dir: "asc"
+    });
+    await this.ctrl.load();
+    this.form = { ...EMPTY_FORM, sortOrder: String(this.nextOrder()) };
+    try {
+      const offs = [
+        erplora4().on("tables.zone.created", () => this.ctrl.load()),
+        erplora4().on("tables.zone.updated", () => this.ctrl.load()),
+        erplora4().on("tables.zone.deleted", () => this.ctrl.load()),
+        erplora4().on("tables.table.created", () => this.ctrl.load()),
+        erplora4().on("tables.table.updated", () => this.ctrl.load()),
+        erplora4().on("tables.table.deleted", () => this.ctrl.load()),
+        erplora4().on("tables.session.opened", () => this.ctrl.load()),
+        erplora4().on("tables.session.closed", () => this.ctrl.load())
+      ];
+      this.unsub = () => offs.forEach((o7) => o7());
+    } catch {
+    }
+  }
+  disconnectedCallback() {
+    window.removeEventListener("erplora:locale-changed", this.onLocaleChange);
+    this.unsub?.();
+    super.disconnectedCallback();
+  }
+  /** A new zone goes to the end: max(sort_order) + 1 over the loaded page, or the total. */
+  nextOrder() {
+    const rows3 = this.ctrl?.rows ?? [];
+    const max = rows3.reduce((m4, z2) => Math.max(m4, Number(z2.sort_order) || 0), -1);
+    return Math.max(max + 1, this.ctrl?.total ?? 0);
+  }
+  dataTable() {
+    return this.renderRoot.querySelector("ok-data-table");
+  }
+  async onRowAction(ev) {
+    const { actionId, row } = ev.detail;
+    const z2 = row;
+    if (actionId === "edit" && can("tables.change_zone")) {
+      this.editingId = z2.id;
+      this.editRow = z2;
+      this.form = { name: z2.name, color: z2.color || "primary", sortOrder: String(z2.sort_order ?? 0), isActive: Number(z2.is_active) === 1 };
+      this.formError = "";
+      this.dataTable()?.open("create");
+    } else if (actionId === "delete" && can("tables.delete_zone")) {
+      this.deleteTarget = z2;
+    }
+  }
+  cancelEdit() {
+    this.editingId = null;
+    this.editRow = null;
+    this.form = { ...EMPTY_FORM, sortOrder: String(this.nextOrder()) };
+    this.formError = "";
+  }
+  async submit(ev) {
+    ev.preventDefault();
+    const name = this.form.name.trim();
+    if (!name) return;
+    if (!can(this.editingId ? "tables.change_zone" : "tables.add_zone")) return;
+    this.saving = true;
+    this.formError = "";
+    try {
+      const sortOrder = Math.max(0, Number(this.form.sortOrder) || 0);
+      if (this.editingId) {
+        await erplora4().command("tables.zones.update", {
+          zone_id: this.editingId,
+          name,
+          description: this.editRow?.description ?? "",
+          color: this.form.color || "primary",
+          sort_order: sortOrder,
+          is_active: this.form.isActive ? 1 : 0
+        });
+      } else {
+        await erplora4().command("tables.zones.create", {
+          name,
+          description: "",
+          color: this.form.color || "primary",
+          sort_order: sortOrder
+        });
+      }
+      this.cancelEdit();
+      this.dataTable()?.close();
+      await this.ctrl.load();
+    } catch (e5) {
+      this.formError = e5 instanceof Error ? e5.message : erplora4().t(CATALOG4, "ui.errSaveZone");
+    } finally {
+      this.saving = false;
+    }
+  }
+  async confirmDelete() {
+    if (!this.deleteTarget || !can("tables.delete_zone")) return;
+    const target = this.deleteTarget;
+    this.saving = true;
+    try {
+      await erplora4().command("tables.zones.delete", { zone_id: target.id });
+      await this.ctrl.load();
+    } catch (e5) {
+      this.formError = e5 instanceof Error ? e5.message : erplora4().t(CATALOG4, "ui.errDeleteZone");
+    } finally {
+      this.deleteTarget = null;
+      this.saving = false;
+    }
+  }
+  render() {
+    const t5 = (k2, p4) => erplora4().t(CATALOG4, k2, p4);
+    return b2`<div class="page">
+      ${this.formError ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.formError}</ok-inline-feedback>` : A}
+      ${this.ctrl?.error ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : A}
+
+      <ok-data-table
+        .serverSide=${true}
+        .fill=${true}
+        .labels=${dataTableLabels(erplora4().locale)}
+        .columns=${this.columns}
+        .actions=${this.actions}
+        .addable=${can("tables.add_zone")}
+        .views=${true}
+        .cardTitle=${(r6) => String(r6.name ?? "")}
+        .cardIcon=${() => "layers-outline"}
+        .rows=${this.ctrl?.rows ?? []}
+        .total=${this.ctrl?.total ?? 0}
+        .page=${this.ctrl?.state.page ?? 0}
+        .pageSize=${this.ctrl?.state.pageSize ?? 50}
+        .sort=${this.ctrl?.state.sort}
+        .sortDir=${this.ctrl?.state.dir ?? "asc"}
+        .searchable=${true}
+        .searchPlaceholder=${t5("ui.searchZone")}
+        .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyZones")}
+        @rowAction=${(e5) => this.onRowAction(e5)}
+        @pageChange=${(e5) => this.ctrl.setPage(e5.detail)}
+        @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)}
+        @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)}
+        @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)}
+        @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}
+      >
+        <!-- Create / edit: always projected (the «+» must never open an empty panel). -->
+        <form slot="create" class="form" @submit=${(e5) => this.submit(e5)}>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.colName")} .value=${this.form.name}
+            @ionInput=${(e5) => this.form = { ...this.form, name: e5.target.value || "" }}></ion-input>
+          <ion-select fill="outline" label-placement="floating" label=${t5("ui.colColor")} interface="popover" .value=${this.form.color}
+            @ionChange=${(e5) => this.form = { ...this.form, color: e5.detail.value || "primary" }}>
+            ${COLORS.map((c5) => b2`<ion-select-option value=${c5}>${t5(COLOR_KEY[c5])}</ion-select-option>`)}
+          </ion-select>
+          <ion-input fill="outline" label-placement="floating" label=${t5("ui.colOrder")} type="number" min="0" .value=${this.form.sortOrder}
+            @ionInput=${(e5) => this.form = { ...this.form, sortOrder: e5.target.value || "0" }}></ion-input>
+          ${this.editingId ? b2`<ion-toggle .checked=${this.form.isActive} @ionChange=${(e5) => this.form = { ...this.form, isActive: !!e5.detail.checked }}>${t5("ui.zoneActive")}</ion-toggle>` : A}
+          <div class="foot">
+            ${this.editingId ? b2`<ion-button fill="clear" @click=${() => this.cancelEdit()}>${t5("ui.cancel")}</ion-button>` : A}
+            <ion-button type="submit" ?disabled=${this.saving || !this.form.name.trim()}>
+              ${this.saving ? t5("ui.saving") : this.editingId ? t5("ui.saveChanges") : t5("ui.addZone")}
+            </ion-button>
+          </div>
+        </form>
+      </ok-data-table>
+
+      <!-- Delete confirmation. ion-modal reparents to <body>: Ionic classes only, no shadow CSS. -->
+      <ion-modal .isOpen=${!!this.deleteTarget} @ionModalDidDismiss=${() => this.deleteTarget = null}>
+        <ion-header class="ion-no-border"><ion-toolbar><ion-title>${t5("ui.deleteZoneTitle")}</ion-title></ion-toolbar></ion-header>
+        <ion-content class="ion-padding">
+          <ion-list lines="none">
+            <ion-item><ion-label class="ion-text-wrap">
+              <b>${this.deleteTarget?.name ?? ""}</b> — ${t5("ui.deleteZoneImpact", { count: this.deleteTarget?.table_count ?? 0 })}
+            </ion-label></ion-item>
+          </ion-list>
+          <ion-button class="ion-margin-top" expand="block" color="danger" ?disabled=${this.saving} @click=${() => this.confirmDelete()}>${t5("ui.deleteZone")}</ion-button>
+          <ion-button expand="block" fill="outline" @click=${() => this.deleteTarget = null}>${t5("ui.cancel")}</ion-button>
+        </ion-content>
+      </ion-modal>
+    </div>`;
+  }
+};
+__decorateClass([
+  r5()
+], ErpTablesZones.prototype, "form", 2);
+__decorateClass([
+  r5()
+], ErpTablesZones.prototype, "editingId", 2);
+__decorateClass([
+  r5()
+], ErpTablesZones.prototype, "deleteTarget", 2);
+__decorateClass([
+  r5()
+], ErpTablesZones.prototype, "saving", 2);
+__decorateClass([
+  r5()
+], ErpTablesZones.prototype, "formError", 2);
+define("erp-tables-zones", ErpTablesZones);

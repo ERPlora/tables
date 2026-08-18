@@ -65,7 +65,7 @@
       "id": "zones",
       "label": "Zones",
       "icon": "layers-outline",
-      "component": "erp-tables-floor-plan"
+      "component": "erp-tables-zones"
     },
     {
       "id": "tables",
@@ -120,9 +120,11 @@
           "name",
           "color",
           "sort_order",
-          "is_active"
+          "is_active",
+          "table_count",
+          "available_tables_count"
         ],
-        "default_sort": "name",
+        "default_sort": "sort_order",
         "default_dir": "asc",
         "filters": {
           "name": {
