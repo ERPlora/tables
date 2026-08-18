@@ -126,4 +126,32 @@ describe('el alta sigue funcionando desde el panel', () => {
     expect(alta!.payload.capacity).toBe(6);
     expect(cerrado, 'el panel de alta se queda abierto tras crear').toBe(1);
   });
+
+  // tables#3: the create form used to hardcode `zone_id: null` — every table born from the list
+  // landed outside any zone and never showed on the floor plan's zone tabs. The zone is chosen from
+  // the REAL zones of the hub (already loaded for the filter) and travels in the payload.
+  it('the create form offers the zones of the hub and sends the chosen zone_id', async () => {
+    const el = await montar();
+    const zoneSelect = el.shadowRoot.querySelector('form[slot="create"] ion-select');
+    expect(zoneSelect, 'the create form has no zone select').toBeTruthy();
+    // happy-dom does not register Ionic: read the attribute, not the (undefined) property.
+    const options = [...zoneSelect!.querySelectorAll('ion-select-option')].map((o) => o.getAttribute('value'));
+    expect(options).toContain('z1');
+    expect(options).toContain('z2');
+
+    const wc = el as unknown as { newNumber: string; newZoneId: string; createTable: (ev: Event) => Promise<void> };
+    wc.newNumber = '7';
+    wc.newZoneId = 'z2';
+    await wc.createTable(new Event('submit'));
+    const alta = comandos.find((c) => c.name === 'tables.tables.create');
+    expect(alta!.payload.zone_id).toBe('z2');
+  });
+
+  it('with no zone chosen the table is created without zone (zone_id null, still valid)', async () => {
+    const el = await montar();
+    const wc = el as unknown as { newNumber: string; createTable: (ev: Event) => Promise<void> };
+    wc.newNumber = '8';
+    await wc.createTable(new Event('submit'));
+    expect(comandos.find((c) => c.name === 'tables.tables.create')!.payload.zone_id).toBeNull();
+  });
 });

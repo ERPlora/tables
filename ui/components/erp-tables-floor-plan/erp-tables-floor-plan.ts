@@ -69,6 +69,9 @@ export class ErpTablesFloorPlan extends LitElement {
 
   @state() newCapacity = '4';
 
+  /** Zone chosen in the create form ('' = no zone). tables#3: it used to be hardcoded to null. */
+  @state() newZoneId = '';
+
   @state() saving = false;
 
   @state() formError = '';
@@ -184,7 +187,7 @@ export class ErpTablesFloorPlan extends LitElement {
         number: this.newNumber.trim(),
         name: '',
         capacity: Number(this.newCapacity) || 4,
-        zone_id: null,
+        zone_id: this.newZoneId || null,
         shape: 'square',
         position_x: 0,
         position_y: 0,
@@ -214,6 +217,10 @@ export class ErpTablesFloorPlan extends LitElement {
           <form slot="create" class="form" @submit=${(e: Event) => this.createTable(e)}>
             <ion-input fill="outline" label-placement="floating" label=${t('ui.colNumber')} .value=${this.newNumber} @ionInput=${(e: any) => (this.newNumber = e.target.value)}></ion-input>
             <ion-input fill="outline" label-placement="floating" label=${t('ui.colCapacity')} type="number" min="1" .value=${this.newCapacity} @ionInput=${(e: any) => (this.newCapacity = e.target.value)}></ion-input>
+            <ion-select fill="outline" label-placement="floating" label=${t('ui.fieldZone')} interface="popover" .value=${this.newZoneId} @ionChange=${(e: CustomEvent) => (this.newZoneId = (e.detail as { value: string }).value || '')}>
+              <ion-select-option value="">${t('ui.noZone')}</ion-select-option>
+              ${this.zones.map((z) => html`<ion-select-option value=${z.id}>${z.name}</ion-select-option>`)}
+            </ion-select>
             <ion-button type="submit" ?disabled=${this.saving || !this.newNumber}>${this.saving ? t('ui.saving') : t('ui.addTable')}</ion-button>
           </form>
         </ok-data-table>
