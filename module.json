@@ -77,7 +77,7 @@
       "id": "sessions",
       "label": "Sessions",
       "icon": "time-outline",
-      "component": "erp-tables-floor-plan"
+      "component": "erp-tables-sessions"
     },
     {
       "id": "settings",
@@ -239,7 +239,9 @@
           "waiter_id",
           "opened_at",
           "closed_at",
-          "notes"
+          "notes",
+          "zone_id",
+          "zone"
         ],
         "default_sort": "id",
         "default_dir": "asc",
@@ -267,6 +269,9 @@
           },
           "notes": {
             "op": "like"
+          },
+          "zone_id": {
+            "op": "eq"
           }
         },
         "page_size": 50

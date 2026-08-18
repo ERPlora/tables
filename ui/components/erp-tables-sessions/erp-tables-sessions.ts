@@ -1,0 +1,367 @@
+import { LitElement, html, css, nothing } from 'lit';
+import { state } from 'lit/decorators.js';
+import { define } from '@erplora/outfitkit/define';
+import '@erplora/outfitkit/ok-inline-feedback';
+import '@erplora/outfitkit/ok-data-table';
+import type { DataTableColumn, DataTableAction } from '@erplora/outfitkit';
+import { createListController, dataTableLabels } from '@erplora/module-sdk';
+import type { ListController, ListClient, ListParams, ListPage } from '@erplora/module-sdk';
+// Module i18n catalog (ADR-0055): esbuild inlines these JSON files into the WC `dist`.
+import esLocale from '../../../locales/es.json';
+import enLocale from '../../../locales/en.json';
+const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
+
+// erp-tables-sessions — the SESSIONS view of the `tables` module (navigation entry `sessions`,
+// tables#3 b): the checks of the room as the market lists them (Toast "All checks" with its
+// open / paid / closed tabs, Square "Orders", Odoo orders per floor). A session is opened from the
+// POS when a party sits down (there is no «+» here); this screen is for the manager: what is open
+// right now, on which zone, with how many covers and for how long — plus the history. Per row:
+// detail, and «close» on an active session (→ `tables.sessions.close`, after confirming).
+//
+// `duration` is derived in the UI from `opened_at` / `closed_at` (tables#4): the query does not
+// store it, and an open check keeps counting while the screen is on.
+
+interface ErploraClientLike extends ListClient {
+  query<T = unknown>(name: string, params?: Record<string, unknown>): Promise<T>;
+  queryAll<T = unknown>(name: string, params?: Record<string, unknown>): Promise<T[]>;
+  queryPage<R = unknown>(name: string, params: ListParams): Promise<ListPage<R>>;
+  command<T = unknown>(name: string, payload?: Record<string, unknown>): Promise<T>;
+  on(event: string, cb: (payload: unknown) => void): () => void;
+  hasPermission?(permission: string): boolean;
+  locale: string;
+  t(catalog: Record<string, unknown>, key: string, params?: Record<string, unknown>): string;
+}
+
+interface Session {
+  id: string;
+  table_id: string | null;
+  table_number: string | null;
+  guests_count: number;
+  status: string;
+  waiter_id: string | null;
+  opened_at: string;
+  closed_at: string | null;
+  notes: string;
+  order_id: string | null;
+  split_from_id: string | null;
+  zone_id: string | null;
+  zone: string | null;
+}
+
+interface Zone {
+  id: string;
+  name: string;
+}
+
+// Session states written by the command chains (`_session_*.sql`). The `value` is the enum, the
+// label is translated.
+const STATUSES = ['active', 'closed', 'transferred', 'merged', 'parked'];
+const STATUS_KEY: Record<string, string> = {
+  active: 'ui.sessionActive',
+  closed: 'ui.sessionClosed',
+  transferred: 'ui.sessionTransferred',
+  merged: 'ui.sessionMerged',
+  parked: 'ui.sessionParked',
+};
+
+/** Segment above the table, Toast-style: Open · Closed · All. `''` = no status filter. */
+const SEGMENTS: { id: string; status: string; key: string }[] = [
+  { id: 'open', status: 'active', key: 'ui.segmentOpen' },
+  { id: 'closed', status: 'closed', key: 'ui.segmentClosed' },
+  { id: 'all', status: '', key: 'ui.segmentAll' },
+];
+
+const REFRESH_MS = 30_000; // the duration column keeps counting on an open check
+
+function erplora(): ErploraClientLike {
+  const c = (globalThis as { erplora?: ErploraClientLike }).erplora;
+  if (!c) throw new Error('erplora SDK not initialised by the shell');
+  return c;
+}
+
+/** UI visibility only; the runtime re-validates the permission on every command. */
+function can(permission: string): boolean {
+  const client = erplora();
+  return typeof client.hasPermission === 'function' ? client.hasPermission(permission) : true;
+}
+
+/** `2026-08-18T20:15:00Z` → `20:15` in the device's clock (the room reads the wall clock). */
+function hhmm(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Whole minutes between `opened_at` and `closed_at` (or `now` for an open check). */
+export function durationMinutes(s: { opened_at: string; closed_at: string | null }, now: Date): number {
+  const from = new Date(s.opened_at).getTime();
+  const to = s.closed_at ? new Date(s.closed_at).getTime() : now.getTime();
+  if (Number.isNaN(from) || Number.isNaN(to)) return 0;
+  return Math.max(0, Math.floor((to - from) / 60_000));
+}
+
+export class ErpTablesSessions extends LitElement {
+  static styles = css`
+    :host { display:flex; flex-direction:column; height:100%; min-height:0; font-family: system-ui, sans-serif; color: var(--ion-text-color, #1c1b18); }
+    .page { display:flex; flex-direction:column; min-height:0; flex:1 1 auto; gap:.6rem; }
+    .page > ok-data-table { flex:1 1 auto; min-height:0; }
+    ion-segment { max-width: 28rem; }
+    /* Segment buttons are touch targets: 44px minimum. */
+    ion-segment-button { min-height: 44px; }
+    .muted { color: var(--ok-muted, #8b897f); }
+  `;
+
+  /** Injectable clock (tests pin it); the duration column reads it. */
+  now: () => Date = () => new Date();
+
+  @state() segment = 'open';
+
+  @state() private zones: Zone[] = [];
+
+  @state() detail: Session | null = null;
+
+  @state() closeTarget: Session | null = null;
+
+  @state() private saving = false;
+
+  @state() private error = '';
+
+  private ctrl!: ListController<Session>;
+
+  private unsub?: () => void;
+
+  private timer?: ReturnType<typeof setInterval>;
+
+  private readonly onLocaleChange = (): void => this.requestUpdate();
+
+  get columns(): DataTableColumn[] {
+    const t = (k: string, p?: Record<string, unknown>): string => erplora().t(CATALOG, k, p);
+    return [
+      { key: 'table_number', header: t('ui.colTable'), sortable: true, filterable: true, filterType: 'text', format: (r) => (r.table_number as string) || t('ui.noTable') },
+      {
+        key: 'zone',
+        header: t('ui.colZone'),
+        sortable: true,
+        filterable: true,
+        // Closed domain: the zones of the hub. The server filters `zone_id` by `eq`; the column
+        // shows the name and the select sends the id — see `onFilterChange`.
+        filterType: 'select',
+        options: this.zones.map((z) => ({ value: z.id, label: z.name })),
+        format: (r) => (r.zone as string) || '—',
+      },
+      { key: 'guests_count', header: t('ui.colGuests'), align: 'right', sortable: true, format: (r) => t('ui.paxCount', { count: r.guests_count ?? 0 }) },
+      { key: 'opened_at', header: t('ui.colOpenedAt'), sortable: true, format: (r) => hhmm(r.opened_at as string) },
+      { key: 'closed_at', header: t('ui.colClosedAt'), sortable: true, hidden: true, format: (r) => hhmm(r.closed_at as string | null) },
+      {
+        key: 'duration',
+        header: t('ui.colDuration'),
+        align: 'right',
+        format: (r) => t('ui.durationMinutes', { minutes: durationMinutes(r as unknown as Session, this.now()) }),
+      },
+      {
+        key: 'status',
+        header: t('ui.colStatus'),
+        sortable: true,
+        filterable: true,
+        filterType: 'select',
+        options: STATUSES.map((s) => ({ value: s, label: t(STATUS_KEY[s]) })),
+        format: (r) => (STATUS_KEY[r.status as string] ? t(STATUS_KEY[r.status as string]) : (r.status as string)),
+      },
+      { key: 'order_id', header: t('ui.colCheck'), hidden: true, format: (r) => (r.order_id ? String(r.order_id).slice(0, 8) : '—') },
+    ];
+  }
+
+  get actions(): DataTableAction[] {
+    const t = (k: string): string => erplora().t(CATALOG, k);
+    return [
+      { id: 'detail', label: t('ui.actionDetail'), icon: 'eye-outline' },
+      ...(can('tables.change_tablesession')
+        ? [{ id: 'close', label: t('ui.actionCloseSession'), icon: 'checkmark-done-outline', color: 'danger', disabled: (r: Record<string, unknown>) => r.status !== 'active' }]
+        : []),
+    ];
+  }
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    window.addEventListener('erplora:locale-changed', this.onLocaleChange);
+  }
+
+  async firstUpdated(): Promise<void> {
+    this.ctrl = createListController<Session>(erplora(), 'tables.sessions.list', () => this.requestUpdate(), {
+      pageSize: 50,
+      sort: 'opened_at',
+      dir: 'desc',
+      // Open checks first: that is what the room asks for.
+      filters: { status: 'active' },
+    });
+    await Promise.all([this.ctrl.load(), this.loadZones()]);
+    try {
+      const offs = [
+        erplora().on('tables.session.opened', () => this.ctrl.load()),
+        erplora().on('tables.session.closed', () => this.ctrl.load()),
+        erplora().on('tables.session.transferred', () => this.ctrl.load()),
+        erplora().on('tables.session.merged', () => this.ctrl.load()),
+        erplora().on('tables.session.split', () => this.ctrl.load()),
+        erplora().on('tables.session.parked', () => this.ctrl.load()),
+        erplora().on('tables.session.restored', () => this.ctrl.load()),
+        erplora().on('tables.session.updated', () => this.ctrl.load()),
+        erplora().on('tables.session.deleted', () => this.ctrl.load()),
+      ];
+      this.unsub = () => offs.forEach((o) => o());
+    } catch {
+      /* preview without SDK */
+    }
+    this.timer = setInterval(() => this.requestUpdate(), REFRESH_MS);
+  }
+
+  disconnectedCallback(): void {
+    window.removeEventListener('erplora:locale-changed', this.onLocaleChange);
+    this.unsub?.();
+    if (this.timer) clearInterval(this.timer);
+    super.disconnectedCallback();
+  }
+
+  private async loadZones(): Promise<void> {
+    try {
+      // `queryAll`: the filter wants every zone, not the first page (ADR-0124).
+      const rows = await erplora().queryAll<Zone>('tables.zones.list', { sort: 'sort_order', dir: 'asc' });
+      this.zones = Array.isArray(rows) ? rows : [];
+    } catch {
+      this.zones = [];
+    }
+  }
+
+  private onSegment(id: string): void {
+    const seg = SEGMENTS.find((s) => s.id === id) ?? SEGMENTS[0];
+    this.segment = seg.id;
+    this.ctrl.setFilter('status', seg.status);
+  }
+
+  /** The `zone` column filters by `zone_id` on the server; the rest map 1:1. */
+  private onFilterChange(detail: { col?: string; value?: unknown; filters?: Record<string, unknown> }): void {
+    if (detail.filters) {
+      for (const [col, value] of Object.entries(detail.filters)) this.ctrl.setFilter(col === 'zone' ? 'zone_id' : col, value);
+      return;
+    }
+    if (!detail.col) return;
+    this.ctrl.setFilter(detail.col === 'zone' ? 'zone_id' : detail.col, detail.value);
+  }
+
+  async onRowAction(ev: CustomEvent<{ actionId: string; row: Record<string, unknown> }>): Promise<void> {
+    const { actionId, row } = ev.detail;
+    const s = row as unknown as Session;
+    if (actionId === 'detail') {
+      this.detail = s;
+    } else if (actionId === 'close' && s.status === 'active' && can('tables.change_tablesession')) {
+      // Never close straight away: closing frees the table and ends the service segment.
+      this.closeTarget = s;
+    }
+  }
+
+  async confirmClose(): Promise<void> {
+    if (!this.closeTarget) return;
+    const target = this.closeTarget;
+    this.saving = true;
+    this.error = '';
+    try {
+      await erplora().command('tables.sessions.close', { session_id: target.id, notes: null });
+      await this.ctrl.load();
+    } catch (e) {
+      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errCloseSession');
+    } finally {
+      this.closeTarget = null;
+      this.saving = false;
+    }
+  }
+
+  render() {
+    const t = (k: string, p?: Record<string, unknown>): string => erplora().t(CATALOG, k, p);
+    return html`<div class="page">
+      ${this.error ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : nothing}
+      ${this.ctrl?.error ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : nothing}
+
+      <ion-segment value=${this.segment} @ionChange=${(e: CustomEvent) => this.onSegment(String((e.detail as { value: string }).value))}>
+        ${SEGMENTS.map((s) => html`<ion-segment-button value=${s.id}><ion-label>${t(s.key)}</ion-label></ion-segment-button>`)}
+      </ion-segment>
+
+      <ok-data-table
+        .serverSide=${true}
+        .fill=${true}
+        .labels=${dataTableLabels(erplora().locale)}
+        .columns=${this.columns}
+        .actions=${this.actions}
+        .views=${true}
+        .columnPicker=${true}
+        .cardTitle=${(r: Record<string, unknown>) => (r.table_number ? t('ui.tableLabel', { number: r.table_number }) : t('ui.noTable'))}
+        .cardIcon=${() => 'time-outline'}
+        .rows=${this.ctrl?.rows ?? []}
+        .total=${this.ctrl?.total ?? 0}
+        .page=${this.ctrl?.state.page ?? 0}
+        .pageSize=${this.ctrl?.state.pageSize ?? 50}
+        .sort=${this.ctrl?.state.sort}
+        .sortDir=${this.ctrl?.state.dir ?? 'desc'}
+        .searchable=${true}
+        .searchPlaceholder=${t('ui.searchSession')}
+        .emptyMessage=${this.ctrl?.loading ? t('ui.loading') : t('ui.emptySessions')}
+        @rowAction=${(e: CustomEvent<{ actionId: string; row: Record<string, unknown> }>) => this.onRowAction(e)}
+        @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)}
+        @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)}
+        @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)}
+        @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)}
+        @filterChange=${(e: CustomEvent<{ col?: string; value?: unknown; filters?: Record<string, unknown> }>) => this.onFilterChange(e.detail)}
+      ></ok-data-table>
+
+      <!-- Detail. ion-modal reparents to <body>: Ionic classes only, no shadow CSS. -->
+      <ion-modal .isOpen=${!!this.detail} @ionModalDidDismiss=${() => (this.detail = null)}>
+        ${this.detail ? this.renderDetail(this.detail, t) : nothing}
+      </ion-modal>
+
+      <!-- Close confirmation. -->
+      <ion-modal .isOpen=${!!this.closeTarget} @ionModalDidDismiss=${() => (this.closeTarget = null)}>
+        <ion-header class="ion-no-border"><ion-toolbar><ion-title>${t('ui.closeSessionTitle')}</ion-title></ion-toolbar></ion-header>
+        <ion-content class="ion-padding">
+          <ion-list lines="none">
+            <ion-item><ion-label class="ion-text-wrap">
+              ${t('ui.closeSessionImpact', { number: this.closeTarget?.table_number ?? '—', count: this.closeTarget?.guests_count ?? 0 })}
+            </ion-label></ion-item>
+          </ion-list>
+          <ion-button class="ion-margin-top" expand="block" color="danger" ?disabled=${this.saving} @click=${() => this.confirmClose()}>${t('ui.actionCloseSession')}</ion-button>
+          <ion-button expand="block" fill="outline" @click=${() => (this.closeTarget = null)}>${t('ui.cancel')}</ion-button>
+        </ion-content>
+      </ion-modal>
+    </div>`;
+  }
+
+  private renderDetail(s: Session, t: (k: string, p?: Record<string, unknown>) => string) {
+    const row = (label: string, value: unknown) => html`<ion-item><ion-label class="ion-text-wrap"><p>${label}</p><h3>${value ?? '—'}</h3></ion-label></ion-item>`;
+    return html`
+      <ion-header class="ion-no-border"><ion-toolbar>
+        <ion-title>${s.table_number ? t('ui.tableLabel', { number: s.table_number }) : t('ui.noTable')}</ion-title>
+        <ion-buttons slot="end"><ion-button @click=${() => (this.detail = null)}>${t('ui.close')}</ion-button></ion-buttons>
+      </ion-toolbar></ion-header>
+      <ion-content class="ion-padding">
+        <ion-list lines="none">
+          ${row(t('ui.colZone'), s.zone || '—')}
+          ${row(t('ui.colStatus'), STATUS_KEY[s.status] ? t(STATUS_KEY[s.status]) : s.status)}
+          ${row(t('ui.colGuests'), t('ui.paxCount', { count: s.guests_count ?? 0 }))}
+          ${row(t('ui.colOpenedAt'), hhmm(s.opened_at))}
+          ${row(t('ui.colClosedAt'), hhmm(s.closed_at))}
+          ${row(t('ui.colDuration'), t('ui.durationMinutes', { minutes: durationMinutes(s, this.now()) }))}
+          ${row(t('ui.colCheck'), s.order_id ?? '—')}
+          ${row(t('ui.colNotes'), s.notes || '—')}
+        </ion-list>
+        ${s.status === 'active' && can('tables.change_tablesession')
+          ? html`<ion-button class="ion-margin-top" expand="block" color="danger" @click=${() => { this.closeTarget = s; this.detail = null; }}>${t('ui.actionCloseSession')}</ion-button>`
+          : nothing}
+      </ion-content>`;
+  }
+}
+
+define('erp-tables-sessions', ErpTablesSessions);
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'erp-tables-sessions': ErpTablesSessions;
+  }
+}

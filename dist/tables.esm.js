@@ -1859,7 +1859,31 @@ var es_default = {
     colorSuccess: "Verde",
     colorWarning: "\xC1mbar",
     colorDanger: "Rojo",
-    colorMedium: "Gris"
+    colorMedium: "Gris",
+    colTable: "Mesa",
+    noTable: "Sin mesa (aparcada)",
+    colGuests: "Comensales",
+    colOpenedAt: "Apertura",
+    colClosedAt: "Cierre",
+    colDuration: "Tiempo",
+    durationMinutes: "{minutes} min",
+    colCheck: "Cuenta",
+    colNotes: "Notas",
+    actionDetail: "Detalle",
+    actionCloseSession: "Cerrar sesi\xF3n",
+    sessionActive: "Abierta",
+    sessionClosed: "Cerrada",
+    sessionTransferred: "Trasladada",
+    sessionMerged: "Fusionada",
+    sessionParked: "Aparcada",
+    segmentOpen: "Abiertas",
+    segmentClosed: "Cerradas",
+    segmentAll: "Todas",
+    searchSession: "Buscar mesa\u2026",
+    emptySessions: "No hay sesiones. Sienta a un grupo desde el TPV y aparecer\xE1 aqu\xED.",
+    errCloseSession: "No se pudo cerrar la sesi\xF3n",
+    closeSessionTitle: "\xBFCerrar la sesi\xF3n?",
+    closeSessionImpact: "Mesa {number} \xB7 {count} comensales. La mesa queda libre y la sesi\xF3n pasa al hist\xF3rico. Para cobrar la cuenta, usa el TPV."
   },
   setup: {
     title: "Tus mesas",
@@ -1992,7 +2016,31 @@ var en_default = {
     colorSuccess: "Green",
     colorWarning: "Amber",
     colorDanger: "Red",
-    colorMedium: "Grey"
+    colorMedium: "Grey",
+    colTable: "Table",
+    noTable: "No table (parked)",
+    colGuests: "Guests",
+    colOpenedAt: "Opened",
+    colClosedAt: "Closed",
+    colDuration: "Time",
+    durationMinutes: "{minutes} min",
+    colCheck: "Check",
+    colNotes: "Notes",
+    actionDetail: "Details",
+    actionCloseSession: "Close session",
+    sessionActive: "Open",
+    sessionClosed: "Closed",
+    sessionTransferred: "Transferred",
+    sessionMerged: "Merged",
+    sessionParked: "Parked",
+    segmentOpen: "Open",
+    segmentClosed: "Closed",
+    segmentAll: "All",
+    searchSession: "Search table\u2026",
+    emptySessions: "No sessions. Seat a party from the POS and it will show up here.",
+    errCloseSession: "Could not close the session",
+    closeSessionTitle: "Close the session?",
+    closeSessionImpact: "Table {number} \xB7 {count} guests. The table is freed and the session moves to the history. To collect the check, use the POS."
   },
   setup: {
     title: "Your tables",
@@ -5177,8 +5225,296 @@ __decorateClass([
 ], ErpTablesPosZones.prototype, "guestsPrompt", 2);
 define("erp-tables-pos-zones", ErpTablesPosZones);
 
-// modules/tables/ui/components/erp-tables-zones/erp-tables-zones.ts
+// modules/tables/ui/components/erp-tables-sessions/erp-tables-sessions.ts
 var CATALOG4 = { es: es_default, en: en_default };
+var STATUSES2 = ["active", "closed", "transferred", "merged", "parked"];
+var STATUS_KEY4 = {
+  active: "ui.sessionActive",
+  closed: "ui.sessionClosed",
+  transferred: "ui.sessionTransferred",
+  merged: "ui.sessionMerged",
+  parked: "ui.sessionParked"
+};
+var SEGMENTS = [
+  { id: "open", status: "active", key: "ui.segmentOpen" },
+  { id: "closed", status: "closed", key: "ui.segmentClosed" },
+  { id: "all", status: "", key: "ui.segmentAll" }
+];
+var REFRESH_MS = 3e4;
+function erplora4() {
+  const c5 = globalThis.erplora;
+  if (!c5) throw new Error("erplora SDK not initialised by the shell");
+  return c5;
+}
+function can(permission) {
+  const client = erplora4();
+  return typeof client.hasPermission === "function" ? client.hasPermission(permission) : true;
+}
+function hhmm3(iso) {
+  if (!iso) return "\u2014";
+  const d3 = new Date(iso);
+  if (Number.isNaN(d3.getTime())) return "\u2014";
+  return `${String(d3.getHours()).padStart(2, "0")}:${String(d3.getMinutes()).padStart(2, "0")}`;
+}
+function durationMinutes(s5, now) {
+  const from = new Date(s5.opened_at).getTime();
+  const to = s5.closed_at ? new Date(s5.closed_at).getTime() : now.getTime();
+  if (Number.isNaN(from) || Number.isNaN(to)) return 0;
+  return Math.max(0, Math.floor((to - from) / 6e4));
+}
+var ErpTablesSessions = class extends i3 {
+  constructor() {
+    super(...arguments);
+    /** Injectable clock (tests pin it); the duration column reads it. */
+    this.now = () => /* @__PURE__ */ new Date();
+    this.segment = "open";
+    this.zones = [];
+    this.detail = null;
+    this.closeTarget = null;
+    this.saving = false;
+    this.error = "";
+    this.onLocaleChange = () => this.requestUpdate();
+  }
+  static {
+    this.styles = i`
+    :host { display:flex; flex-direction:column; height:100%; min-height:0; font-family: system-ui, sans-serif; color: var(--ion-text-color, #1c1b18); }
+    .page { display:flex; flex-direction:column; min-height:0; flex:1 1 auto; gap:.6rem; }
+    .page > ok-data-table { flex:1 1 auto; min-height:0; }
+    ion-segment { max-width: 28rem; }
+    /* Segment buttons are touch targets: 44px minimum. */
+    ion-segment-button { min-height: 44px; }
+    .muted { color: var(--ok-muted, #8b897f); }
+  `;
+  }
+  get columns() {
+    const t5 = (k2, p4) => erplora4().t(CATALOG4, k2, p4);
+    return [
+      { key: "table_number", header: t5("ui.colTable"), sortable: true, filterable: true, filterType: "text", format: (r6) => r6.table_number || t5("ui.noTable") },
+      {
+        key: "zone",
+        header: t5("ui.colZone"),
+        sortable: true,
+        filterable: true,
+        // Closed domain: the zones of the hub. The server filters `zone_id` by `eq`; the column
+        // shows the name and the select sends the id — see `onFilterChange`.
+        filterType: "select",
+        options: this.zones.map((z2) => ({ value: z2.id, label: z2.name })),
+        format: (r6) => r6.zone || "\u2014"
+      },
+      { key: "guests_count", header: t5("ui.colGuests"), align: "right", sortable: true, format: (r6) => t5("ui.paxCount", { count: r6.guests_count ?? 0 }) },
+      { key: "opened_at", header: t5("ui.colOpenedAt"), sortable: true, format: (r6) => hhmm3(r6.opened_at) },
+      { key: "closed_at", header: t5("ui.colClosedAt"), sortable: true, hidden: true, format: (r6) => hhmm3(r6.closed_at) },
+      {
+        key: "duration",
+        header: t5("ui.colDuration"),
+        align: "right",
+        format: (r6) => t5("ui.durationMinutes", { minutes: durationMinutes(r6, this.now()) })
+      },
+      {
+        key: "status",
+        header: t5("ui.colStatus"),
+        sortable: true,
+        filterable: true,
+        filterType: "select",
+        options: STATUSES2.map((s5) => ({ value: s5, label: t5(STATUS_KEY4[s5]) })),
+        format: (r6) => STATUS_KEY4[r6.status] ? t5(STATUS_KEY4[r6.status]) : r6.status
+      },
+      { key: "order_id", header: t5("ui.colCheck"), hidden: true, format: (r6) => r6.order_id ? String(r6.order_id).slice(0, 8) : "\u2014" }
+    ];
+  }
+  get actions() {
+    const t5 = (k2) => erplora4().t(CATALOG4, k2);
+    return [
+      { id: "detail", label: t5("ui.actionDetail"), icon: "eye-outline" },
+      ...can("tables.change_tablesession") ? [{ id: "close", label: t5("ui.actionCloseSession"), icon: "checkmark-done-outline", color: "danger", disabled: (r6) => r6.status !== "active" }] : []
+    ];
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    window.addEventListener("erplora:locale-changed", this.onLocaleChange);
+  }
+  async firstUpdated() {
+    this.ctrl = createListController(erplora4(), "tables.sessions.list", () => this.requestUpdate(), {
+      pageSize: 50,
+      sort: "opened_at",
+      dir: "desc",
+      // Open checks first: that is what the room asks for.
+      filters: { status: "active" }
+    });
+    await Promise.all([this.ctrl.load(), this.loadZones()]);
+    try {
+      const offs = [
+        erplora4().on("tables.session.opened", () => this.ctrl.load()),
+        erplora4().on("tables.session.closed", () => this.ctrl.load()),
+        erplora4().on("tables.session.transferred", () => this.ctrl.load()),
+        erplora4().on("tables.session.merged", () => this.ctrl.load()),
+        erplora4().on("tables.session.split", () => this.ctrl.load()),
+        erplora4().on("tables.session.parked", () => this.ctrl.load()),
+        erplora4().on("tables.session.restored", () => this.ctrl.load()),
+        erplora4().on("tables.session.updated", () => this.ctrl.load()),
+        erplora4().on("tables.session.deleted", () => this.ctrl.load())
+      ];
+      this.unsub = () => offs.forEach((o7) => o7());
+    } catch {
+    }
+    this.timer = setInterval(() => this.requestUpdate(), REFRESH_MS);
+  }
+  disconnectedCallback() {
+    window.removeEventListener("erplora:locale-changed", this.onLocaleChange);
+    this.unsub?.();
+    if (this.timer) clearInterval(this.timer);
+    super.disconnectedCallback();
+  }
+  async loadZones() {
+    try {
+      const rows3 = await erplora4().queryAll("tables.zones.list", { sort: "sort_order", dir: "asc" });
+      this.zones = Array.isArray(rows3) ? rows3 : [];
+    } catch {
+      this.zones = [];
+    }
+  }
+  onSegment(id) {
+    const seg = SEGMENTS.find((s5) => s5.id === id) ?? SEGMENTS[0];
+    this.segment = seg.id;
+    this.ctrl.setFilter("status", seg.status);
+  }
+  /** The `zone` column filters by `zone_id` on the server; the rest map 1:1. */
+  onFilterChange(detail) {
+    if (detail.filters) {
+      for (const [col, value] of Object.entries(detail.filters)) this.ctrl.setFilter(col === "zone" ? "zone_id" : col, value);
+      return;
+    }
+    if (!detail.col) return;
+    this.ctrl.setFilter(detail.col === "zone" ? "zone_id" : detail.col, detail.value);
+  }
+  async onRowAction(ev) {
+    const { actionId, row } = ev.detail;
+    const s5 = row;
+    if (actionId === "detail") {
+      this.detail = s5;
+    } else if (actionId === "close" && s5.status === "active" && can("tables.change_tablesession")) {
+      this.closeTarget = s5;
+    }
+  }
+  async confirmClose() {
+    if (!this.closeTarget) return;
+    const target = this.closeTarget;
+    this.saving = true;
+    this.error = "";
+    try {
+      await erplora4().command("tables.sessions.close", { session_id: target.id, notes: null });
+      await this.ctrl.load();
+    } catch (e5) {
+      this.error = e5 instanceof Error ? e5.message : erplora4().t(CATALOG4, "ui.errCloseSession");
+    } finally {
+      this.closeTarget = null;
+      this.saving = false;
+    }
+  }
+  render() {
+    const t5 = (k2, p4) => erplora4().t(CATALOG4, k2, p4);
+    return b2`<div class="page">
+      ${this.error ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : A}
+      ${this.ctrl?.error ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : A}
+
+      <ion-segment value=${this.segment} @ionChange=${(e5) => this.onSegment(String(e5.detail.value))}>
+        ${SEGMENTS.map((s5) => b2`<ion-segment-button value=${s5.id}><ion-label>${t5(s5.key)}</ion-label></ion-segment-button>`)}
+      </ion-segment>
+
+      <ok-data-table
+        .serverSide=${true}
+        .fill=${true}
+        .labels=${dataTableLabels(erplora4().locale)}
+        .columns=${this.columns}
+        .actions=${this.actions}
+        .views=${true}
+        .columnPicker=${true}
+        .cardTitle=${(r6) => r6.table_number ? t5("ui.tableLabel", { number: r6.table_number }) : t5("ui.noTable")}
+        .cardIcon=${() => "time-outline"}
+        .rows=${this.ctrl?.rows ?? []}
+        .total=${this.ctrl?.total ?? 0}
+        .page=${this.ctrl?.state.page ?? 0}
+        .pageSize=${this.ctrl?.state.pageSize ?? 50}
+        .sort=${this.ctrl?.state.sort}
+        .sortDir=${this.ctrl?.state.dir ?? "desc"}
+        .searchable=${true}
+        .searchPlaceholder=${t5("ui.searchSession")}
+        .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptySessions")}
+        @rowAction=${(e5) => this.onRowAction(e5)}
+        @pageChange=${(e5) => this.ctrl.setPage(e5.detail)}
+        @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)}
+        @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)}
+        @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)}
+        @filterChange=${(e5) => this.onFilterChange(e5.detail)}
+      ></ok-data-table>
+
+      <!-- Detail. ion-modal reparents to <body>: Ionic classes only, no shadow CSS. -->
+      <ion-modal .isOpen=${!!this.detail} @ionModalDidDismiss=${() => this.detail = null}>
+        ${this.detail ? this.renderDetail(this.detail, t5) : A}
+      </ion-modal>
+
+      <!-- Close confirmation. -->
+      <ion-modal .isOpen=${!!this.closeTarget} @ionModalDidDismiss=${() => this.closeTarget = null}>
+        <ion-header class="ion-no-border"><ion-toolbar><ion-title>${t5("ui.closeSessionTitle")}</ion-title></ion-toolbar></ion-header>
+        <ion-content class="ion-padding">
+          <ion-list lines="none">
+            <ion-item><ion-label class="ion-text-wrap">
+              ${t5("ui.closeSessionImpact", { number: this.closeTarget?.table_number ?? "\u2014", count: this.closeTarget?.guests_count ?? 0 })}
+            </ion-label></ion-item>
+          </ion-list>
+          <ion-button class="ion-margin-top" expand="block" color="danger" ?disabled=${this.saving} @click=${() => this.confirmClose()}>${t5("ui.actionCloseSession")}</ion-button>
+          <ion-button expand="block" fill="outline" @click=${() => this.closeTarget = null}>${t5("ui.cancel")}</ion-button>
+        </ion-content>
+      </ion-modal>
+    </div>`;
+  }
+  renderDetail(s5, t5) {
+    const row = (label, value) => b2`<ion-item><ion-label class="ion-text-wrap"><p>${label}</p><h3>${value ?? "\u2014"}</h3></ion-label></ion-item>`;
+    return b2`
+      <ion-header class="ion-no-border"><ion-toolbar>
+        <ion-title>${s5.table_number ? t5("ui.tableLabel", { number: s5.table_number }) : t5("ui.noTable")}</ion-title>
+        <ion-buttons slot="end"><ion-button @click=${() => this.detail = null}>${t5("ui.close")}</ion-button></ion-buttons>
+      </ion-toolbar></ion-header>
+      <ion-content class="ion-padding">
+        <ion-list lines="none">
+          ${row(t5("ui.colZone"), s5.zone || "\u2014")}
+          ${row(t5("ui.colStatus"), STATUS_KEY4[s5.status] ? t5(STATUS_KEY4[s5.status]) : s5.status)}
+          ${row(t5("ui.colGuests"), t5("ui.paxCount", { count: s5.guests_count ?? 0 }))}
+          ${row(t5("ui.colOpenedAt"), hhmm3(s5.opened_at))}
+          ${row(t5("ui.colClosedAt"), hhmm3(s5.closed_at))}
+          ${row(t5("ui.colDuration"), t5("ui.durationMinutes", { minutes: durationMinutes(s5, this.now()) }))}
+          ${row(t5("ui.colCheck"), s5.order_id ?? "\u2014")}
+          ${row(t5("ui.colNotes"), s5.notes || "\u2014")}
+        </ion-list>
+        ${s5.status === "active" && can("tables.change_tablesession") ? b2`<ion-button class="ion-margin-top" expand="block" color="danger" @click=${() => {
+      this.closeTarget = s5;
+      this.detail = null;
+    }}>${t5("ui.actionCloseSession")}</ion-button>` : A}
+      </ion-content>`;
+  }
+};
+__decorateClass([
+  r5()
+], ErpTablesSessions.prototype, "segment", 2);
+__decorateClass([
+  r5()
+], ErpTablesSessions.prototype, "zones", 2);
+__decorateClass([
+  r5()
+], ErpTablesSessions.prototype, "detail", 2);
+__decorateClass([
+  r5()
+], ErpTablesSessions.prototype, "closeTarget", 2);
+__decorateClass([
+  r5()
+], ErpTablesSessions.prototype, "saving", 2);
+__decorateClass([
+  r5()
+], ErpTablesSessions.prototype, "error", 2);
+define("erp-tables-sessions", ErpTablesSessions);
+
+// modules/tables/ui/components/erp-tables-zones/erp-tables-zones.ts
+var CATALOG5 = { es: es_default, en: en_default };
 var COLORS = ["primary", "secondary", "tertiary", "success", "warning", "danger", "medium"];
 var COLOR_KEY = {
   primary: "ui.colorPrimary",
@@ -5189,13 +5525,13 @@ var COLOR_KEY = {
   danger: "ui.colorDanger",
   medium: "ui.colorMedium"
 };
-function erplora4() {
+function erplora5() {
   const c5 = globalThis.erplora;
   if (!c5) throw new Error("erplora SDK not initialised by the shell");
   return c5;
 }
-function can(permission) {
-  const client = erplora4();
+function can2(permission) {
+  const client = erplora5();
   return typeof client.hasPermission === "function" ? client.hasPermission(permission) : true;
 }
 var EMPTY_FORM = { name: "", color: "primary", sortOrder: "0", isActive: true };
@@ -5223,7 +5559,7 @@ var ErpTablesZones = class extends i3 {
   `;
   }
   get columns() {
-    const t5 = (k2, p4) => erplora4().t(CATALOG4, k2, p4);
+    const t5 = (k2, p4) => erplora5().t(CATALOG5, k2, p4);
     return [
       {
         key: "name",
@@ -5257,10 +5593,10 @@ var ErpTablesZones = class extends i3 {
     ];
   }
   get actions() {
-    const t5 = (k2) => erplora4().t(CATALOG4, k2);
+    const t5 = (k2) => erplora5().t(CATALOG5, k2);
     return [
-      ...can("tables.change_zone") ? [{ id: "edit", label: t5("ui.actionEdit"), icon: "create-outline" }] : [],
-      ...can("tables.delete_zone") ? [{ id: "delete", label: t5("ui.actionDelete"), icon: "trash-outline", color: "danger" }] : []
+      ...can2("tables.change_zone") ? [{ id: "edit", label: t5("ui.actionEdit"), icon: "create-outline" }] : [],
+      ...can2("tables.delete_zone") ? [{ id: "delete", label: t5("ui.actionDelete"), icon: "trash-outline", color: "danger" }] : []
     ];
   }
   connectedCallback() {
@@ -5268,7 +5604,7 @@ var ErpTablesZones = class extends i3 {
     window.addEventListener("erplora:locale-changed", this.onLocaleChange);
   }
   async firstUpdated() {
-    this.ctrl = createListController(erplora4(), "tables.zones.list", () => this.requestUpdate(), {
+    this.ctrl = createListController(erplora5(), "tables.zones.list", () => this.requestUpdate(), {
       pageSize: 50,
       sort: "sort_order",
       dir: "asc"
@@ -5277,14 +5613,14 @@ var ErpTablesZones = class extends i3 {
     this.form = { ...EMPTY_FORM, sortOrder: String(this.nextOrder()) };
     try {
       const offs = [
-        erplora4().on("tables.zone.created", () => this.ctrl.load()),
-        erplora4().on("tables.zone.updated", () => this.ctrl.load()),
-        erplora4().on("tables.zone.deleted", () => this.ctrl.load()),
-        erplora4().on("tables.table.created", () => this.ctrl.load()),
-        erplora4().on("tables.table.updated", () => this.ctrl.load()),
-        erplora4().on("tables.table.deleted", () => this.ctrl.load()),
-        erplora4().on("tables.session.opened", () => this.ctrl.load()),
-        erplora4().on("tables.session.closed", () => this.ctrl.load())
+        erplora5().on("tables.zone.created", () => this.ctrl.load()),
+        erplora5().on("tables.zone.updated", () => this.ctrl.load()),
+        erplora5().on("tables.zone.deleted", () => this.ctrl.load()),
+        erplora5().on("tables.table.created", () => this.ctrl.load()),
+        erplora5().on("tables.table.updated", () => this.ctrl.load()),
+        erplora5().on("tables.table.deleted", () => this.ctrl.load()),
+        erplora5().on("tables.session.opened", () => this.ctrl.load()),
+        erplora5().on("tables.session.closed", () => this.ctrl.load())
       ];
       this.unsub = () => offs.forEach((o7) => o7());
     } catch {
@@ -5307,13 +5643,13 @@ var ErpTablesZones = class extends i3 {
   async onRowAction(ev) {
     const { actionId, row } = ev.detail;
     const z2 = row;
-    if (actionId === "edit" && can("tables.change_zone")) {
+    if (actionId === "edit" && can2("tables.change_zone")) {
       this.editingId = z2.id;
       this.editRow = z2;
       this.form = { name: z2.name, color: z2.color || "primary", sortOrder: String(z2.sort_order ?? 0), isActive: Number(z2.is_active) === 1 };
       this.formError = "";
       this.dataTable()?.open("create");
-    } else if (actionId === "delete" && can("tables.delete_zone")) {
+    } else if (actionId === "delete" && can2("tables.delete_zone")) {
       this.deleteTarget = z2;
     }
   }
@@ -5327,13 +5663,13 @@ var ErpTablesZones = class extends i3 {
     ev.preventDefault();
     const name = this.form.name.trim();
     if (!name) return;
-    if (!can(this.editingId ? "tables.change_zone" : "tables.add_zone")) return;
+    if (!can2(this.editingId ? "tables.change_zone" : "tables.add_zone")) return;
     this.saving = true;
     this.formError = "";
     try {
       const sortOrder = Math.max(0, Number(this.form.sortOrder) || 0);
       if (this.editingId) {
-        await erplora4().command("tables.zones.update", {
+        await erplora5().command("tables.zones.update", {
           zone_id: this.editingId,
           name,
           description: this.editRow?.description ?? "",
@@ -5342,7 +5678,7 @@ var ErpTablesZones = class extends i3 {
           is_active: this.form.isActive ? 1 : 0
         });
       } else {
-        await erplora4().command("tables.zones.create", {
+        await erplora5().command("tables.zones.create", {
           name,
           description: "",
           color: this.form.color || "primary",
@@ -5353,27 +5689,27 @@ var ErpTablesZones = class extends i3 {
       this.dataTable()?.close();
       await this.ctrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : erplora4().t(CATALOG4, "ui.errSaveZone");
+      this.formError = e5 instanceof Error ? e5.message : erplora5().t(CATALOG5, "ui.errSaveZone");
     } finally {
       this.saving = false;
     }
   }
   async confirmDelete() {
-    if (!this.deleteTarget || !can("tables.delete_zone")) return;
+    if (!this.deleteTarget || !can2("tables.delete_zone")) return;
     const target = this.deleteTarget;
     this.saving = true;
     try {
-      await erplora4().command("tables.zones.delete", { zone_id: target.id });
+      await erplora5().command("tables.zones.delete", { zone_id: target.id });
       await this.ctrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : erplora4().t(CATALOG4, "ui.errDeleteZone");
+      this.formError = e5 instanceof Error ? e5.message : erplora5().t(CATALOG5, "ui.errDeleteZone");
     } finally {
       this.deleteTarget = null;
       this.saving = false;
     }
   }
   render() {
-    const t5 = (k2, p4) => erplora4().t(CATALOG4, k2, p4);
+    const t5 = (k2, p4) => erplora5().t(CATALOG5, k2, p4);
     return b2`<div class="page">
       ${this.formError ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.formError}</ok-inline-feedback>` : A}
       ${this.ctrl?.error ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : A}
@@ -5381,10 +5717,10 @@ var ErpTablesZones = class extends i3 {
       <ok-data-table
         .serverSide=${true}
         .fill=${true}
-        .labels=${dataTableLabels(erplora4().locale)}
+        .labels=${dataTableLabels(erplora5().locale)}
         .columns=${this.columns}
         .actions=${this.actions}
-        .addable=${can("tables.add_zone")}
+        .addable=${can2("tables.add_zone")}
         .views=${true}
         .cardTitle=${(r6) => String(r6.name ?? "")}
         .cardIcon=${() => "layers-outline"}
