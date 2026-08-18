@@ -644,6 +644,20 @@
         "description": "Links the active session of a table to an open order (ADR-0141 table-order junction). Called by the POS when it opens an order while a table is selected."
       }
     },
+    "tables.sessions.set_guests": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "schema": "schemas/session_set_guests.json",
+      "sql": [
+        "commands/session_set_guests.sql"
+      ],
+      "emit": [
+        "tables.session.updated"
+      ],
+      "ai": {
+        "description": "Corrects the number of covers (guests) of an open table session, e.g. when an extra guest joins. Only active sessions are updated."
+      }
+    },
     "tables._session_close_by_order": {
       "permission": "tables.change_tablesession",
       "transaction": true,

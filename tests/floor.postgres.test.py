@@ -615,6 +615,64 @@ def test_split_and_merge_keep_the_check():
 # ── Runner ───────────────────────────────────────────────────────────────────────────────
 
 
+# ── 4. Covers: asked when the party sits, visible on the plan, correctable while open ──────
+
+
+def test_guests_count_is_visible_and_correctable():
+    """tables#32 — `guests_count` existed end to end but no UI asked for it, so every table sat
+    "1 pax" in silence. The plan needs the LIVE party size per table (not just the capacity),
+    and the waiter must be able to correct it while the check is open (a fifth guest arrives)."""
+    print("\n== 4. covers are read on the plan and correctable while the check is open ==")
+
+    command_ok(
+        "a party of 3 sits at table 1",
+        "tables._session_open",
+        {
+            "session_id": "s1g",
+            "table_id": "t1",
+            "guests_count": 3,
+            "waiter_id": None,
+            "notes": "",
+            "order_id": None,
+        },
+        "2026-08-07T20:00:00+00:00",
+    )
+    rows = {r["id"]: r for r in run_query("tables.tables.list", {})}
+    check("the plan projects the live covers of table 1", 3, rows.get("t1", {}).get("live_guests"))
+    check("a free table has no live covers", None, rows.get("t2", {}).get("live_guests"))
+
+    command_ok(
+        "a fifth guest arrives: covers corrected to 5 while the check is open",
+        "tables.sessions.set_guests",
+        {"session_id": "s1g", "guests_count": 5},
+        "2026-08-07T20:10:00+00:00",
+    )
+    check(
+        "the session carries the corrected covers",
+        "5",
+        q(f"SELECT guests_count FROM tables_session WHERE id = 's1g' AND hub_id = '{HUB}'"),
+    )
+    rows = {r["id"]: r for r in run_query("tables.tables.list", {})}
+    check("and the plan reflects it", 5, rows.get("t1", {}).get("live_guests"))
+
+    command_ok(
+        "the party pays",
+        "tables._session_close",
+        {"session_id": "s1g", "notes": None},
+        "2026-08-07T21:00:00+00:00",
+    )
+    ok, _ = run_command(
+        "tables.sessions.set_guests",
+        {"session_id": "s1g", "guests_count": 2},
+        "2026-08-07T21:05:00+00:00",
+    )
+    check(
+        "a closed check keeps its covers (the update touches ACTIVE sessions only)",
+        "5",
+        q(f"SELECT guests_count FROM tables_session WHERE id = 's1g' AND hub_id = '{HUB}'"),
+    )
+
+
 def main() -> int:
     running = subprocess.run(
         ["docker", "inspect", "-f", "{{.State.Running}}", CONTAINER],
@@ -634,6 +692,7 @@ def main() -> int:
         test_reservation_marks_the_table()
         test_transfer_repoints_the_order()
         test_split_and_merge_keep_the_check()
+        test_guests_count_is_visible_and_correctable()
     finally:
         psql(["-c", f"DROP DATABASE IF EXISTS {DB} WITH (FORCE)"])
 

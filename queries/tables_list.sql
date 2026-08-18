@@ -16,7 +16,11 @@ SELECT t.id, t.number, t.name, t.capacity, t.shape, t.status, t.is_active,
        h.label      AS reserved_for,
        h.held_from  AS reserved_from,
        h.held_until AS reserved_until,
-       h.party_size AS reserved_party_size
+       h.party_size AS reserved_party_size,
+       -- tables#32: covers of the LIVE party (the oldest open check of the table — the one that
+       -- opened the service; a split table shows the original party). NULL on a free table. The
+       -- POS paints it on the table cell next to the capacity and pre-fills the correction.
+       g.guests_count AS live_guests
 FROM tables_table t
 LEFT JOIN tables_zone z ON z.id = t.zone_id AND z.is_deleted = 0 AND z.hub_id = :hub_id
 LEFT JOIN LATERAL (
@@ -27,4 +31,12 @@ LEFT JOIN LATERAL (
     ORDER BY hh.held_from ASC
     LIMIT 1
 ) h ON TRUE
+LEFT JOIN LATERAL (
+    SELECT s.guests_count
+    FROM tables_session s
+    WHERE s.hub_id = t.hub_id AND s.table_id = t.id
+      AND s.status = 'active' AND s.is_deleted = 0
+    ORDER BY s.opened_at ASC, s.id ASC
+    LIMIT 1
+) g ON TRUE
 WHERE t.hub_id = :hub_id AND t.is_deleted = 0

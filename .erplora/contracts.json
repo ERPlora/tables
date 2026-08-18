@@ -16,6 +16,7 @@
       "tables.sessions.merge",
       "tables.sessions.open",
       "tables.sessions.park",
+      "tables.sessions.set_guests",
       "tables.sessions.split",
       "tables.sessions.transfer",
       "tables.tables.create",
