@@ -55,6 +55,7 @@ interface ErploraLike {
 
 const BOX = 72; // tamaño de la caja de mesa en px (se persiste como width/height)
 const DRAG_THRESHOLD = 5; // px: por debajo se considera CLIC (editar), por encima ARRASTRE (mover)
+const KEY_STEP = 8; // px moved per arrow key press (Shift = 4×) — tables#16
 const SHAPES = ['square', 'round', 'rectangle'];
 const STATUSES = ['available', 'occupied', 'reserved', 'blocked'];
 // enum → clave i18n (el `value=` del enum NO se traduce; sí su etiqueta visible).
@@ -124,6 +125,8 @@ function autoLayoutTables(tables: Table[]): Table[] {
 export class ErpTablesCanvas extends LitElement {
   static styles = css`
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
+    /* tables#16: every own control is a touch target (44px), like the ok-data-table actions. */
+    ion-button { min-height:44px; --min-height:44px; }
     header { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:.6rem; }
     h2 { margin:0; font-size:1.15rem; flex:1; }
     .newzone { display:flex; gap:.75rem; align-items:end; }
@@ -142,6 +145,8 @@ export class ErpTablesCanvas extends LitElement {
       background:var(--ion-background-color,#fff); user-select:none; box-shadow:0 1px 4px rgba(0,0,0,.12); }
     .mesa.round { border-radius: var(--ok-radius-pill, 50%); }
     .mesa.dragging { cursor:grabbing; opacity:.85; box-shadow:0 6px 18px rgba(0,0,0,.28); z-index:5; }
+    /* Keyboard focus is visible: the table is a button (tables#16). */
+    .mesa:focus-visible { outline:3px solid var(--ion-color-primary,#0091ce); outline-offset:2px; }
     .mesa .n { font-weight:700; font-size:1.05rem; }
     .mesa .c { font-size:.7rem; color:#8b897f; }
     /* Nombre y hora de la reserva. Es lo que convierte el color ambar en informacion util:
@@ -156,7 +161,7 @@ export class ErpTablesCanvas extends LitElement {
     .sheet { background:var(--ion-background-color,#fff); border-radius: var(--ok-radius-lg, 16px); padding:1rem; width:min(94vw,26rem); max-height:90vh; overflow:auto; box-shadow:0 12px 48px rgba(0,0,0,.35); }
     .sheet-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; }
     .sheet-h .t { font-size:1.2rem; font-weight:700; }
-    .x { background:none; border:none; font-size:1.3rem; cursor:pointer; color:#8b897f; }
+    .sheet-h ion-button.x { --color:#8b897f; margin:0; }
     .field { display:flex; flex-direction:column; gap:.25rem; margin-bottom:.7rem; }
     .field ion-input, .field ion-select { flex:1 1 11rem; min-width:9rem; }
     .row2 { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
@@ -305,6 +310,44 @@ export class ErpTablesCanvas extends LitElement {
     }
   }
 
+  // ── Keyboard (tables#16): Enter/Space edits, arrows move (persisted like a drag) ─────────────
+  private async onTableKey(t: Table, e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      this.edit = { ...t };
+      return;
+    }
+    const step = e.shiftKey ? KEY_STEP * 4 : KEY_STEP;
+    const delta: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+    const d = delta[e.key];
+    if (!d) return;
+    e.preventDefault();
+    // Clamp to the canvas only when it has a layout (no layout → no clamp, e.g. before first paint).
+    const rect = this.canvasEl()?.getBoundingClientRect();
+    const maxX = rect && rect.width > 0 ? Math.max(0, rect.width - BOX) : Number.POSITIVE_INFINITY;
+    const maxY = rect && rect.height > 0 ? Math.max(0, rect.height - BOX) : Number.POSITIVE_INFINITY;
+    const x = Math.round(Math.min(maxX, Math.max(0, t.position_x + d[0])));
+    const y = Math.round(Math.min(maxY, Math.max(0, t.position_y + d[1])));
+    this.tables = this.tables.map((m) => (m.id === t.id ? { ...m, position_x: x, position_y: y } : m));
+    try {
+      await erplora().command('tables.tables.move', { table_id: t.id, position_x: x, position_y: y, width: BOX, height: BOX });
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : erplora().t(CATALOG, 'ui.errSavePosition');
+    }
+  }
+
+  /** Accessible name of a table tile: «nº · zone · capacity · status» (+ reservation). */
+  private tableName(tb: Table, t: (k: string, p?: Record<string, unknown>) => string): string {
+    const zone = this.zones.find((z) => z.id === tb.zone_id)?.name;
+    return [
+      t('ui.tableLabel', { number: tb.number }),
+      zone,
+      t('ui.paxCount', { count: tb.capacity }),
+      STATUS_KEY[tb.status] ? t(STATUS_KEY[tb.status]) : tb.status,
+      tb.reserved_for ? t('ui.reservedFor', { name: tb.reserved_for }) : '',
+    ].filter(Boolean).join(' · ');
+  }
+
   // ── Altas ───────────────────────────────────────────────────────────────────────────────────
   private async addTable() {
     this.error = '';
@@ -448,9 +491,9 @@ export class ErpTablesCanvas extends LitElement {
         <div class="newzone">
           <ion-input fill="outline" label-placement="floating" label=${t('ui.colZone')} placeholder=${t('ui.newZonePlaceholder')} .value=${this.newZoneName}
             @ionInput=${(e: CustomEvent) => { this.newZoneName = (e.target as HTMLInputElement).value || ''; }}></ion-input>
-          <ion-button size="small" fill="outline" ?disabled=${!this.newZoneName.trim()} @click=${() => this.addZone()}>${t('ui.addZone')}</ion-button>
+          <ion-button fill="outline" ?disabled=${!this.newZoneName.trim()} @click=${() => this.addZone()}>${t('ui.addZone')}</ion-button>
         </div>
-        <ion-button size="small" ?disabled=${!this.zones.length} @click=${() => this.addTable()}>${t('ui.addTable')}</ion-button>
+        <ion-button ?disabled=${!this.zones.length} @click=${() => this.addTable()}>${t('ui.addTable')}</ion-button>
       </header>
 
       ${this.error ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : nothing}
@@ -461,7 +504,7 @@ export class ErpTablesCanvas extends LitElement {
               @ionChange=${(e: CustomEvent) => { this.activeZone = (e.detail as { value: string }).value; }}>
               ${this.zones.map((z) => html`<ion-segment-button value=${z.id}><ion-label>${z.name}</ion-label></ion-segment-button>`)}
             </ion-segment>
-            <ion-button size="small" fill="clear" ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}>${t('ui.editZone')}</ion-button>
+            <ion-button fill="clear" ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}>${t('ui.editZone')}</ion-button>
           </div>`
         : nothing}
 
@@ -475,6 +518,9 @@ export class ErpTablesCanvas extends LitElement {
         @pointercancel=${() => this.onPointerUp()}>
         ${this.tablesInZone.map((tb) => html`
           <div class=${`mesa ${tb.shape === 'round' ? 'round' : ''} ${tb.id === this.dragId && this.dragMoved ? 'dragging' : ''}`}
+            role="button" tabindex="0"
+            aria-label=${this.tableName(tb, t)}
+            @keydown=${(e: KeyboardEvent) => this.onTableKey(tb, e)}
             style=${`left:${tb.position_x}px; top:${tb.position_y}px; border-color:${STATUS_COLOR[tb.status] ?? '#d9d6cf'}`}
             title=${[
               t('ui.tableTooltip', { status: STATUS_KEY[tb.status] ? t(STATUS_KEY[tb.status]) : tb.status, count: tb.capacity }),
@@ -506,7 +552,7 @@ export class ErpTablesCanvas extends LitElement {
       <div class="sheet">
         <div class="sheet-h">
           <span class="t">${t('ui.editTable')}</span>
-          <button class="x" @click=${() => { this.edit = undefined; }}>✕</button>
+          <ion-button class="x" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.edit = undefined; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
         <div class="row2">
           <div class="field">
@@ -532,7 +578,7 @@ export class ErpTablesCanvas extends LitElement {
             ${this.zones.map((z) => html`<ion-select-option value=${z.id}>${z.name}</ion-select-option>`)}
           </ion-select></div>
         <div class="sheet-foot">
-          <ion-button color="danger" fill="outline" size="small" ?disabled=${this.saving} @click=${() => this.deleteTable()}>${t('ui.delete')}</ion-button>
+          <ion-button color="danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteTable()}>${t('ui.delete')}</ion-button>
           <ion-button ?disabled=${this.saving} @click=${() => this.saveTable()}>${this.saving ? t('ui.saving') : t('ui.save')}</ion-button>
         </div>
       </div>
@@ -545,14 +591,14 @@ export class ErpTablesCanvas extends LitElement {
       <div class="sheet">
         <div class="sheet-h">
           <span class="t">${t('ui.editZone')}</span>
-          <button class="x" @click=${() => { this.zoneEdit = undefined; }}>✕</button>
+          <ion-button class="x" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.zoneEdit = undefined; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
         <div class="field">
           <ion-input fill="outline" label-placement="floating" label=${t('ui.colName')} .value=${z.name} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, name: (e.target as HTMLInputElement).value || '' }; }}></ion-input></div>
         <div class="field">
           <ion-input fill="outline" label-placement="floating" label=${t('ui.fieldDescriptionOptional')} .value=${z.description ?? ''} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, description: (e.target as HTMLInputElement).value || '' }; }}></ion-input></div>
         <div class="sheet-foot">
-          <ion-button color="danger" fill="outline" size="small" ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t('ui.deleteZone')}</ion-button>
+          <ion-button color="danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t('ui.deleteZone')}</ion-button>
           <ion-button ?disabled=${this.saving} @click=${() => this.saveZone()}>${this.saving ? t('ui.saving') : t('ui.save')}</ion-button>
         </div>
       </div>

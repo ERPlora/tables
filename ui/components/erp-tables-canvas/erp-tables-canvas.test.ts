@@ -75,3 +75,86 @@ describe('mesas sin coordenadas (blueprint/seed) → auto-layout, no apiladas (#
     expect(a?.position_y).toBe(50);
   });
 });
+
+// tables#16 / tables#11 — the floor plan is touch-first and keyboard-reachable.
+//
+// QA 10/08 exposed the 18 tables of the plan as `generic` («Disponible · 4 pax (clic para editar)»):
+// a <div> with a pointerdown handler has no role, no focus, no keyboard. Every table is now a
+// button-like element (role=button, tabindex=0, accessible name «nº · zone · capacity · status»),
+// opens its editor with Enter/Space and moves with the arrow keys (persisted with
+// `tables.tables.move`); pointer drag is untouched. The module's own controls leave `size="small"`
+// (~27 px) and the ✕ of the sheets stop being native <button>s (Ionic conventions, tables#11).
+describe('the plan is accessible: tables are buttons, controls are Ionic and ≥ 44px (tables#16, tables#11)', () => {
+  const MESA = { id: 'a', number: '7', name: '', capacity: 4, shape: 'square', status: 'available', is_active: 1, zone_id: 'z1', position_x: 100, position_y: 50, width: 72, height: 72 };
+  const comandos: { name: string; payload: Record<string, unknown> }[] = [];
+
+  function stub() {
+    comandos.length = 0;
+    const sdk = (globalThis as Record<string, unknown>).erplora as Record<string, unknown>;
+    sdk.queryAll = async (name: string) => (name === 'tables.zones.list' ? ZONAS : [MESA]);
+    sdk.command = async (name: string, payload: Record<string, unknown>) => { comandos.push({ name, payload }); return {}; };
+    sdk.t = (_c: unknown, key: string, params?: Record<string, unknown>) => (params ? `${key}:${Object.values(params).join(',')}` : key);
+  }
+  const tick = async (el: { updateComplete: Promise<unknown> }) => {
+    await el.updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await el.updateComplete;
+  };
+
+  it('each table has role=button, is focusable and names itself «nº · zone · capacity · status»', async () => {
+    stub();
+    const el = await montar();
+    const mesa = el.shadowRoot.querySelector('.mesa')!;
+    expect(mesa.getAttribute('role')).toBe('button');
+    expect(mesa.getAttribute('tabindex')).toBe('0');
+    const name = mesa.getAttribute('aria-label') ?? '';
+    expect(name, 'the accessible name carries the number').toContain('7');
+    expect(name, 'the accessible name carries the zone').toContain('Salón');
+    expect(name, 'the accessible name carries the capacity').toContain('ui.paxCount:4');
+    expect(name, 'the accessible name carries the status').toContain('ui.statusAvailable');
+  });
+
+  it('Enter / Space on a table opens its editor', async () => {
+    stub();
+    const el = await montar();
+    const mesa = el.shadowRoot.querySelector<HTMLElement>('.mesa')!;
+    mesa.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await tick(el);
+    expect(el.shadowRoot.querySelector('.sheet'), 'Enter opens the table sheet').toBeTruthy();
+  });
+
+  it('arrow keys move the table one step and persist the position with tables.tables.move', async () => {
+    stub();
+    const el = await montar();
+    const mesa = el.shadowRoot.querySelector<HTMLElement>('.mesa')!;
+    mesa.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await tick(el);
+    const move = comandos.find((c) => c.name === 'tables.tables.move');
+    expect(move, 'ArrowRight persists a move').toBeTruthy();
+    expect(Number(move!.payload.position_x)).toBeGreaterThan(100);
+    expect(Number(move!.payload.position_y)).toBe(50);
+    expect(el.tables.find((t) => t.id === 'a')!.position_x).toBeGreaterThan(100);
+  });
+
+  it('no native <button> and no size="small" ion-button remain in the plan or its sheets', async () => {
+    stub();
+    const el = await montar();
+    // open both sheets so their ✕ are rendered
+    (el as unknown as { edit: unknown }).edit = { ...MESA };
+    (el as unknown as { zoneEdit: unknown }).zoneEdit = { ...ZONAS[0] };
+    await tick(el);
+    expect(el.shadowRoot.querySelectorAll('button').length, 'native <button> outside Ionic').toBe(0);
+    expect(el.shadowRoot.querySelectorAll('ion-button[size="small"]').length, 'size="small" targets (~27 px)').toBe(0);
+    // the sheet close controls are Ionic buttons with an accessible name
+    const closes = [...el.shadowRoot.querySelectorAll('.sheet-h ion-button')];
+    expect(closes.length).toBe(2);
+    for (const c of closes) expect(c.getAttribute('aria-label')).toBe('ui.close');
+  });
+
+  it('the touch-target rule is in the component styles: ion-button min-height 44px', async () => {
+    stub();
+    const el = await montar();
+    const cssText = ((el.constructor as unknown as { styles: { cssText: string } }).styles).cssText;
+    expect(cssText).toMatch(/ion-button\s*\{[^}]*min-height:\s*44px/);
+  });
+});
