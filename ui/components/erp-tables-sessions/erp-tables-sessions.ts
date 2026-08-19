@@ -73,6 +73,14 @@ const SEGMENTS: { id: string; status: string; key: string }[] = [
 
 const REFRESH_MS = 30_000; // the duration column keeps counting on an open check
 
+/** Room settings (tables#3 c). Defaults mirror `schemas/settings_update.json`: a hub that never
+ *  saved anything behaves like the schema says. */
+interface RoomSettings {
+  timer_warning_minutes: number;
+  timer_critical_minutes: number;
+}
+const DEFAULT_SETTINGS: RoomSettings = { timer_warning_minutes: 60, timer_critical_minutes: 90 };
+
 function erplora(): ErploraClientLike {
   const c = (globalThis as { erplora?: ErploraClientLike }).erplora;
   if (!c) throw new Error('erplora SDK not initialised by the shell');
@@ -110,6 +118,9 @@ export class ErpTablesSessions extends LitElement {
     /* Segment buttons are touch targets: 44px minimum. */
     ion-segment-button { min-height: 44px; }
     .muted { color: var(--ok-muted, #8b897f); }
+    /* Square paints the same two thresholds on its floor plan: amber, then red. */
+    .tone-warning { color: var(--ion-color-warning, #f08c00); font-weight: 600; }
+    .tone-critical { color: var(--ion-color-danger, #d9480f); font-weight: 700; }
   `;
 
   /** Injectable clock (tests pin it); the duration column reads it. */
@@ -118,6 +129,8 @@ export class ErpTablesSessions extends LitElement {
   @state() segment = 'open';
 
   @state() private zones: Zone[] = [];
+
+  @state() private settings: RoomSettings = { ...DEFAULT_SETTINGS };
 
   @state() detail: Session | null = null;
 
@@ -158,6 +171,7 @@ export class ErpTablesSessions extends LitElement {
         header: t('ui.colDuration'),
         align: 'right',
         format: (r) => t('ui.durationMinutes', { minutes: durationMinutes(r as unknown as Session, this.now()) }),
+        render: (r) => html`<span class=${`tone-${this.durationTone(r)}`}>${t('ui.durationMinutes', { minutes: durationMinutes(r as unknown as Session, this.now()) })}</span>`,
       },
       {
         key: 'status',
@@ -195,7 +209,7 @@ export class ErpTablesSessions extends LitElement {
       // Open checks first: that is what the room asks for.
       filters: { status: 'active' },
     });
-    await Promise.all([this.ctrl.load(), this.loadZones()]);
+    await Promise.all([this.ctrl.load(), this.loadZones(), this.loadSettings()]);
     try {
       const offs = [
         erplora().on('tables.session.opened', () => this.ctrl.load()),
@@ -207,6 +221,7 @@ export class ErpTablesSessions extends LitElement {
         erplora().on('tables.session.restored', () => this.ctrl.load()),
         erplora().on('tables.session.updated', () => this.ctrl.load()),
         erplora().on('tables.session.deleted', () => this.ctrl.load()),
+        erplora().on('tables.settings.updated', () => this.loadSettings()),
       ];
       this.unsub = () => offs.forEach((o) => o());
     } catch {
@@ -230,6 +245,28 @@ export class ErpTablesSessions extends LitElement {
     } catch {
       this.zones = [];
     }
+  }
+
+  private async loadSettings(): Promise<void> {
+    try {
+      const r = await erplora().query<RoomSettings | RoomSettings[]>('tables.settings.get');
+      const row = Array.isArray(r) ? r[0] : r;
+      this.settings = {
+        timer_warning_minutes: Number(row?.timer_warning_minutes) || DEFAULT_SETTINGS.timer_warning_minutes,
+        timer_critical_minutes: Number(row?.timer_critical_minutes) || DEFAULT_SETTINGS.timer_critical_minutes,
+      };
+    } catch {
+      this.settings = { ...DEFAULT_SETTINGS };
+    }
+  }
+
+  /** Tone of the duration cell: only an OPEN check is an alarm; history is never coloured. */
+  durationTone(r: Record<string, unknown>): 'ok' | 'warning' | 'critical' {
+    if (r.status !== 'active') return 'ok';
+    const m = durationMinutes(r as unknown as Session, this.now());
+    if (m >= this.settings.timer_critical_minutes) return 'critical';
+    if (m >= this.settings.timer_warning_minutes) return 'warning';
+    return 'ok';
   }
 
   private onSegment(id: string): void {

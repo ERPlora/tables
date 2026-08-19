@@ -13,10 +13,10 @@
     },
     "sessions": {
       "label": "Sesiones"
-    },
-    "settings": {
-      "label": "Ajustes"
     }
+  },
+  "settings": {
+    "title": "Mesas"
   },
   "ui": {
     "floorPlan": "Plano de sala",

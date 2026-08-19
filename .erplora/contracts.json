@@ -5,6 +5,7 @@
     "queries": [
       "tables.sessions.by_order",
       "tables.sessions.list",
+      "tables.settings.get",
       "tables.tables.list",
       "tables.zones.get",
       "tables.zones.list"
@@ -37,6 +38,7 @@
       "tables.session.split",
       "tables.session.transferred",
       "tables.session.updated",
+      "tables.settings.updated",
       "tables.table.created",
       "tables.table.deleted",
       "tables.table.updated",
