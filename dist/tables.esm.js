@@ -1883,7 +1883,9 @@ var es_default = {
     emptySessions: "No hay sesiones. Sienta a un grupo desde el TPV y aparecer\xE1 aqu\xED.",
     errCloseSession: "No se pudo cerrar la sesi\xF3n",
     closeSessionTitle: "\xBFCerrar la sesi\xF3n?",
-    closeSessionImpact: "Mesa {number} \xB7 {count} comensales. La mesa queda libre y la sesi\xF3n pasa al hist\xF3rico. Para cobrar la cuenta, usa el TPV."
+    closeSessionImpact: "Mesa {number} \xB7 {count} comensales. La mesa queda libre y la sesi\xF3n pasa al hist\xF3rico. Para cobrar la cuenta, usa el TPV.",
+    blockedHint: "Mesa fuera de servicio: no se puede sentar hasta que se desbloquee.",
+    errTableTaken: "Otro dispositivo acaba de ocupar esa mesa. Se ha actualizado el plano."
   },
   setup: {
     title: "Tus mesas",
@@ -2040,7 +2042,9 @@ var en_default = {
     emptySessions: "No sessions. Seat a party from the POS and it will show up here.",
     errCloseSession: "Could not close the session",
     closeSessionTitle: "Close the session?",
-    closeSessionImpact: "Table {number} \xB7 {count} guests. The table is freed and the session moves to the history. To collect the check, use the POS."
+    closeSessionImpact: "Table {number} \xB7 {count} guests. The table is freed and the session moves to the history. To collect the check, use the POS.",
+    blockedHint: "Table out of service: it cannot be seated until it is unblocked.",
+    errTableTaken: "Another device has just taken that table. The floor plan has been refreshed."
   },
   setup: {
     title: "Your tables",
@@ -4885,6 +4889,11 @@ var ErpTablesPosZones = class extends i3 {
     }
     if (t5.id === this.selectedId) return;
     this.error = "";
+    if (t5.status === "blocked") {
+      this.error = erplora3().t(CATALOG3, "ui.blockedHint");
+      void this.refreshTables();
+      return;
+    }
     if (this.kitchenEnabled && this.pendingCount > 0) {
       this.error = erplora3().t(CATALOG3, "ui.sendPendingBeforeTable", { count: this.pendingCount });
       return;
@@ -4911,15 +4920,15 @@ var ErpTablesPosZones = class extends i3 {
   }
   /** Opens the check of a free table with `guests` covers and hands the table to the POS. */
   async seat(t5, guests) {
-    let sessionId;
+    this.guestsPrompt = void 0;
     try {
       await erplora3().command("tables.sessions.open", { table_id: t5.id, guests_count: guests });
-      sessionId = await this.activeSessionFor(t5.id);
-    } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errOccupyTable");
+    } catch {
+      this.error = erplora3().t(CATALOG3, "ui.errTableTaken");
+      await this.refreshTables();
+      return;
     }
-    this.guestsPrompt = void 0;
-    this.settle(t5, sessionId, void 0);
+    this.settle(t5, await this.activeSessionFor(t5.id), void 0);
   }
   /** The table is the POS context now: remember its live check, tell the POS, close the sheet. */
   settle(t5, sessionId, linkedOrderId) {
@@ -5172,14 +5181,15 @@ var ErpTablesPosZones = class extends i3 {
           ${this.tablesInZone.map((tb) => {
       const validTarget = inAction && this.isValidTarget(tb);
       const showKebab = !inAction && tb.status === "occupied";
+      const outOfService = tb.status === "blocked";
       return b2`
             <div class="mesa-wrap">
               ${showKebab ? b2`<ion-button class="kebab" fill="clear" aria-label=${t5("ui.tableActions")} @click=${(e5) => this.openActions(tb, e5)}>
                     <ion-icon slot="icon-only" name="ellipsis-vertical"></ion-icon>
                   </ion-button>` : A}
               <button class="mesa ${validTarget ? "target" : ""}" aria-pressed=${this.selectedId === tb.id}
-                ?disabled=${inAction && !validTarget}
-                title=${holdTitle(tb) || A}
+                ?disabled=${outOfService || inAction && !validTarget}
+                title=${(outOfService ? t5("ui.blockedHint") : holdTitle(tb)) || A}
                 style=${`border-color:${STATUS_COLOR2[tb.status] ?? "#d9d6cf"}`} @click=${() => this.pick(tb)}>
                 <div class="n">${tb.number}</div>
                 <div class="c">${t5("ui.paxCount", { count: tb.capacity })}</div>

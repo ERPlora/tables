@@ -392,6 +392,14 @@ export class ErpTablesPosZones extends LitElement {
     if (this.mode === 'merge') { if (this.isValidTarget(t)) await this.doMerge(t); return; }
     if (t.id === this.selectedId) return;
     this.error = '';
+    // Segunda puerta de lo de arriba: la celda ya está deshabilitada, pero el teclado, un
+    // `pick()` desde otro flujo o una mesa que se bloqueó mientras el plano estaba abierto no
+    // pasan por el `disabled` del DOM. Nadie manda una apertura que el gate va a revertir.
+    if (t.status === 'blocked') {
+      this.error = erplora().t(CATALOG, 'ui.blockedHint');
+      void this.refreshTables();
+      return;
+    }
     if (this.kitchenEnabled && this.pendingCount > 0) {
       this.error = erplora().t(CATALOG, 'ui.sendPendingBeforeTable', { count: this.pendingCount });
       return;
@@ -434,15 +442,24 @@ export class ErpTablesPosZones extends LitElement {
 
   /** Opens the check of a free table with `guests` covers and hands the table to the POS. */
   private async seat(t: Table, guests: number) {
-    let sessionId: string | undefined;
+    this.guestsPrompt = undefined;
     try {
       await erplora().command('tables.sessions.open', { table_id: t.id, guests_count: guests });
-      sessionId = await this.activeSessionFor(t.id);
-    } catch (e) {
-      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errOccupyTable');
+    } catch {
+      // El gate `table_available` (commands/_session_open_assert.sql) revierte la transacción
+      // ENTERA cuando la mesa no está libre, así que aquí no hay ni sesión ni mesa ocupada. Con la
+      // bloqueada ya apagada arriba, lo que queda es la carrera real: otro TPV se adelantó entre
+      // que se pintó el plano y este toque (tables#14).
+      //
+      // Dos cosas que antes no pasaban: el mensaje era el texto CRUDO de la base de datos («CHECK
+      // constraint failed…»), y la mesa se asignaba igual —`settle` corría también en el catch—,
+      // así que el TPV se quedaba atendiendo una mesa que no había abierto. Ahora se dice qué pasó,
+      // se relee el plano (la mesa ya sale ocupada) y el selector sigue abierto para elegir otra.
+      this.error = erplora().t(CATALOG, 'ui.errTableTaken');
+      await this.refreshTables();
+      return;
     }
-    this.guestsPrompt = undefined;
-    this.settle(t, sessionId, undefined);
+    this.settle(t, await this.activeSessionFor(t.id), undefined);
   }
 
   /** The table is the POS context now: remember its live check, tell the POS, close the sheet. */
@@ -700,6 +717,12 @@ export class ErpTablesPosZones extends LitElement {
           ${this.tablesInZone.map((tb) => {
             const validTarget = inAction && this.isValidTarget(tb);
             const showKebab = !inAction && tb.status === 'occupied';
+            // tables#14: una mesa bloqueada NO es un destino, y eso ya se sabe aquí. Antes se podía
+            // tocar: el TPV mandaba la apertura, el gate `table_available` la revertía y el
+            // camarero recibía un «no se pudo ocupar la mesa» después de esperar, por algo que no
+            // dependía de la red. Toast la saca del servicio con su propio estado («Block Table»);
+            // aquí se apaga la celda y el motivo va en el título, además del estado que ya pinta.
+            const outOfService = tb.status === 'blocked';
             return html`
             <div class="mesa-wrap">
               ${showKebab
@@ -708,8 +731,8 @@ export class ErpTablesPosZones extends LitElement {
                   </ion-button>`
                 : nothing}
               <button class="mesa ${validTarget ? 'target' : ''}" aria-pressed=${this.selectedId === tb.id}
-                ?disabled=${inAction && !validTarget}
-                title=${holdTitle(tb) || nothing}
+                ?disabled=${outOfService || (inAction && !validTarget)}
+                title=${(outOfService ? t('ui.blockedHint') : holdTitle(tb)) || nothing}
                 style=${`border-color:${STATUS_COLOR[tb.status] ?? '#d9d6cf'}`} @click=${() => this.pick(tb)}>
                 <div class="n">${tb.number}</div>
                 <div class="c">${t('ui.paxCount', { count: tb.capacity })}</div>
