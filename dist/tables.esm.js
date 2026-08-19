@@ -1749,10 +1749,10 @@ var es_default = {
     },
     sessions: {
       label: "Sesiones"
-    },
-    settings: {
-      label: "Ajustes"
     }
+  },
+  settings: {
+    title: "Mesas"
   },
   ui: {
     floorPlan: "Plano de sala",
@@ -1906,10 +1906,10 @@ var en_default = {
     },
     sessions: {
       label: "Sessions"
-    },
-    settings: {
-      label: "Settings"
     }
+  },
+  settings: {
+    title: "Tables"
   },
   ui: {
     floorPlan: "Floor Plan",
@@ -4576,6 +4576,10 @@ var ErpTablesPosZones = class extends i3 {
     this.pendingCount = 0;
     this.kitchenEnabled = false;
     this.mode = "select";
+    /** Room setting `prompt_guests_on_seat` (tables#3 c). Off = a bar that never counts covers:
+     *  seating a free table opens the check with the capacity in ONE tap (Lightspeed "Cover count
+     *  prompt", Square "Track seating" are toggles too). Default on. */
+    this.promptGuests = true;
     // Tras cobrar, el POS dispara este reset: la mesa queda pagada → cerramos su sesión (la libera).
     this.onReset = () => {
       const sid = this.sessionId;
@@ -4765,12 +4769,16 @@ var ErpTablesPosZones = class extends i3 {
     this.loading = true;
     this.error = "";
     try {
-      const [z2, t5] = await Promise.all([
+      const [z2, t5, s5] = await Promise.all([
         erplora3().queryAll("tables.zones.list", { sort: "sort_order", dir: "asc" }).catch(() => []),
-        erplora3().queryAll("tables.tables.list", { sort: "number", dir: "asc" }).catch(() => [])
+        erplora3().queryAll("tables.tables.list", { sort: "number", dir: "asc" }).catch(() => []),
+        // tables#3 (c): room settings — no row (or no permission) → the schema default: prompt ON.
+        erplora3().query("tables.settings.get").catch(() => [])
       ]);
       this.zones = rows2(z2);
       this.tables = rows2(t5);
+      const settings = rows2(s5)[0];
+      this.promptGuests = settings ? Number(settings.prompt_guests_on_seat) !== 0 : true;
       if (!this.activeZone) this.activeZone = this.zones[0]?.id ?? "";
     } catch (e5) {
       this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errLoadTables");
@@ -4848,7 +4856,12 @@ var ErpTablesPosZones = class extends i3 {
       return;
     }
     const seed = t5.reserved_party_size && t5.reserved_party_size > 0 ? t5.reserved_party_size : t5.capacity;
-    this.guestsPrompt = { kind: "seat", table: t5, value: Math.max(1, Number(seed) || 1) };
+    const covers = Math.max(1, Number(seed) || 1);
+    if (!this.promptGuests) {
+      await this.seat(t5, covers);
+      return;
+    }
+    this.guestsPrompt = { kind: "seat", table: t5, value: covers };
   }
   /** Opens the check of a free table with `guests` covers and hands the table to the POS. */
   async seat(t5, guests) {
@@ -5241,6 +5254,7 @@ var SEGMENTS = [
   { id: "all", status: "", key: "ui.segmentAll" }
 ];
 var REFRESH_MS = 3e4;
+var DEFAULT_SETTINGS = { timer_warning_minutes: 60, timer_critical_minutes: 90 };
 function erplora4() {
   const c5 = globalThis.erplora;
   if (!c5) throw new Error("erplora SDK not initialised by the shell");
@@ -5269,6 +5283,7 @@ var ErpTablesSessions = class extends i3 {
     this.now = () => /* @__PURE__ */ new Date();
     this.segment = "open";
     this.zones = [];
+    this.settings = { ...DEFAULT_SETTINGS };
     this.detail = null;
     this.closeTarget = null;
     this.saving = false;
@@ -5284,6 +5299,9 @@ var ErpTablesSessions = class extends i3 {
     /* Segment buttons are touch targets: 44px minimum. */
     ion-segment-button { min-height: 44px; }
     .muted { color: var(--ok-muted, #8b897f); }
+    /* Square paints the same two thresholds on its floor plan: amber, then red. */
+    .tone-warning { color: var(--ion-color-warning, #f08c00); font-weight: 600; }
+    .tone-critical { color: var(--ion-color-danger, #d9480f); font-weight: 700; }
   `;
   }
   get columns() {
@@ -5308,7 +5326,8 @@ var ErpTablesSessions = class extends i3 {
         key: "duration",
         header: t5("ui.colDuration"),
         align: "right",
-        format: (r6) => t5("ui.durationMinutes", { minutes: durationMinutes(r6, this.now()) })
+        format: (r6) => t5("ui.durationMinutes", { minutes: durationMinutes(r6, this.now()) }),
+        render: (r6) => b2`<span class=${`tone-${this.durationTone(r6)}`}>${t5("ui.durationMinutes", { minutes: durationMinutes(r6, this.now()) })}</span>`
       },
       {
         key: "status",
@@ -5341,7 +5360,7 @@ var ErpTablesSessions = class extends i3 {
       // Open checks first: that is what the room asks for.
       filters: { status: "active" }
     });
-    await Promise.all([this.ctrl.load(), this.loadZones()]);
+    await Promise.all([this.ctrl.load(), this.loadZones(), this.loadSettings()]);
     try {
       const offs = [
         erplora4().on("tables.session.opened", () => this.ctrl.load()),
@@ -5352,7 +5371,8 @@ var ErpTablesSessions = class extends i3 {
         erplora4().on("tables.session.parked", () => this.ctrl.load()),
         erplora4().on("tables.session.restored", () => this.ctrl.load()),
         erplora4().on("tables.session.updated", () => this.ctrl.load()),
-        erplora4().on("tables.session.deleted", () => this.ctrl.load())
+        erplora4().on("tables.session.deleted", () => this.ctrl.load()),
+        erplora4().on("tables.settings.updated", () => this.loadSettings())
       ];
       this.unsub = () => offs.forEach((o7) => o7());
     } catch {
@@ -5372,6 +5392,26 @@ var ErpTablesSessions = class extends i3 {
     } catch {
       this.zones = [];
     }
+  }
+  async loadSettings() {
+    try {
+      const r6 = await erplora4().query("tables.settings.get");
+      const row = Array.isArray(r6) ? r6[0] : r6;
+      this.settings = {
+        timer_warning_minutes: Number(row?.timer_warning_minutes) || DEFAULT_SETTINGS.timer_warning_minutes,
+        timer_critical_minutes: Number(row?.timer_critical_minutes) || DEFAULT_SETTINGS.timer_critical_minutes
+      };
+    } catch {
+      this.settings = { ...DEFAULT_SETTINGS };
+    }
+  }
+  /** Tone of the duration cell: only an OPEN check is an alarm; history is never coloured. */
+  durationTone(r6) {
+    if (r6.status !== "active") return "ok";
+    const m4 = durationMinutes(r6, this.now());
+    if (m4 >= this.settings.timer_critical_minutes) return "critical";
+    if (m4 >= this.settings.timer_warning_minutes) return "warning";
+    return "ok";
   }
   onSegment(id) {
     const seg = SEGMENTS.find((s5) => s5.id === id) ?? SEGMENTS[0];
@@ -5499,6 +5539,9 @@ __decorateClass([
 __decorateClass([
   r5()
 ], ErpTablesSessions.prototype, "zones", 2);
+__decorateClass([
+  r5()
+], ErpTablesSessions.prototype, "settings", 2);
 __decorateClass([
   r5()
 ], ErpTablesSessions.prototype, "detail", 2);

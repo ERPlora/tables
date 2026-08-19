@@ -29,6 +29,7 @@
     "tables.add_tablesession",
     "tables.change_tablesession",
     "tables.delete_tablesession",
+    "tables.view_settings",
     "tables.manage_settings"
   ],
   "role_permissions": {
@@ -44,14 +45,16 @@
       "tables.change_table",
       "tables.view_tablesession",
       "tables.add_tablesession",
-      "tables.change_tablesession"
+      "tables.change_tablesession",
+      "tables.view_settings"
     ],
     "employee": [
       "tables.view_zone",
       "tables.view_table",
       "tables.view_tablesession",
       "tables.add_tablesession",
-      "tables.change_tablesession"
+      "tables.change_tablesession",
+      "tables.view_settings"
     ]
   },
   "navigation": [
@@ -78,14 +81,15 @@
       "label": "Sessions",
       "icon": "time-outline",
       "component": "erp-tables-sessions"
-    },
-    {
-      "id": "settings",
-      "label": "Settings",
-      "icon": "settings-outline",
-      "component": "erp-tables-floor-plan"
     }
   ],
+  "settings": {
+    "title": "Tables",
+    "icon": "grid-outline",
+    "schema": "schemas/settings_update.json",
+    "get": "tables.settings.get",
+    "set": "tables.settings.update"
+  },
   "provides_slots": [
     {
       "slot": "sales.pos.assign",
@@ -104,7 +108,8 @@
       "migrations/postgres/006_session_no_table.sql",
       "migrations/postgres/007_session_history_fk.sql",
       "migrations/postgres/008_table_hold.sql",
-      "migrations/postgres/009_session_split.sql"
+      "migrations/postgres/009_session_split.sql",
+      "migrations/postgres/010_settings.sql"
     ]
   },
   "queries": {
@@ -293,6 +298,13 @@
       "sql": "queries/floor_status.sql",
       "ai": {
         "description": "Reports whether the floor plan is set up: how many usable tables (not deleted, active) the hub has. One row, always. Read by the onboarding checklist."
+      }
+    },
+    "tables.settings.get": {
+      "permission": "tables.view_settings",
+      "sql": "queries/settings_get.sql",
+      "ai": {
+        "description": "Reads the room settings: whether seating asks for the guests and the amber/red timer thresholds of an open check"
       }
     }
   },
@@ -728,6 +740,20 @@
         "commands/_hold_paint_reservation.sql",
         "commands/_hold_free_stale.sql"
       ]
+    },
+    "tables.settings.update": {
+      "permission": "tables.manage_settings",
+      "transaction": true,
+      "schema": "schemas/settings_update.json",
+      "sql": [
+        "commands/settings_update.sql"
+      ],
+      "emit": [
+        "tables.settings.updated"
+      ],
+      "ai": {
+        "description": "Updates the room settings (guests prompt on seating, amber/red timer thresholds)"
+      }
     }
   },
   "ui": {
@@ -765,7 +791,8 @@
       "tables.table.updated",
       "tables.zone.created",
       "tables.zone.deleted",
-      "tables.zone.updated"
+      "tables.zone.updated",
+      "tables.settings.updated"
     ]
   },
   "scheduled_tasks": [

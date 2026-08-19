@@ -21,14 +21,19 @@ const SESSIONS = [
   { id: 's2', table_id: 't2', table_number: '3', guests_count: 2, status: 'closed', waiter_id: null, opened_at: '2026-08-18T18:00:00Z', closed_at: '2026-08-18T19:30:00Z', notes: 'birthday', order_id: null, split_from_id: null, zone_id: 'z2', zone: 'Salón' },
 ];
 
+// Room settings (tables#3 c): amber after 30 min, red after 60. Square paints the same two
+// thresholds on its floor plan; here the duration cell carries the tone.
+let SETTINGS: Record<string, unknown>[] = [{ id: 's', prompt_guests_on_seat: 1, timer_warning_minutes: 30, timer_critical_minutes: 60 }];
+
 const commands: { name: string; payload: Record<string, unknown> }[] = [];
 const pages: Record<string, unknown>[] = [];
 
 beforeEach(() => {
   commands.length = 0;
   pages.length = 0;
+  SETTINGS = [{ id: 's', prompt_guests_on_seat: 1, timer_warning_minutes: 30, timer_critical_minutes: 60 }];
   (globalThis as Record<string, unknown>).erplora = {
-    query: async () => [],
+    query: async (name: string) => (name === 'tables.settings.get' ? SETTINGS : []),
     queryAll: async (name: string) => (name === 'tables.zones.list' ? ZONES : []),
     queryPage: async (_name: string, params: Record<string, unknown>) => {
       pages.push(params);
@@ -54,6 +59,7 @@ type Wc = HTMLElement & {
   detail: Record<string, unknown> | null;
   closeTarget: Record<string, unknown> | null;
   now: () => Date;
+  durationTone: (r: Record<string, unknown>) => 'ok' | 'warning' | 'critical';
   onRowAction: (ev: CustomEvent<{ actionId: string; row: Record<string, unknown> }>) => Promise<void>;
   confirmClose: () => Promise<void>;
 };
@@ -142,5 +148,24 @@ describe('detail and close', () => {
     const el = await mount();
     await el.onRowAction(new CustomEvent('rowAction', { detail: { actionId: 'close', row: SESSIONS[1] } }));
     expect(el.closeTarget).toBeNull();
+  });
+});
+
+describe('room settings colour the open checks (tables#3 c)', () => {
+  it('an open check past the amber threshold is `warning`, past the red one `critical`, a closed check is never coloured', async () => {
+    const el = await mount();
+    // s1 opened at 20:15, now 21:00 → 45 min: past amber (30), before red (60).
+    expect(el.durationTone(SESSIONS[0])).toBe('warning');
+    expect(el.durationTone({ ...SESSIONS[0], opened_at: '2026-08-18T19:50:00Z' })).toBe('critical'); // 70 min
+    expect(el.durationTone({ ...SESSIONS[0], opened_at: '2026-08-18T20:50:00Z' })).toBe('ok'); // 10 min
+    expect(el.durationTone(SESSIONS[1]), 'closed: history is not an alarm').toBe('ok');
+  });
+
+  it('with no settings row the schema defaults apply (60 / 90)', async () => {
+    SETTINGS = [];
+    const el = await mount();
+    expect(el.durationTone(SESSIONS[0]), '45 min < 60 → ok').toBe('ok');
+    expect(el.durationTone({ ...SESSIONS[0], opened_at: '2026-08-18T19:50:00Z' }), '70 min → warning').toBe('warning');
+    expect(el.durationTone({ ...SESSIONS[0], opened_at: '2026-08-18T19:20:00Z' }), '100 min → critical').toBe('critical');
   });
 });

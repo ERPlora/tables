@@ -12,10 +12,10 @@
     },
     "sessions": {
       "label": "Sessions"
-    },
-    "settings": {
-      "label": "Settings"
     }
+  },
+  "settings": {
+    "title": "Tables"
   },
   "ui": {
     "floorPlan": "Floor Plan",

@@ -657,3 +657,54 @@ describe('covers on seating (tables#32)', () => {
     }
   });
 });
+
+// tables#3 (c): the room settings are not a fake door — `prompt_guests_on_seat` is CONSUMED here.
+// Lightspeed's "Cover count prompt" and Square's "Track seating" are toggles: a bar that never
+// counts covers seats in one tap. Off → touching a free table opens the check with the table
+// capacity straight away; the settings row comes from `tables.settings.get` (no row → default on).
+describe('room settings: prompt_guests_on_seat (tables#3 c)', () => {
+  const FREE6 = { id: 'tbl-6', number: '6', zone_id: 'z1', capacity: 6, status: 'available' };
+  const tick = async (el: HTMLElement) => {
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+  };
+  function stub(settings: Array<Record<string, unknown>>) {
+    const calls: Array<{ name: string; payload?: Record<string, unknown> }> = [];
+    (globalThis as Record<string, unknown>).erplora = {
+      query: async (name: string) => {
+        if (name === 'tables.settings.get') return settings;
+        if (name.includes('zone')) return [ZONA];
+        if (name === 'tables.sessions.list') return [];
+        return [FREE6];
+      },
+      queryAll: async (name: string) => (name.includes('zone') ? [ZONA] : [FREE6]),
+      command: async (name: string, payload?: Record<string, unknown>) => { calls.push({ name, payload }); return {}; },
+      locale: 'es',
+      t: (_c: unknown, key: string) => key,
+    };
+    return { calls };
+  }
+
+  it('off → a free table is seated at once with its capacity, no prompt', async () => {
+    const { calls } = stub([{ id: 's', prompt_guests_on_seat: 0, timer_warning_minutes: 60, timer_critical_minutes: 90 }]);
+    const el = await montar();
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await tick(el);
+    el.shadowRoot.querySelector<HTMLElement>('.mesa')!.click();
+    await tick(el);
+    expect(el.shadowRoot.querySelector('.guests'), 'no covers prompt when the setting is off').toBeNull();
+    expect(calls.find((c) => c.name === 'tables.sessions.open')?.payload).toEqual({ table_id: 'tbl-6', guests_count: 6 });
+  });
+
+  it('no settings row → default ON: the prompt is shown', async () => {
+    const { calls } = stub([]);
+    const el = await montar();
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await tick(el);
+    el.shadowRoot.querySelector<HTMLElement>('.mesa')!.click();
+    await tick(el);
+    expect(el.shadowRoot.querySelector('.guests'), 'the prompt is the default').toBeTruthy();
+    expect(calls.some((c) => c.name === 'tables.sessions.open')).toBe(false);
+  });
+});

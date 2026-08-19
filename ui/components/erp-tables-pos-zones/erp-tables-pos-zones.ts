@@ -188,6 +188,11 @@ export class ErpTablesPosZones extends LitElement {
    *  live covers; quick chips seat in one tap; +/− for the rest. */
   @state() private guestsPrompt?: { kind: 'seat' | 'edit'; table: Table; value: number };
 
+  /** Room setting `prompt_guests_on_seat` (tables#3 c). Off = a bar that never counts covers:
+   *  seating a free table opens the check with the capacity in ONE tap (Lightspeed "Cover count
+   *  prompt", Square "Track seating" are toggles too). Default on. */
+  private promptGuests = true;
+
   /** Sesión activa de la mesa seleccionada (la abrimos al ocupar, o la reanudamos si ya estaba). */
   private sessionId?: string;
 
@@ -241,12 +246,16 @@ export class ErpTablesPosZones extends LitElement {
     this.loading = true;
     this.error = '';
     try {
-      const [z, t] = await Promise.all([
+      const [z, t, s] = await Promise.all([
         erplora().queryAll('tables.zones.list', { sort: 'sort_order', dir: 'asc' }).catch(() => []),
         erplora().queryAll('tables.tables.list', { sort: 'number', dir: 'asc' }).catch(() => []),
+        // tables#3 (c): room settings — no row (or no permission) → the schema default: prompt ON.
+        erplora().query('tables.settings.get').catch(() => []),
       ]);
       this.zones = rows<Zone>(z);
       this.tables = rows<Table>(t);
+      const settings = rows<{ prompt_guests_on_seat?: number | boolean }>(s)[0];
+      this.promptGuests = settings ? Number(settings.prompt_guests_on_seat) !== 0 : true;
       if (!this.activeZone) this.activeZone = this.zones[0]?.id ?? '';
     } catch (e) {
       this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errLoadTables');
@@ -412,7 +421,12 @@ export class ErpTablesPosZones extends LitElement {
     // tables#32: seating a party asks for the covers first (Toast/Lightspeed/Square do the same):
     // default = the table capacity (or the reservation's party size), quick chips seat in one tap.
     const seed = t.reserved_party_size && t.reserved_party_size > 0 ? t.reserved_party_size : t.capacity;
-    this.guestsPrompt = { kind: 'seat', table: t, value: Math.max(1, Number(seed) || 1) };
+    const covers = Math.max(1, Number(seed) || 1);
+    if (!this.promptGuests) {
+      await this.seat(t, covers);
+      return;
+    }
+    this.guestsPrompt = { kind: 'seat', table: t, value: covers };
   }
 
   /** Opens the check of a free table with `guests` covers and hands the table to the POS. */
