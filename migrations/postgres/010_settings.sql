@@ -2,7 +2,7 @@
 --
 -- The `settings` nav entry promised a screen it never had. What the market keeps as ROOM settings
 -- is small and operational (Square "table management settings": colour indicators after N minutes
--- + track cover count; Lightspeed: "cover count prompt" per floor plan; Toast / Revel: table
+-- + track cover count · Lightspeed: "cover count prompt" per floor plan · Toast / Revel: table
 -- service settings in back-office): whether seating asks for the covers, and after how many
 -- minutes an open check turns amber / red. That is what this row holds. Defaults live in the JSON
 -- Schema (`schemas/settings_update.json`): a hub that never saved anything behaves like the
