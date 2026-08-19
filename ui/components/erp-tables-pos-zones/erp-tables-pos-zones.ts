@@ -92,6 +92,10 @@ function rows<T>(r: unknown): T[] {
 export class ErpTablesPosZones extends LitElement {
   static styles = css`
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
+    /* tables#16: every Ionic control is a 44px touch target. The table tile (native <button
+       aria-pressed>, tables#11 documented canvas exception), the covers stepper (3rem) and the
+       quick chips (2.75rem) already are. */
+    ion-button { min-height:44px; --min-height:44px; }
     .ctx { display:flex; align-items:center; gap:.15rem; }
     .trigger { --padding-start:.5rem; --padding-end:.5rem; }
     ion-button.trigger ion-icon { font-size: var(--pos-hdr-icon-size, 1.75rem); }
@@ -126,10 +130,9 @@ export class ErpTablesPosZones extends LitElement {
     .mesa .hold { font-size:.65rem; color:var(--ion-color-warning,#f08c00); font-weight:600;
       overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     /* Botón ⋮ (more-vert) en la esquina de cada mesa OCUPADA: abre transferir/fusionar. */
-    .kebab { position:absolute; top:2px; right:2px; z-index:1; width:1.6rem; height:1.6rem; display:flex;
-      align-items:center; justify-content:center; border:none; border-radius: var(--ok-radius-pill, 50%); background:rgba(0,0,0,.06);
-      color:var(--ion-text-color,#1c1b18); cursor:pointer; font-size:1rem; line-height:1; }
-    .kebab:hover { background:rgba(0,0,0,.14); }
+    /* ion-button (tables#11): 44px target overlapping the tile corner; the tile keeps its own tap. */
+    ion-button.kebab { position:absolute; top:-6px; right:-6px; z-index:1; margin:0; --padding-start:0; --padding-end:0;
+      width:44px; height:44px; --border-radius: var(--ok-radius-pill, 50%); --color:var(--ion-text-color,#1c1b18); font-size:1rem; }
     /* Menú de acciones (tras ⋮) y banner de "elige destino". */
     .actions { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin:.6rem 0; padding:.6rem .7rem;
       border-radius: var(--ok-radius, 12px); background:var(--ion-color-light,#f4f5f8); }
@@ -644,7 +647,7 @@ export class ErpTablesPosZones extends LitElement {
     // La mesa elegida se muestra como contexto de la cuenta, igual que el cliente; dentro del
     // selector queda la acción de retirarla. Así elegir Mesa 6 no sustituye el botón por un chip.
     return html`
-      <ion-button class="trigger" fill="clear" size="small" ?data-assigned=${!!this.selectedId}
+      <ion-button class="trigger" fill="clear" ?data-assigned=${!!this.selectedId}
         aria-label=${this.selectedId ? `${t('ui.assignTable')}: ${this.selectedLabel}` : t('ui.assignTable')}
         title=${this.selectedId ? `${t('ui.assignTable')}: ${this.selectedLabel}` : t('ui.assignTable')}
         @click=${() => this.openPicker()}>
@@ -656,7 +659,7 @@ export class ErpTablesPosZones extends LitElement {
         @click=${(e: Event) => { if (e.target === e.currentTarget) this.open = false; }}>
         <div class="sheet-h">
           <span class="t">${title}</span>
-          <ion-button class="close" fill="clear" size="small" aria-label=${t('ui.close')} @click=${() => { this.open = false; }}>
+          <ion-button class="close" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.open = false; }}>
             <ion-icon slot="icon-only" name="close-outline"></ion-icon>
           </ion-button>
         </div>
@@ -668,16 +671,16 @@ export class ErpTablesPosZones extends LitElement {
         ${this.actionSource && !inAction && !this.guestsPrompt
           ? html`<div class="actions">
               <span class="lbl">${t('ui.tableLabel', { number: srcNum })}</span>
-              <ion-button size="small" fill="outline" @click=${() => this.startTransfer()}>
+              <ion-button fill="outline" @click=${() => this.startTransfer()}>
                 <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>${t('ui.transfer')}
               </ion-button>
-              <ion-button size="small" fill="outline" @click=${() => this.startMerge()}>
+              <ion-button fill="outline" @click=${() => this.startMerge()}>
                 <ion-icon slot="start" name="git-merge-outline"></ion-icon>${t('ui.merge')}
               </ion-button>
-              <ion-button size="small" fill="outline" @click=${() => void this.doSplit()}>
+              <ion-button fill="outline" @click=${() => void this.doSplit()}>
                 <ion-icon slot="start" name="git-branch-outline"></ion-icon>${t('ui.split')}
               </ion-button>
-              <ion-button size="small" fill="outline" @click=${() => this.startEditGuests()}>
+              <ion-button fill="outline" @click=${() => this.startEditGuests()}>
                 <ion-icon slot="start" name="people-outline"></ion-icon>${t('ui.guests')}
               </ion-button>
             </div>`
@@ -700,9 +703,9 @@ export class ErpTablesPosZones extends LitElement {
             return html`
             <div class="mesa-wrap">
               ${showKebab
-                ? html`<button class="kebab" aria-label=${t('ui.tableActions')} @click=${(e: Event) => this.openActions(tb, e)}>
-                    <ion-icon name="ellipsis-vertical"></ion-icon>
-                  </button>`
+                ? html`<ion-button class="kebab" fill="clear" aria-label=${t('ui.tableActions')} @click=${(e: Event) => this.openActions(tb, e)}>
+                    <ion-icon slot="icon-only" name="ellipsis-vertical"></ion-icon>
+                  </ion-button>`
                 : nothing}
               <button class="mesa ${validTarget ? 'target' : ''}" aria-pressed=${this.selectedId === tb.id}
                 ?disabled=${inAction && !validTarget}
@@ -731,12 +734,12 @@ export class ErpTablesPosZones extends LitElement {
 
         <div class="foot">
           ${!inAction && this.selectedId
-            ? html`<ion-button color="danger" fill="clear" size="small" @click=${() => void this.clear()}>
+            ? html`<ion-button color="danger" fill="clear" @click=${() => void this.clear()}>
                 ${t('ui.removeTable')}
               </ion-button>`
             : nothing}
           ${inAction
-            ? html`<ion-button fill="clear" size="small" @click=${() => this.cancelAction()}>${t('ui.cancel')}</ion-button>`
+            ? html`<ion-button fill="clear" @click=${() => this.cancelAction()}>${t('ui.cancel')}</ion-button>`
             : nothing}
         </div>
       </dialog>
@@ -762,7 +765,7 @@ export class ErpTablesPosZones extends LitElement {
         </div>
         ${over ? html`<div class="over">${t('ui.overCapacity', { capacity: p.table.capacity })}</div>` : nothing}
         <div class="cta">
-          <ion-button class="back" fill="clear" size="small" @click=${() => this.cancelGuests()}>${t('ui.back')}</ion-button>
+          <ion-button class="back" fill="clear" @click=${() => this.cancelGuests()}>${t('ui.back')}</ion-button>
           <ion-button class="seat" size="default" @click=${() => void this.confirmGuests()}>${cta}</ion-button>
         </div>
       </div>`;

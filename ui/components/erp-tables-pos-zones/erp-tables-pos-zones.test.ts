@@ -708,3 +708,42 @@ describe('room settings: prompt_guests_on_seat (tables#3 c)', () => {
     expect(calls.some((c) => c.name === 'tables.sessions.open')).toBe(false);
   });
 });
+
+// tables#16 / tables#11 — the POS table picker: 44px targets and Ionic controls.
+// The table cell itself stays a native <button aria-pressed> (documented CANVAS EXCEPTION: a
+// bordered, colour-coded tile with a pressed state that ion-button does not model), and so do the
+// covers stepper (+/−, 3rem) and its quick chips (2.75rem grid). Everything else — the kebab ⋮ of
+// an occupied table included — is an ion-button, and none is `size="small"`.
+describe('touch targets and Ionic controls in the POS picker (tables#16, tables#11)', () => {
+  const OCC = { id: 'tbl-1', number: '4', zone_id: 'z1', capacity: 4, status: 'occupied', live_guests: 3 };
+  const tick = async (el: HTMLElement) => {
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+  };
+
+  it('no ion-button is size="small"; the kebab is an ion-button; the only native buttons are the documented exceptions', async () => {
+    (globalThis as Record<string, unknown>).erplora = {
+      query: async (name: string) => (name.includes('zone') ? [ZONA] : name === 'tables.sessions.list' ? [{ id: 'ses-1', table_id: 'tbl-1', status: 'active' }] : [OCC]),
+      queryAll: async (name: string) => (name.includes('zone') ? [ZONA] : [OCC]),
+      command: async () => ({}),
+      locale: 'es',
+      t: (_c: unknown, key: string) => key,
+    };
+    const el = await montar();
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await tick(el);
+    expect(el.shadowRoot.querySelectorAll('ion-button[size="small"]').length, 'size="small" (~27 px) targets').toBe(0);
+    const kebab = el.shadowRoot.querySelector('.kebab');
+    expect(kebab?.tagName.toLowerCase(), 'the kebab ⋮ is Ionic').toBe('ion-button');
+    expect(kebab?.getAttribute('aria-label')).toBe('ui.tableActions');
+    const natives = [...el.shadowRoot.querySelectorAll('button')].map((b) => b.className.split(' ')[0] || b.parentElement?.className || '');
+    for (const n of natives) expect(['mesa', 'minus', 'plus', 'quick'].some((ok) => n.startsWith(ok)), `native <button> «${n}» is not a documented exception`).toBe(true);
+  });
+
+  it('the touch-target rule is in the component styles: ion-button min-height 44px', async () => {
+    const el = await montar();
+    const cssText = ((el.constructor as unknown as { styles: { cssText: string } }).styles).cssText;
+    expect(cssText).toMatch(/ion-button\s*\{[^}]*min-height:\s*44px/);
+  });
+});

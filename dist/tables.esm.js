@@ -2058,6 +2058,7 @@ function hhmm(iso) {
 }
 var BOX = 72;
 var DRAG_THRESHOLD = 5;
+var KEY_STEP = 8;
 var SHAPES = ["square", "round", "rectangle"];
 var STATUSES = ["available", "occupied", "reserved", "blocked"];
 var STATUS_KEY = {
@@ -2142,6 +2143,8 @@ var ErpTablesCanvas = class extends i3 {
   static {
     this.styles = i`
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
+    /* tables#16: every own control is a touch target (44px), like the ok-data-table actions. */
+    ion-button { min-height:44px; --min-height:44px; }
     header { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:.6rem; }
     h2 { margin:0; font-size:1.15rem; flex:1; }
     .newzone { display:flex; gap:.75rem; align-items:end; }
@@ -2160,6 +2163,8 @@ var ErpTablesCanvas = class extends i3 {
       background:var(--ion-background-color,#fff); user-select:none; box-shadow:0 1px 4px rgba(0,0,0,.12); }
     .mesa.round { border-radius: var(--ok-radius-pill, 50%); }
     .mesa.dragging { cursor:grabbing; opacity:.85; box-shadow:0 6px 18px rgba(0,0,0,.28); z-index:5; }
+    /* Keyboard focus is visible: the table is a button (tables#16). */
+    .mesa:focus-visible { outline:3px solid var(--ion-color-primary,#0091ce); outline-offset:2px; }
     .mesa .n { font-weight:700; font-size:1.05rem; }
     .mesa .c { font-size:.7rem; color:#8b897f; }
     /* Nombre y hora de la reserva. Es lo que convierte el color ambar en informacion util:
@@ -2174,7 +2179,7 @@ var ErpTablesCanvas = class extends i3 {
     .sheet { background:var(--ion-background-color,#fff); border-radius: var(--ok-radius-lg, 16px); padding:1rem; width:min(94vw,26rem); max-height:90vh; overflow:auto; box-shadow:0 12px 48px rgba(0,0,0,.35); }
     .sheet-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; }
     .sheet-h .t { font-size:1.2rem; font-weight:700; }
-    .x { background:none; border:none; font-size:1.3rem; cursor:pointer; color:#8b897f; }
+    .sheet-h ion-button.x { --color:#8b897f; margin:0; }
     .field { display:flex; flex-direction:column; gap:.25rem; margin-bottom:.7rem; }
     .field ion-input, .field ion-select { flex:1 1 11rem; min-width:9rem; }
     .row2 { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
@@ -2288,6 +2293,41 @@ var ErpTablesCanvas = class extends i3 {
     } catch (e5) {
       this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errSavePosition");
     }
+  }
+  // ── Keyboard (tables#16): Enter/Space edits, arrows move (persisted like a drag) ─────────────
+  async onTableKey(t5, e5) {
+    if (e5.key === "Enter" || e5.key === " ") {
+      e5.preventDefault();
+      this.edit = { ...t5 };
+      return;
+    }
+    const step = e5.shiftKey ? KEY_STEP * 4 : KEY_STEP;
+    const delta = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+    const d3 = delta[e5.key];
+    if (!d3) return;
+    e5.preventDefault();
+    const rect = this.canvasEl()?.getBoundingClientRect();
+    const maxX = rect && rect.width > 0 ? Math.max(0, rect.width - BOX) : Number.POSITIVE_INFINITY;
+    const maxY = rect && rect.height > 0 ? Math.max(0, rect.height - BOX) : Number.POSITIVE_INFINITY;
+    const x2 = Math.round(Math.min(maxX, Math.max(0, t5.position_x + d3[0])));
+    const y3 = Math.round(Math.min(maxY, Math.max(0, t5.position_y + d3[1])));
+    this.tables = this.tables.map((m4) => m4.id === t5.id ? { ...m4, position_x: x2, position_y: y3 } : m4);
+    try {
+      await erplora().command("tables.tables.move", { table_id: t5.id, position_x: x2, position_y: y3, width: BOX, height: BOX });
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : erplora().t(CATALOG, "ui.errSavePosition");
+    }
+  }
+  /** Accessible name of a table tile: «nº · zone · capacity · status» (+ reservation). */
+  tableName(tb, t5) {
+    const zone = this.zones.find((z2) => z2.id === tb.zone_id)?.name;
+    return [
+      t5("ui.tableLabel", { number: tb.number }),
+      zone,
+      t5("ui.paxCount", { count: tb.capacity }),
+      STATUS_KEY[tb.status] ? t5(STATUS_KEY[tb.status]) : tb.status,
+      tb.reserved_for ? t5("ui.reservedFor", { name: tb.reserved_for }) : ""
+    ].filter(Boolean).join(" \xB7 ");
   }
   // ── Altas ───────────────────────────────────────────────────────────────────────────────────
   async addTable() {
@@ -2439,9 +2479,9 @@ var ErpTablesCanvas = class extends i3 {
             @ionInput=${(e5) => {
       this.newZoneName = e5.target.value || "";
     }}></ion-input>
-          <ion-button size="small" fill="outline" ?disabled=${!this.newZoneName.trim()} @click=${() => this.addZone()}>${t5("ui.addZone")}</ion-button>
+          <ion-button fill="outline" ?disabled=${!this.newZoneName.trim()} @click=${() => this.addZone()}>${t5("ui.addZone")}</ion-button>
         </div>
-        <ion-button size="small" ?disabled=${!this.zones.length} @click=${() => this.addTable()}>${t5("ui.addTable")}</ion-button>
+        <ion-button ?disabled=${!this.zones.length} @click=${() => this.addTable()}>${t5("ui.addTable")}</ion-button>
       </header>
 
       ${this.error ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : A}
@@ -2453,7 +2493,7 @@ var ErpTablesCanvas = class extends i3 {
     }}>
               ${this.zones.map((z2) => b2`<ion-segment-button value=${z2.id}><ion-label>${z2.name}</ion-label></ion-segment-button>`)}
             </ion-segment>
-            <ion-button size="small" fill="clear" ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}>${t5("ui.editZone")}</ion-button>
+            <ion-button fill="clear" ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}>${t5("ui.editZone")}</ion-button>
           </div>` : A}
 
       <div class="legend">
@@ -2466,6 +2506,9 @@ var ErpTablesCanvas = class extends i3 {
         @pointercancel=${() => this.onPointerUp()}>
         ${this.tablesInZone.map((tb) => b2`
           <div class=${`mesa ${tb.shape === "round" ? "round" : ""} ${tb.id === this.dragId && this.dragMoved ? "dragging" : ""}`}
+            role="button" tabindex="0"
+            aria-label=${this.tableName(tb, t5)}
+            @keydown=${(e5) => this.onTableKey(tb, e5)}
             style=${`left:${tb.position_x}px; top:${tb.position_y}px; border-color:${STATUS_COLOR[tb.status] ?? "#d9d6cf"}`}
             title=${[
       t5("ui.tableTooltip", { status: STATUS_KEY[tb.status] ? t5(STATUS_KEY[tb.status]) : tb.status, count: tb.capacity }),
@@ -2494,9 +2537,9 @@ var ErpTablesCanvas = class extends i3 {
       <div class="sheet">
         <div class="sheet-h">
           <span class="t">${t5("ui.editTable")}</span>
-          <button class="x" @click=${() => {
+          <ion-button class="x" fill="clear" aria-label=${t5("ui.close")} @click=${() => {
       this.edit = void 0;
-    }}>✕</button>
+    }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
         <div class="row2">
           <div class="field">
@@ -2522,7 +2565,7 @@ var ErpTablesCanvas = class extends i3 {
             ${this.zones.map((z2) => b2`<ion-select-option value=${z2.id}>${z2.name}</ion-select-option>`)}
           </ion-select></div>
         <div class="sheet-foot">
-          <ion-button color="danger" fill="outline" size="small" ?disabled=${this.saving} @click=${() => this.deleteTable()}>${t5("ui.delete")}</ion-button>
+          <ion-button color="danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteTable()}>${t5("ui.delete")}</ion-button>
           <ion-button ?disabled=${this.saving} @click=${() => this.saveTable()}>${this.saving ? t5("ui.saving") : t5("ui.save")}</ion-button>
         </div>
       </div>
@@ -2536,9 +2579,9 @@ var ErpTablesCanvas = class extends i3 {
       <div class="sheet">
         <div class="sheet-h">
           <span class="t">${t5("ui.editZone")}</span>
-          <button class="x" @click=${() => {
+          <ion-button class="x" fill="clear" aria-label=${t5("ui.close")} @click=${() => {
       this.zoneEdit = void 0;
-    }}>✕</button>
+    }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
         <div class="field">
           <ion-input fill="outline" label-placement="floating" label=${t5("ui.colName")} .value=${z2.name} @ionInput=${(e5) => {
@@ -2549,7 +2592,7 @@ var ErpTablesCanvas = class extends i3 {
       this.zoneEdit = { ...z2, description: e5.target.value || "" };
     }}></ion-input></div>
         <div class="sheet-foot">
-          <ion-button color="danger" fill="outline" size="small" ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t5("ui.deleteZone")}</ion-button>
+          <ion-button color="danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t5("ui.deleteZone")}</ion-button>
           <ion-button ?disabled=${this.saving} @click=${() => this.saveZone()}>${this.saving ? t5("ui.saving") : t5("ui.save")}</ion-button>
         </div>
       </div>
@@ -4671,6 +4714,10 @@ var ErpTablesPosZones = class extends i3 {
   static {
     this.styles = i`
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
+    /* tables#16: every Ionic control is a 44px touch target. The table tile (native <button
+       aria-pressed>, tables#11 documented canvas exception), the covers stepper (3rem) and the
+       quick chips (2.75rem) already are. */
+    ion-button { min-height:44px; --min-height:44px; }
     .ctx { display:flex; align-items:center; gap:.15rem; }
     .trigger { --padding-start:.5rem; --padding-end:.5rem; }
     ion-button.trigger ion-icon { font-size: var(--pos-hdr-icon-size, 1.75rem); }
@@ -4705,10 +4752,9 @@ var ErpTablesPosZones = class extends i3 {
     .mesa .hold { font-size:.65rem; color:var(--ion-color-warning,#f08c00); font-weight:600;
       overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     /* Botón ⋮ (more-vert) en la esquina de cada mesa OCUPADA: abre transferir/fusionar. */
-    .kebab { position:absolute; top:2px; right:2px; z-index:1; width:1.6rem; height:1.6rem; display:flex;
-      align-items:center; justify-content:center; border:none; border-radius: var(--ok-radius-pill, 50%); background:rgba(0,0,0,.06);
-      color:var(--ion-text-color,#1c1b18); cursor:pointer; font-size:1rem; line-height:1; }
-    .kebab:hover { background:rgba(0,0,0,.14); }
+    /* ion-button (tables#11): 44px target overlapping the tile corner; the tile keeps its own tap. */
+    ion-button.kebab { position:absolute; top:-6px; right:-6px; z-index:1; margin:0; --padding-start:0; --padding-end:0;
+      width:44px; height:44px; --border-radius: var(--ok-radius-pill, 50%); --color:var(--ion-text-color,#1c1b18); font-size:1rem; }
     /* Menú de acciones (tras ⋮) y banner de "elige destino". */
     .actions { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin:.6rem 0; padding:.6rem .7rem;
       border-radius: var(--ok-radius, 12px); background:var(--ion-color-light,#f4f5f8); }
@@ -5071,7 +5117,7 @@ var ErpTablesPosZones = class extends i3 {
     const srcNum = this.actionSource?.number ?? "";
     const title = this.mode === "transfer" ? t5("ui.transferTitle", { number: srcNum }) : this.mode === "merge" ? t5("ui.mergeTitle", { number: srcNum }) : t5("ui.chooseTable");
     return b2`
-      <ion-button class="trigger" fill="clear" size="small" ?data-assigned=${!!this.selectedId}
+      <ion-button class="trigger" fill="clear" ?data-assigned=${!!this.selectedId}
         aria-label=${this.selectedId ? `${t5("ui.assignTable")}: ${this.selectedLabel}` : t5("ui.assignTable")}
         title=${this.selectedId ? `${t5("ui.assignTable")}: ${this.selectedLabel}` : t5("ui.assignTable")}
         @click=${() => this.openPicker()}>
@@ -5087,7 +5133,7 @@ var ErpTablesPosZones = class extends i3 {
     }}>
         <div class="sheet-h">
           <span class="t">${title}</span>
-          <ion-button class="close" fill="clear" size="small" aria-label=${t5("ui.close")} @click=${() => {
+          <ion-button class="close" fill="clear" aria-label=${t5("ui.close")} @click=${() => {
       this.open = false;
     }}>
             <ion-icon slot="icon-only" name="close-outline"></ion-icon>
@@ -5100,16 +5146,16 @@ var ErpTablesPosZones = class extends i3 {
 
         ${this.actionSource && !inAction && !this.guestsPrompt ? b2`<div class="actions">
               <span class="lbl">${t5("ui.tableLabel", { number: srcNum })}</span>
-              <ion-button size="small" fill="outline" @click=${() => this.startTransfer()}>
+              <ion-button fill="outline" @click=${() => this.startTransfer()}>
                 <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>${t5("ui.transfer")}
               </ion-button>
-              <ion-button size="small" fill="outline" @click=${() => this.startMerge()}>
+              <ion-button fill="outline" @click=${() => this.startMerge()}>
                 <ion-icon slot="start" name="git-merge-outline"></ion-icon>${t5("ui.merge")}
               </ion-button>
-              <ion-button size="small" fill="outline" @click=${() => void this.doSplit()}>
+              <ion-button fill="outline" @click=${() => void this.doSplit()}>
                 <ion-icon slot="start" name="git-branch-outline"></ion-icon>${t5("ui.split")}
               </ion-button>
-              <ion-button size="small" fill="outline" @click=${() => this.startEditGuests()}>
+              <ion-button fill="outline" @click=${() => this.startEditGuests()}>
                 <ion-icon slot="start" name="people-outline"></ion-icon>${t5("ui.guests")}
               </ion-button>
             </div>` : A}
@@ -5128,9 +5174,9 @@ var ErpTablesPosZones = class extends i3 {
       const showKebab = !inAction && tb.status === "occupied";
       return b2`
             <div class="mesa-wrap">
-              ${showKebab ? b2`<button class="kebab" aria-label=${t5("ui.tableActions")} @click=${(e5) => this.openActions(tb, e5)}>
-                    <ion-icon name="ellipsis-vertical"></ion-icon>
-                  </button>` : A}
+              ${showKebab ? b2`<ion-button class="kebab" fill="clear" aria-label=${t5("ui.tableActions")} @click=${(e5) => this.openActions(tb, e5)}>
+                    <ion-icon slot="icon-only" name="ellipsis-vertical"></ion-icon>
+                  </ion-button>` : A}
               <button class="mesa ${validTarget ? "target" : ""}" aria-pressed=${this.selectedId === tb.id}
                 ?disabled=${inAction && !validTarget}
                 title=${holdTitle(tb) || A}
@@ -5153,10 +5199,10 @@ var ErpTablesPosZones = class extends i3 {
         </div>`}
 
         <div class="foot">
-          ${!inAction && this.selectedId ? b2`<ion-button color="danger" fill="clear" size="small" @click=${() => void this.clear()}>
+          ${!inAction && this.selectedId ? b2`<ion-button color="danger" fill="clear" @click=${() => void this.clear()}>
                 ${t5("ui.removeTable")}
               </ion-button>` : A}
-          ${inAction ? b2`<ion-button fill="clear" size="small" @click=${() => this.cancelAction()}>${t5("ui.cancel")}</ion-button>` : A}
+          ${inAction ? b2`<ion-button fill="clear" @click=${() => this.cancelAction()}>${t5("ui.cancel")}</ion-button>` : A}
         </div>
       </dialog>
     `;
@@ -5180,7 +5226,7 @@ var ErpTablesPosZones = class extends i3 {
         </div>
         ${over ? b2`<div class="over">${t5("ui.overCapacity", { capacity: p4.table.capacity })}</div>` : A}
         <div class="cta">
-          <ion-button class="back" fill="clear" size="small" @click=${() => this.cancelGuests()}>${t5("ui.back")}</ion-button>
+          <ion-button class="back" fill="clear" @click=${() => this.cancelGuests()}>${t5("ui.back")}</ion-button>
           <ion-button class="seat" size="default" @click=${() => void this.confirmGuests()}>${cta}</ion-button>
         </div>
       </div>`;
