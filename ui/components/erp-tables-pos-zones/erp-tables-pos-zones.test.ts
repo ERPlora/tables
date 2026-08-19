@@ -747,3 +747,140 @@ describe('touch targets and Ionic controls in the POS picker (tables#16, tables#
     expect(cssText).toMatch(/ion-button\s*\{[^}]*min-height:\s*44px/);
   });
 });
+
+// tables#14 — una mesa BLOQUEADA no es un destino, y una carrera se cuenta como lo que es.
+//
+// Lo que quedaba vivo de la issue: la mesa `blocked` se podía tocar, el TPV mandaba la apertura, el
+// gate `table_available` la revertía y el camarero recibía «no se pudo ocupar la mesa» — un error
+// genérico, después de esperar, por algo que se sabía ANTES de tocar el servidor. Toast tiene ese
+// estado como «Block Table» justamente para sacar la mesa del servicio.
+describe('mesa bloqueada y carrera al sentar (tables#14)', () => {
+  const BLOQUEADA = { id: 'tbl-9', number: '9', zone_id: 'z1', capacity: 2, status: 'blocked' };
+  const tick = async (el: HTMLElement) => {
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+  };
+  const conMesas = (mesas: Record<string, unknown>[], command?: () => Promise<unknown>) => {
+    (globalThis as Record<string, unknown>).erplora = {
+      query: async (name: string) => (name.includes('zone') ? [ZONA] : name.includes('session') ? [] : mesas),
+      queryAll: async (name: string) => (name.includes('zone') ? [ZONA] : mesas),
+      command: command ?? (async () => ({})),
+      locale: 'es',
+      t: (_c: unknown, key: string) => key,
+    };
+  };
+
+  it('la mesa bloqueada sale DESHABILITADA y con su motivo, sin tocar el servidor', async () => {
+    const mandados: string[] = [];
+    conMesas([MESA, BLOQUEADA], async (...args: unknown[]) => { mandados.push(String(args[0])); return {}; });
+    const el = await montar();
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await tick(el);
+
+    const celdas = [...el.shadowRoot.querySelectorAll<HTMLButtonElement>('button.mesa')];
+    const libre = celdas.find((b) => b.textContent?.includes('4'))!;
+    const bloqueada = celdas.find((b) => b.textContent?.includes('9'))!;
+    expect(libre.disabled, 'la mesa libre se puede sentar').toBe(false);
+    expect(bloqueada.disabled, 'la bloqueada no es un destino').toBe(true);
+    expect(bloqueada.getAttribute('title'), 'y dice por qué, no solo se apaga').toBeTruthy();
+
+    bloqueada.click();
+    await tick(el);
+    expect(mandados, 'ni una petición por una mesa que ya sabíamos que no').toHaveLength(0);
+  });
+
+  it('si otro dispositivo se adelanta, el error lo DICE, la mesa no se asigna y el plano se refresca', async () => {
+    let vueltas = 0;
+    conMesas([MESA], async () => { throw new Error('CHECK constraint failed: tables__gate'); });
+    const el = await montar();
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click(); // el camarero tiene el plano delante
+    await tick(el);
+    const wc = el as unknown as {
+      seat: (t: Record<string, unknown>, guests: number) => Promise<void>;
+      error: string; selectedId?: string; open: boolean; refreshTables: () => Promise<void>;
+    };
+    expect(wc.open, 'partimos del selector abierto').toBe(true);
+    const original = wc.refreshTables.bind(wc);
+    (wc as unknown as { refreshTables: () => Promise<void> }).refreshTables = async () => { vueltas++; await original(); };
+
+    await wc.seat(MESA, 2);
+    expect(wc.error, 'el motivo del gate, traducido, no el texto de la base de datos').toBe('ui.errTableTaken');
+    expect(wc.selectedId, 'el TPV no se queda con una mesa que no abrió').toBeUndefined();
+    expect(wc.open, 'el selector sigue abierto para elegir otra').toBe(true);
+    expect(vueltas, 'y el plano se vuelve a leer: la mesa ya es de otro').toBeGreaterThan(0);
+  });
+});
+
+// tables#14 (criterios que faltaban por fijar) — cambiar de mesa y sentar una reserva.
+//
+// Lo arregló tables#12 (ADR-0141: la sesión es la JUNCTION mesa↔pedido) pero nadie lo guardaba con
+// un test, y es justo lo que la issue original describía al revés. Quedan clavados los tres casos.
+describe('cambiar de mesa y sentar una reserva (tables#14)', () => {
+  const M4 = { id: 'tbl-1', number: '4', zone_id: 'z1', capacity: 4, status: 'occupied' };
+  const M5 = { id: 'tbl-2', number: '5', zone_id: 'z1', capacity: 2, status: 'available' };
+  const tick = async (el: HTMLElement) => {
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+  };
+
+  /** Monta con la sesión de `tbl-1` devolviendo (o no) un pedido enlazado, y graba los commands. */
+  async function conSesionEnMesa4(orderId: string | undefined) {
+    const comandos: { name: string; payload: Record<string, unknown> }[] = [];
+    (globalThis as Record<string, unknown>).erplora = {
+      query: async (name: string, params?: Record<string, unknown>) => {
+        if (name.includes('zone')) return [ZONA];
+        if (name === 'tables.sessions.list') {
+          return params?.f_table_id === 'tbl-1'
+            ? [{ id: 'ses-1', table_id: 'tbl-1', status: 'active', ...(orderId ? { order_id: orderId } : {}) }]
+            : [];
+        }
+        return [M4, M5];
+      },
+      queryAll: async (name: string) => (name.includes('zone') ? [ZONA] : [M4, M5]),
+      command: async (name: string, payload: Record<string, unknown>) => { comandos.push({ name, payload }); return {}; },
+      locale: 'es',
+      t: (_c: unknown, key: string) => key,
+    };
+    const el = await montar();
+    const wc = el as unknown as { selectedId?: string; sessionId?: string; pick: (t: unknown) => Promise<void> };
+    wc.selectedId = 'tbl-1';
+    wc.sessionId = 'ses-1';
+    await tick(el);
+    return { el, wc, comandos };
+  }
+
+  it('con comanda viva, dejar la mesa NO la cierra: sus líneas siguen ahí al volver', async () => {
+    const { wc, comandos } = await conSesionEnMesa4('ord-1');
+    await wc.pick(M5);
+    expect(comandos.map((c) => c.name), 'cerrarla perdería el enlace con la comanda (ADR-0141)')
+      .not.toContain('tables.sessions.close');
+  });
+
+  it('sin comanda, dejar la mesa SÍ la libera: se tocó por error y quedó vacía', async () => {
+    const { wc, comandos } = await conSesionEnMesa4(undefined);
+    await wc.pick(M5);
+    const cierre = comandos.find((c) => c.name === 'tables.sessions.close');
+    expect(cierre?.payload.session_id).toBe('ses-1');
+  });
+
+  it('sentar una RESERVADA abre su primera cuenta, no se queda sin ella', async () => {
+    const comandos: string[] = [];
+    const RES = { ...M5, status: 'reserved', reserved_party_size: 3 };
+    (globalThis as Record<string, unknown>).erplora = {
+      query: async (name: string) => (name.includes('zone') ? [ZONA] : name === 'tables.sessions.list' ? [] : [RES]),
+      queryAll: async (name: string) => (name.includes('zone') ? [ZONA] : [RES]),
+      command: async (name: string) => { comandos.push(name); return {}; },
+      locale: 'es',
+      t: (_c: unknown, key: string) => key,
+    };
+    const el = await montar();
+    const wc = el as unknown as { pick: (t: unknown) => Promise<void>; seat: (t: unknown, g: number) => Promise<void>; guestsPrompt?: { value: number } };
+    await wc.pick(RES);
+    // Según el ajuste de sala se pregunta el nº de comensales antes de abrir; en los dos caminos
+    // acaba en `sessions.open`, que es lo que la issue decía que no pasaba.
+    if (wc.guestsPrompt) await wc.seat(RES, wc.guestsPrompt.value);
+    expect(comandos, 'la reserva se sienta abriendo su cuenta').toContain('tables.sessions.open');
+  });
+});

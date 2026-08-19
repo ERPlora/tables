@@ -147,7 +147,9 @@
     "emptySessions": "No hay sesiones. Sienta a un grupo desde el TPV y aparecerá aquí.",
     "errCloseSession": "No se pudo cerrar la sesión",
     "closeSessionTitle": "¿Cerrar la sesión?",
-    "closeSessionImpact": "Mesa {number} · {count} comensales. La mesa queda libre y la sesión pasa al histórico. Para cobrar la cuenta, usa el TPV."
+    "closeSessionImpact": "Mesa {number} · {count} comensales. La mesa queda libre y la sesión pasa al histórico. Para cobrar la cuenta, usa el TPV.",
+    "blockedHint": "Mesa fuera de servicio: no se puede sentar hasta que se desbloquee.",
+    "errTableTaken": "Otro dispositivo acaba de ocupar esa mesa. Se ha actualizado el plano."
   },
   "setup": {
     "title": "Tus mesas",
