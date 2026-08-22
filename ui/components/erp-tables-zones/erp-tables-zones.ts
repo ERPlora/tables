@@ -286,7 +286,7 @@ export class ErpTablesZones extends LitElement {
         .fill=${true}
         .labels=${dataTableLabels(erplora().locale)}
         .columns=${this.columns}
-        .actions=${this.actions}
+        .actions=${this.actions} .rowClickable=${true}
         .addable=${can('tables.add_zone')}
         .views=${true}
         .cardTitle=${(r: Record<string, unknown>) => String(r.name ?? '')}
@@ -300,7 +300,7 @@ export class ErpTablesZones extends LitElement {
         .searchable=${true}
         .searchPlaceholder=${t('ui.searchZone')}
         .emptyMessage=${this.ctrl?.loading ? t('ui.loading') : t('ui.emptyZones')}
-        @rowAction=${(e: CustomEvent<{ actionId: string; row: Record<string, unknown> }>) => this.onRowAction(e)}
+        @rowAction=${(e: CustomEvent<{ actionId: string; row: Record<string, unknown> }>) => this.onRowAction(e)} @rowClick=${(e: CustomEvent<{ row: Record<string, unknown> }>) => this.onRowAction({ detail: { actionId: 'edit', row: e.detail.row } } as CustomEvent<{ actionId: string; row: Record<string, unknown> }>)}
         @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)}
         @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)}
         @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)}

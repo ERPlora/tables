@@ -76,7 +76,7 @@ async function mount(): Promise<Wc> {
 }
 
 const table = (el: Wc) =>
-  el.shadowRoot.querySelector('ok-data-table') as (HTMLElement & { rows: unknown[]; addable: boolean; fill: boolean }) | null;
+  el.shadowRoot.querySelector('ok-data-table') as (HTMLElement & { rows: unknown[]; addable: boolean; fill: boolean; rowClickable: boolean }) | null;
 
 describe('the sessions view lists SESSIONS, not tables', () => {
   it('mounts a data table over tables.sessions.list, filling the height, without a «+» (sessions open from the POS)', async () => {
@@ -167,5 +167,30 @@ describe('room settings colour the open checks (tables#3 c)', () => {
     expect(el.durationTone(SESSIONS[0]), '45 min < 60 → ok').toBe('ok');
     expect(el.durationTone({ ...SESSIONS[0], opened_at: '2026-08-18T19:50:00Z' }), '70 min → warning').toBe('warning');
     expect(el.durationTone({ ...SESSIONS[0], opened_at: '2026-08-18T19:20:00Z' }), '100 min → critical').toBe('critical');
+  });
+});
+
+// ── pm#155 (outfitkit#67, second half) ────────────────────────────────────────────────────────
+//
+// At 1440 px the «Actions» column fell off the screen with nothing hinting the table went on to
+// the right, so the only door into a session was a button nobody could see. OutfitKit 0.1.44
+// pins that column, but the other half of the fix is opt-in: `rowClickable` turns the whole row
+// into a door — the first thing a user tries. The list has to ask for it, and wire `rowClick`
+// to the same detail the «detail» action opens.
+describe('clicking the row opens the session (pm#155)', () => {
+  it('the table declares `rowClickable` → the whole row is a door, not just the action button', async () => {
+    const el = await mount();
+    expect(
+      table(el)?.rowClickable,
+      'without `rowClickable` the row is dead: if the actions column is off-screen there is no way in',
+    ).toBe(true);
+  });
+
+  it('`rowClick` opens the detail of the clicked session, same as the «detail» action', async () => {
+    const el = await mount();
+    table(el)!.dispatchEvent(new CustomEvent('rowClick', { detail: { row: SESSIONS[0] } }));
+    await new Promise((r) => setTimeout(r, 0));
+    await el.updateComplete;
+    expect(el.detail, 'the row was clicked and the detail did not open').toEqual(SESSIONS[0]);
   });
 });

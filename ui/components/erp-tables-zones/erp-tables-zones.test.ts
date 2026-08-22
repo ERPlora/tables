@@ -61,7 +61,7 @@ async function mount(): Promise<Wc> {
 
 const table = (el: Wc) =>
   el.shadowRoot.querySelector('ok-data-table') as
-    | (HTMLElement & { addable: boolean; fill: boolean; rows: unknown[]; open: (p?: string) => void; close: () => void })
+    | (HTMLElement & { addable: boolean; fill: boolean; rows: unknown[]; open: (p?: string) => void; close: () => void; rowClickable: boolean })
     | null;
 
 describe('the zones view is a list of ZONES, not of tables', () => {
@@ -190,5 +190,30 @@ describe('delete asks first and reports the domain error', () => {
     await el.updateComplete;
     const fb = el.shadowRoot.querySelector('ok-inline-feedback[tone="danger"]');
     expect(fb?.textContent).toContain('tables.zone_has_tables');
+  });
+});
+
+// ── pm#155 (outfitkit#67, second half) ────────────────────────────────────────────────────────
+//
+// At 1440 px the «Actions» column fell off the screen with nothing hinting the table went on to
+// the right, so the only door into a zone was a button nobody could see. OutfitKit 0.1.44 pins
+// that column, but the other half of the fix is opt-in: `rowClickable` turns the whole row into a
+// door — the first thing a user tries. The list has to ask for it, and wire `rowClick` to the
+// same edit panel the «edit» action opens.
+describe('clicking the row opens the zone (pm#155)', () => {
+  it('the table declares `rowClickable` → the whole row is a door, not just the action button', async () => {
+    const el = await mount();
+    expect(
+      table(el)?.rowClickable,
+      'without `rowClickable` the row is dead: if the actions column is off-screen there is no way in',
+    ).toBe(true);
+  });
+
+  it('`rowClick` puts the zone in the edit panel, same as the «edit» action', async () => {
+    const el = await mount();
+    table(el)!.dispatchEvent(new CustomEvent('rowClick', { detail: { row: ZONES[0] } }));
+    await new Promise((r) => setTimeout(r, 0));
+    await el.updateComplete;
+    expect(el.editingId, 'the row was clicked and the edit panel did not take the zone').toBe('z1');
   });
 });
