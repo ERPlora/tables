@@ -154,5 +154,12 @@
   "setup": {
     "title": "Tus mesas",
     "description": "Añade las mesas de tu sala: sin ellas no hay comanda por mesa, ni dividir ni transferir."
+  },
+  "errors": {
+    "tables.zone_unavailable": "Esa zona no está disponible: no existe en este negocio o se ha eliminado.",
+    "tables.zone_not_found": "Esa zona no existe en este negocio.",
+    "tables.table_not_found": "Esa mesa no existe en este negocio.",
+    "tables.session_not_active": "Esa cuenta no está abierta: no existe en este negocio, o ya se ha cerrado, trasladado, fusionado o aparcado.",
+    "tables.session_not_parked": "Esa cuenta no está aparcada: no existe en este negocio, o ya está sentada en una mesa."
   }
 }

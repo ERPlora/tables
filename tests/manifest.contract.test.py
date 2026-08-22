@@ -275,6 +275,7 @@ def check_sql_blocks(m: dict) -> None:
             field(path, c, "internal", bool)
             field(path, c, "expose_api", bool)
             field(path, c, "min_affected_rows", int)
+            check_expect_rows(path, c)
             string_array(f"{path}.sql", c.get("sql", []))
             string_array(f"{path}.emit", c.get("emit", []))
             if "handler" in c and expect(f"{path}.handler", c["handler"], dict):
@@ -282,6 +283,65 @@ def check_sql_blocks(m: dict) -> None:
                 field(f"{path}.handler", h, "type", str, required=True)
                 field(f"{path}.handler", h, "file", str, required=True)
                 field(f"{path}.handler", h, "function", str, required=True)
+
+
+# ── The translatable affected-rows gate (`expect_rows`, hub#139 — tables#54) ─────────────
+#
+# It is the module's PUBLIC error ABI: a command that mutates nothing rolls back and answers this
+# code instead of a `200 ok` with a phantom event. Two things can only be checked here:
+#
+#   * the namespace. The installer REJECTS a code outside `tables.` (`valid_domain_code`), so a
+#     typo there does not degrade a message — it makes the module uninstallable on every hub.
+#   * the translation. The code is what the UI keys on (ADR-0055); with no `errors` entry the
+#     screen falls back to the manifest's English, and the Spanish user reads English.
+
+
+def check_expect_rows(path: str, c: dict) -> None:
+    gate = c.get("expect_rows")
+    if gate is None:
+        return
+    if not expect(f"{path}.expect_rows", gate, dict):
+        return
+    field(f"{path}.expect_rows", gate, "op", str, required=True, enum=("min",))
+    field(f"{path}.expect_rows", gate, "n", int, required=True)
+    code = field(f"{path}.expect_rows", gate, "error", str, required=True)
+    message = field(f"{path}.expect_rows", gate, "message", str)
+    if c.get("min_affected_rows") is not None:
+        failures.append(
+            f"{path}: `expect_rows` and `min_affected_rows` cannot coexist — the installer refuses it"
+        )
+    if isinstance(code, str) and not code.startswith("tables."):
+        failures.append(
+            f"{path}.expect_rows.error: `{code}` is outside this module's namespace — "
+            f"the installer rejects it and the module stops installing"
+        )
+    if isinstance(message, str) and len(message) > 500:
+        failures.append(f"{path}.expect_rows.message: over the 500-character cap")
+
+
+def check_error_locales(m: dict) -> None:
+    """Every code a command can answer must have its sentence in EN (source) and ES (ADR-0055)."""
+    declared = {
+        c["expect_rows"]["error"]
+        for c in m.get("commands", {}).values()
+        if isinstance(c, dict) and isinstance(c.get("expect_rows"), dict)
+        and isinstance(c["expect_rows"].get("error"), str)
+    }
+    if not declared:
+        return
+    for lang in ("en", "es"):
+        path = MODULE_DIR / "locales" / f"{lang}.json"
+        if not path.exists():
+            failures.append(f"locales/{lang}.json: missing, and the error codes need it")
+            continue
+        errors = json.loads(path.read_text()).get("errors")
+        if not expect(f"locales/{lang}.json.errors", errors, dict):
+            continue
+        for code in sorted(declared - set(errors)):
+            failures.append(
+                f"locales/{lang}.json.errors: `{code}` is answered by a command but has no "
+                f"translation — the screen would show the manifest's English"
+            )
 
 
 def check_events_and_slots(m: dict) -> None:
@@ -755,6 +815,7 @@ def main() -> int:
     check_scheduled_tasks(manifest)
     check_setup(manifest)
     check_setup_locales(manifest)
+    check_error_locales(manifest)
     check_unknown_top_level(manifest)
     check_against_canonical_schema(manifest)
     check_declared_files_exist(manifest)

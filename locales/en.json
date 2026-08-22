@@ -153,5 +153,12 @@
   "setup": {
     "title": "Your tables",
     "description": "Add the tables of your dining room: without them there is no order per table, no split and no transfer."
+  },
+  "errors": {
+    "tables.zone_unavailable": "That zone is not available: it does not exist in this business or it has been deleted.",
+    "tables.zone_not_found": "That zone does not exist in this business.",
+    "tables.table_not_found": "That table does not exist in this business.",
+    "tables.session_not_active": "That check is not open: it does not exist in this business, or it has already been closed, transferred, merged or parked.",
+    "tables.session_not_parked": "That check is not parked: it does not exist in this business, or it is already seated at a table."
   }
 }
