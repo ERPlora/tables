@@ -810,6 +810,32 @@ describe('mesa bloqueada y carrera al sentar (tables#14)', () => {
     expect(wc.open, 'el selector sigue abierto para elegir otra').toBe(true);
     expect(vueltas, 'y el plano se vuelve a leer: la mesa ya es de otro').toBeGreaterThan(0);
   });
+
+  it('la carrera se reconoce por su CÓDIGO — otro fallo cuenta lo suyo y no manda a refrescar (tables#55)', async () => {
+    // Hasta tables#55 la guarda no tenía código propio: devolvía la violación del CHECK de
+    // `tables__gate`, así que este catch traducía CUALQUIER fallo a «otro dispositivo se
+    // adelantó». Un permiso denegado, una mesa borrada o una caída de red mandaban al camarero a
+    // refrescar el plano buscando una carrera que no había existido. Ahora la carrera es
+    // `tables.table_not_available`; lo demás dice lo suyo.
+    let vueltas = 0;
+    conMesas([MESA], async () => {
+      throw Object.assign(new Error('requires elevation'), { code: 'hub.elevation.required' });
+    });
+    const el = await montar();
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await tick(el);
+    const wc = el as unknown as {
+      seat: (t: Record<string, unknown>, guests: number) => Promise<void>;
+      error: string; refreshTables: () => Promise<void>;
+    };
+    const original = wc.refreshTables.bind(wc);
+    (wc as unknown as { refreshTables: () => Promise<void> }).refreshTables = async () => { vueltas++; await original(); };
+
+    await wc.seat(MESA, 2);
+    expect(wc.error, 'la frase del servidor, que está escrita para una persona').toBe('requires elevation');
+    expect(wc.error).not.toBe('ui.errTableTaken');
+    expect(vueltas, 'no hay carrera que releer').toBe(0);
+  });
 });
 
 // tables#14 (criterios que faltaban por fijar) — cambiar de mesa y sentar una reserva.

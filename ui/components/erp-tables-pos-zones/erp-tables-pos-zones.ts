@@ -5,6 +5,7 @@ import { define } from '@erplora/outfitkit/define';
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
 import enLocale from '../../../locales/en.json';
+import { domainMessage, errorCode } from '../../lib/domain-error';
 const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
 
 // erp-tables-pos-zones — selector de MESA inyectado en la pantalla de venta (ADR-0043). El módulo
@@ -261,7 +262,7 @@ export class ErpTablesPosZones extends LitElement {
       this.promptGuests = settings ? Number(settings.prompt_guests_on_seat) !== 0 : true;
       if (!this.activeZone) this.activeZone = this.zones[0]?.id ?? '';
     } catch (e) {
-      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errLoadTables');
+      this.error = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errLoadTables'));
     } finally {
       this.loading = false;
     }
@@ -445,16 +446,26 @@ export class ErpTablesPosZones extends LitElement {
     this.guestsPrompt = undefined;
     try {
       await erplora().command('tables.sessions.open', { table_id: t.id, guests_count: guests });
-    } catch {
-      // El gate `table_available` (commands/_session_open_assert.sql) revierte la transacción
-      // ENTERA cuando la mesa no está libre, así que aquí no hay ni sesión ni mesa ocupada. Con la
-      // bloqueada ya apagada arriba, lo que queda es la carrera real: otro TPV se adelantó entre
-      // que se pintó el plano y este toque (tables#14).
+    } catch (e) {
+      // La guarda de apertura revierte la transacción ENTERA cuando la mesa no está sentable, así
+      // que aquí no hay ni sesión ni mesa ocupada. Con la bloqueada ya apagada arriba, lo que
+      // queda es la carrera real: otro TPV se adelantó entre que se pintó el plano y este toque
+      // (tables#14).
       //
       // Dos cosas que antes no pasaban: el mensaje era el texto CRUDO de la base de datos («CHECK
       // constraint failed…»), y la mesa se asignaba igual —`settle` corría también en el catch—,
       // así que el TPV se quedaba atendiendo una mesa que no había abierto. Ahora se dice qué pasó,
       // se relee el plano (la mesa ya sale ocupada) y el selector sigue abierto para elegir otra.
+      //
+      // tables#55: y se dice por el CÓDIGO, no por suposición. Hasta que la guarda tuvo el suyo,
+      // este catch traducía CUALQUIER fallo a «otro dispositivo se adelantó» — también un
+      // permiso, una mesa borrada o una caída de red, con lo que el camarero refrescaba el plano
+      // buscando una carrera que no había existido. `tables.table_not_available` es la carrera;
+      // lo demás cuenta lo suyo.
+      if (errorCode(e) && errorCode(e) !== 'tables.table_not_available') {
+        this.error = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errOccupyTable'));
+        return;
+      }
       this.error = erplora().t(CATALOG, 'ui.errTableTaken');
       await this.refreshTables();
       return;

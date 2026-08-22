@@ -34,6 +34,7 @@ Usage: tests/manifest.contract.test.py   (exit 0 = green)
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -319,6 +320,19 @@ def check_expect_rows(path: str, c: dict) -> None:
         failures.append(f"{path}.expect_rows.message: over the 500-character cap")
 
 
+# The domain codes a Tier-2 handler mints (tables#55). They are the same public ABI as the
+# `expect_rows` ones and need the same translation, but they are NOT in the manifest — the WASM
+# guard lives in `handler/src/lib.rs` — so they are read from there. Regex and not a parser on
+# purpose: the point is to notice a code that shipped with no Spanish, and the shape of the call
+# (`reject("tables.x", …)`) is fixed by the module's own helper.
+HANDLER_CODE = re.compile(r'reject\(\s*"(tables\.[a-z0-9_]+)"')
+
+
+def handler_codes() -> set[str]:
+    src = MODULE_DIR / "handler" / "src" / "lib.rs"
+    return set(HANDLER_CODE.findall(src.read_text())) if src.exists() else set()
+
+
 def check_error_locales(m: dict) -> None:
     """Every code a command can answer must have its sentence in EN (source) and ES (ADR-0055)."""
     declared = {
@@ -326,7 +340,7 @@ def check_error_locales(m: dict) -> None:
         for c in m.get("commands", {}).values()
         if isinstance(c, dict) and isinstance(c.get("expect_rows"), dict)
         and isinstance(c["expect_rows"].get("error"), str)
-    }
+    } | handler_codes()
     if not declared:
         return
     for lang in ("en", "es"):

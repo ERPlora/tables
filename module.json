@@ -228,6 +228,14 @@
         "description": "Lists all available tables with their current status"
       }
     },
+    "tables.tables.get": {
+      "permission": "tables.view_table",
+      "sql": "queries/table_get.sql",
+      "schema": "schemas/table_get.json",
+      "ai": {
+        "description": "Gets one table by its identifier, with its current status and how many checks are open on it"
+      }
+    },
     "tables.sessions.list": {
       "permission": "tables.view_tablesession",
       "sql": "queries/sessions_list.sql",
@@ -356,7 +364,16 @@
       ],
       "ai": {
         "description": "Deletes a zone and all its associated tables (destructive)"
-      }
+      },
+      "reads": [
+        {
+          "query": "tables.zones.get",
+          "params": {
+            "zone_id": "payload.zone_id"
+          },
+          "required": true
+        }
+      ]
     },
     "tables.tables.create": {
       "permission": "tables.add_table",
@@ -431,7 +448,16 @@
       ],
       "ai": {
         "description": "Deletes a table from the system (destructive)"
-      }
+      },
+      "reads": [
+        {
+          "query": "tables.tables.get",
+          "params": {
+            "table_id": "payload.table_id"
+          },
+          "required": true
+        }
+      ]
     },
     "tables.tables.bulk_create": {
       "permission": "tables.add_table",
@@ -508,7 +534,16 @@
       ],
       "ai": {
         "description": "Opens a session on a table to begin serving guests"
-      }
+      },
+      "reads": [
+        {
+          "query": "tables.tables.get",
+          "params": {
+            "table_id": "payload.table_id"
+          },
+          "required": true
+        }
+      ]
     },
     "tables.sessions.close": {
       "permission": "tables.change_tablesession",

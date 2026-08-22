@@ -7,6 +7,7 @@ import '@erplora/outfitkit/ok-empty-state';
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
 import enLocale from '../../../locales/en.json';
+import { domainMessage } from '../../lib/domain-error';
 const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
 
 // erp-tables-canvas — editor visual del PLANO DE SALA (la "estructura de la terraza"). Pantalla
@@ -237,7 +238,7 @@ export class ErpTablesCanvas extends LitElement {
         this.activeZone = this.zones[0]?.id ?? '';
       }
     } catch (e) {
-      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errLoadFloorPlan');
+      this.error = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errLoadFloorPlan'));
     } finally {
       this.loading = false;
     }
@@ -306,7 +307,7 @@ export class ErpTablesCanvas extends LitElement {
         height: BOX,
       });
     } catch (e) {
-      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errSavePosition');
+      this.error = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errSavePosition'));
     }
   }
 
@@ -366,7 +367,7 @@ export class ErpTablesCanvas extends LitElement {
       });
       await this.reload();
     } catch (e) {
-      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errCreateTable');
+      this.error = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errCreateTable'));
     }
   }
 
@@ -383,7 +384,7 @@ export class ErpTablesCanvas extends LitElement {
       const created = this.zones.find((z) => z.name === name);
       if (created) this.activeZone = created.id;
     } catch (e) {
-      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errCreateZone');
+      this.error = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errCreateZone'));
     }
   }
 
@@ -409,7 +410,7 @@ export class ErpTablesCanvas extends LitElement {
       this.edit = undefined;
       await this.reload();
     } catch (e) {
-      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errSaveTable');
+      this.error = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errSaveTable'));
     } finally {
       this.saving = false;
     }
@@ -423,7 +424,7 @@ export class ErpTablesCanvas extends LitElement {
       this.edit = undefined;
       await this.reload();
     } catch (e) {
-      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errDeleteTable');
+      this.error = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errDeleteTable'));
     } finally {
       this.saving = false;
     }
@@ -461,7 +462,7 @@ export class ErpTablesCanvas extends LitElement {
       this.zoneEdit = undefined;
       await this.reload();
     } catch (e) {
-      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errSaveZone');
+      this.error = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errSaveZone'));
     } finally {
       this.saving = false;
     }
@@ -477,7 +478,7 @@ export class ErpTablesCanvas extends LitElement {
       await this.reload();
     } catch (e) {
       // El WASM rechaza si la zona tiene mesas activas (tables_attached).
-      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errDeleteZone');
+      this.error = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errDeleteZone'));
     } finally {
       this.saving = false;
     }

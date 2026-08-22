@@ -30,7 +30,7 @@
 //! Ids: el host pasa `context.new_ids` (autoridad de ids); el guest solo los
 //! reparte. El guest no toca la BD ni genera ids.
 
-use erplora_guest_sdk::{Operation, Output};
+use erplora_guest_sdk::{DomainError, Operation, Output};
 use serde_json::{json, Map, Value};
 
 #[cfg(feature = "guest")]
@@ -159,6 +159,52 @@ fn opt_str(payload: &Value, key: &str) -> Value {
     }
 }
 
+// ── guardas de estado sobre las filas PRE-CARGADAS (`reads`, ADR-0069 — tables#55) ───────────
+//
+// Las tres guardas del módulo vivían solo en el SQL interno (escritura condicional + assert sobre
+// `tables__gate`, ADR-0020) y quien abortaba era el `CHECK (ok = 1)` de Postgres, así que el
+// hostelero leía la violación de constraint —la MISMA para las tres— en vez de saber qué había
+// pasado. `expect_rows` no llega aquí: la gate de filas afectadas no cuenta las operaciones que
+// devuelve un handler (tasks#26). La guarda va, pues, donde el handler sí puede verla: sobre las
+// filas que el runtime pre-carga y le entrega en `context.reads`.
+//
+// El SQL sigue guardando y no se toca: es la red de la CARRERA (dos TPV pidiendo la misma mesa en
+// el mismo instante), que ninguna lectura previa puede cerrar. Lo que deja de ser es la ÚNICA
+// puerta, que era el defecto.
+
+/// La(s) fila(s) que el runtime pre-cargó para una `reads` declarada.
+///
+/// `None` = el runtime no pre-cargó nada (manifest/runtime desincronizados). Se degrada al
+/// comportamiento de siempre —la guarda del SQL sigue ahí— en vez de convertir un fallo de
+/// plomería en un rechazo de negocio: un TPV que no puede sentar a nadie porque una lectura no
+/// resolvió es peor que el defecto que arregla esto.
+fn preloaded(input: &Value, query: &str) -> Option<Vec<Value>> {
+    let rows = input.pointer("/context/reads")?.get(query)?;
+    Some(match rows {
+        Value::Array(a) => a.clone(),
+        // Tolera la forma paginada `{rows, total}` por si la read apunta a una query `list`.
+        Value::Object(_) => rows
+            .get("rows")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default(),
+        _ => Vec::new(),
+    })
+}
+
+/// Rechazo de negocio: el host descarta operaciones y eventos y le entrega el código al caller,
+/// que lo traduce con `locales/<lang>.json → errors` (ADR-0055). El código va SIEMPRE en el
+/// namespace `tables.` — el host rechaza uno ajeno (`valid_domain_code`, hub#139).
+fn reject(code: &str, message: &str) -> Output {
+    Output::new().with_error(DomainError::new(code, message))
+}
+
+/// Estados en los que se puede sentar a alguien. tables#12: `reserved` SÍ — de eso va la reserva,
+/// llega Ana y la sientas. `occupied` y `blocked` quedan fuera. Espejo exacto del `IN (…)` de
+/// `_session_open_insert.sql`: si divergen, el handler acepta lo que el SQL luego rechaza y
+/// volvemos al mensaje de la constraint.
+const SEATABLE: [&str; 2] = ["available", "reserved"];
+
 // ── bulk_create_tables ───────────────────────────────────────────────────────
 
 /// Máximo de mesas por lote: acotado por el lote de ids del host
@@ -251,6 +297,31 @@ pub fn open_session_pure(input: Value) -> Result<Output, String> {
         .map(as_str)
         .filter(|s| !s.is_empty())
         .ok_or("context.new_ids vacío: el host no entregó ids")?;
+
+    // tables#55: la mesa se comprueba contra la fila pre-cargada, no contra lo que diga el
+    // navegador. Sentar en una mesa ocupada es la carrera de tables#14 vista desde el lado
+    // determinista, y el TPV solo puede decir «otro dispositivo acaba de ocupar esa mesa» si le
+    // llega ESTE código y no el genérico de la constraint.
+    if let Some(rows) = preloaded(&input, "tables.tables.get") {
+        match rows.first() {
+            None => {
+                return Ok(reject(
+                    "tables.table_not_found",
+                    "That table does not exist in this business.",
+                ))
+            }
+            Some(table) => {
+                let status = as_str(table.get("status").unwrap_or(&Value::Null));
+                let active = as_i64(table.get("is_active").unwrap_or(&Value::Null)).unwrap_or(1);
+                if active == 0 || !SEATABLE.contains(&status.as_str()) {
+                    return Ok(reject(
+                        "tables.table_not_available",
+                        "That table cannot be seated right now: it is taken, out of service or no longer in use.",
+                    ));
+                }
+            }
+        }
+    }
 
     let mut p = Map::new();
     p.insert("session_id".into(), json!(session_id));
@@ -400,6 +471,29 @@ pub fn delete_session_pure(input: Value) -> Result<Output, String> {
 pub fn delete_zone_pure(input: Value) -> Result<Output, String> {
     let (payload, _) = payload_and_ids(&input);
     let zone_id = req_str(&payload, "zone_id")?;
+
+    // tables#55: «esta zona tiene mesas» es una respuesta que una persona puede usar; la violación
+    // del CHECK de `tables__gate` no. Se cuenta lo MISMO que guarda `_zone_delete_update.sql`
+    // (mesas vivas de la zona), así que el rechazo y la guarda no pueden discrepar.
+    if let Some(rows) = preloaded(&input, "tables.zones.get") {
+        match rows.first() {
+            None => {
+                return Ok(reject(
+                    "tables.zone_not_found",
+                    "That zone does not exist in this business.",
+                ))
+            }
+            Some(zone) => {
+                if as_i64(zone.get("table_count").unwrap_or(&Value::Null)).unwrap_or(0) > 0 {
+                    return Ok(reject(
+                        "tables.zone_has_tables",
+                        "That zone still has tables. Move them to another zone or delete them first.",
+                    ));
+                }
+            }
+        }
+    }
+
     let mut p = Map::new();
     p.insert("zone_id".into(), json!(zone_id));
     Ok(Output {
@@ -413,6 +507,29 @@ pub fn delete_zone_pure(input: Value) -> Result<Output, String> {
 pub fn delete_table_pure(input: Value) -> Result<Output, String> {
     let (payload, _) = payload_and_ids(&input);
     let table_id = req_str(&payload, "table_id")?;
+
+    // tables#55: borrar una mesa con gente sentada se rechaza por su nombre. Desde tables#12 una
+    // mesa puede tener MÁS DE UNA cuenta viva (cuenta dividida), de ahí el conteo.
+    if let Some(rows) = preloaded(&input, "tables.tables.get") {
+        match rows.first() {
+            None => {
+                return Ok(reject(
+                    "tables.table_not_found",
+                    "That table does not exist in this business.",
+                ))
+            }
+            Some(table) => {
+                if as_i64(table.get("active_session_count").unwrap_or(&Value::Null)).unwrap_or(0) > 0
+                {
+                    return Ok(reject(
+                        "tables.table_has_active_session",
+                        "That table still has an open check. Close or move it before deleting the table.",
+                    ));
+                }
+            }
+        }
+    }
+
     let mut p = Map::new();
     p.insert("table_id".into(), json!(table_id));
     Ok(Output {
@@ -558,5 +675,222 @@ mod tests {
             split_session_pure(input(json!({ "session_id": "s-a" }), 0)).is_err(),
             "without context.new_ids the guest cannot invent the new session id"
         );
+    }
+
+    // ── tables#55 · las tres guardas hablan en CÓDIGOS DE DOMINIO, no en sqlx ─────────
+    //
+    // Hasta ahora las tres guardas del módulo vivían SOLO en el SQL interno (escritura
+    // condicional + assert sobre `tables__gate`, ADR-0020), y cuando saltaban quien abortaba la
+    // transacción era el `CHECK (ok = 1)` de Postgres. El hostelero leía esto, tal cual, en un
+    // banner rojo:
+    //
+    //     db: sqlx: error returned from database: new row for relation "tables__gate"
+    //     violates check constraint "tables__gate_ok_check" at line 2076
+    //
+    // Y las TRES daban el mismo texto, así que ni la persona ni el código que llama podían
+    // distinguir «esta zona tiene mesas» de «esa mesa tiene una cuenta abierta» de «esa mesa ya
+    // está ocupada» de un fallo real de base de datos. El arreglo de tables#14 —traducir la
+    // carrera de dos TPV por la misma mesa— estaba construido sobre un contrato que el backend no
+    // cumplía: se keyea por código, y el código que llegaba era el genérico.
+    //
+    // `expect_rows` no alcanza aquí: es Tier 2, y la gate de filas afectadas no cuenta las
+    // operaciones que devuelve un handler (tasks#26). La guarda va donde el handler puede verla:
+    // sobre las filas que el runtime PRE-CARGA (`reads`, ADR-0069) — mismo patrón que kitchen#11.
+    //
+    // El SQL sigue guardando: es la red de la CARRERA (dos TPV a la vez), que ninguna lectura
+    // previa puede cerrar. Lo que ya no hace es ser la única puerta.
+
+    /// Entrada `{payload, context}` con las filas que el runtime pre-carga (`reads`).
+    fn input_with_reads(payload: Value, ids: usize, reads: Value) -> Value {
+        let mut v = input(payload, ids);
+        v["context"]["reads"] = reads;
+        v
+    }
+
+    fn domain_code(out: &Output) -> String {
+        out.error
+            .as_ref()
+            .map(|e| e.code.clone())
+            .unwrap_or_else(|| format!("<no error, {} operation(s)>", out.operations.len()))
+    }
+
+    #[test]
+    fn borrar_una_zona_con_mesas_devuelve_su_codigo_no_la_constraint() {
+        let out = delete_zone_pure(input_with_reads(
+            json!({ "zone_id": "z-qa" }),
+            0,
+            json!({ "tables.zones.get": [{ "id": "z-qa", "name": "QA Zona", "table_count": 8 }] }),
+        ))
+        .expect("una guarda de negocio es un Output, no un trap del guest");
+
+        assert_eq!(domain_code(&out), "tables.zone_has_tables");
+        assert!(
+            out.operations.is_empty(),
+            "una zona con mesas no llega a tocar la BD"
+        );
+        assert!(
+            !out.error.as_ref().unwrap().message.contains("sqlx"),
+            "el mensaje es para una persona, no para el driver"
+        );
+    }
+
+    #[test]
+    fn borrar_una_zona_vacia_sigue_pasando() {
+        let out = delete_zone_pure(input_with_reads(
+            json!({ "zone_id": "z-vacia" }),
+            0,
+            json!({ "tables.zones.get": [{ "id": "z-vacia", "name": "Vacía", "table_count": 0 }] }),
+        ))
+        .expect("zona sin mesas");
+        assert!(out.error.is_none(), "no hay nada que rechazar");
+        assert_eq!(out.operations[0].command, "tables._zone_delete");
+        assert_eq!(out.operations[0].params["zone_id"], json!("z-vacia"));
+    }
+
+    #[test]
+    fn borrar_una_zona_que_no_existe_no_se_confunde_con_una_zona_con_mesas() {
+        let out = delete_zone_pure(input_with_reads(
+            json!({ "zone_id": "z-fantasma" }),
+            0,
+            json!({ "tables.zones.get": [] }),
+        ))
+        .expect("zona inexistente");
+        assert_eq!(domain_code(&out), "tables.zone_not_found");
+        assert!(out.operations.is_empty());
+    }
+
+    #[test]
+    fn borrar_una_mesa_con_cuenta_abierta_devuelve_su_codigo() {
+        let out = delete_table_pure(input_with_reads(
+            json!({ "table_id": "t-9" }),
+            0,
+            json!({ "tables.tables.get": [
+                { "id": "t-9", "number": "9", "status": "occupied", "is_active": 1, "active_session_count": 1 }
+            ] }),
+        ))
+        .expect("mesa con cuenta abierta");
+        assert_eq!(domain_code(&out), "tables.table_has_active_session");
+        assert!(out.operations.is_empty());
+    }
+
+    #[test]
+    fn borrar_una_mesa_libre_sigue_pasando() {
+        let out = delete_table_pure(input_with_reads(
+            json!({ "table_id": "t-9" }),
+            0,
+            json!({ "tables.tables.get": [
+                { "id": "t-9", "number": "9", "status": "available", "is_active": 1, "active_session_count": 0 }
+            ] }),
+        ))
+        .expect("mesa libre");
+        assert!(out.error.is_none());
+        assert_eq!(out.operations[0].command, "tables._table_delete");
+    }
+
+    #[test]
+    fn borrar_una_mesa_que_no_existe_devuelve_not_found() {
+        let out = delete_table_pure(input_with_reads(
+            json!({ "table_id": "t-fantasma" }),
+            0,
+            json!({ "tables.tables.get": [] }),
+        ))
+        .expect("mesa inexistente");
+        assert_eq!(domain_code(&out), "tables.table_not_found");
+        assert!(out.operations.is_empty());
+    }
+
+    #[test]
+    fn sentar_en_una_mesa_ocupada_devuelve_su_propio_codigo() {
+        // Es la carrera de tables#14 vista desde el lado determinista: el TPV pide sentar en una
+        // mesa que YA está ocupada. El camarero tiene que leer «otro dispositivo acaba de ocupar
+        // esa mesa», y eso se keyea por ESTE código.
+        for status in ["occupied", "blocked"] {
+            let out = open_session_pure(input_with_reads(
+                json!({ "table_id": "t-1", "guests_count": 2 }),
+                1,
+                json!({ "tables.tables.get": [
+                    { "id": "t-1", "number": "1", "status": status, "is_active": 1, "active_session_count": 0 }
+                ] }),
+            ))
+            .expect("mesa no sentable");
+            assert_eq!(domain_code(&out), "tables.table_not_available", "status {status}");
+            assert!(out.operations.is_empty(), "status {status}");
+        }
+    }
+
+    #[test]
+    fn una_mesa_desactivada_tampoco_se_sienta() {
+        let out = open_session_pure(input_with_reads(
+            json!({ "table_id": "t-1" }),
+            1,
+            json!({ "tables.tables.get": [
+                { "id": "t-1", "number": "1", "status": "available", "is_active": 0, "active_session_count": 0 }
+            ] }),
+        ))
+        .expect("mesa desactivada");
+        assert_eq!(domain_code(&out), "tables.table_not_available");
+    }
+
+    #[test]
+    fn una_mesa_reservada_si_se_sienta() {
+        // tables#12: de eso va la reserva — llega Ana y la sientas. Exigir `available` aquí
+        // convertiría el plano en un bloqueo peor que el defecto.
+        for status in ["available", "reserved"] {
+            let out = open_session_pure(input_with_reads(
+                json!({ "table_id": "t-1", "guests_count": 2 }),
+                1,
+                json!({ "tables.tables.get": [
+                    { "id": "t-1", "number": "1", "status": status, "is_active": 1, "active_session_count": 0 }
+                ] }),
+            ))
+            .expect("mesa sentable");
+            assert!(out.error.is_none(), "status {status}");
+            assert_eq!(out.operations[0].command, "tables._session_open");
+        }
+    }
+
+    #[test]
+    fn sentar_en_una_mesa_que_no_existe_devuelve_not_found() {
+        let out = open_session_pure(input_with_reads(
+            json!({ "table_id": "t-fantasma" }),
+            1,
+            json!({ "tables.tables.get": [] }),
+        ))
+        .expect("mesa inexistente");
+        assert_eq!(domain_code(&out), "tables.table_not_found");
+        assert!(out.operations.is_empty());
+    }
+
+    #[test]
+    fn sin_reads_el_handler_no_ADIVINA_y_deja_pasar_al_gate_sql() {
+        // Un runtime que no pre-cargó la fila (manifest/runtime desincronizados) no puede
+        // convertirse en un rechazo de negocio: se degrada al comportamiento de siempre y la
+        // guarda del SQL sigue estando. Lo contrario —rechazar por falta de lectura— dejaría el
+        // TPV sin poder sentar a nadie por un fallo de plomería.
+        let out = open_session_pure(input(json!({ "table_id": "t-1" }), 1))
+            .expect("sin reads");
+        assert!(out.error.is_none());
+        assert_eq!(out.operations[0].command, "tables._session_open");
+    }
+
+    #[test]
+    fn ningun_codigo_del_modulo_se_sale_de_su_namespace() {
+        // El host RECHAZA un código fuera del namespace del módulo (`valid_domain_code`,
+        // hub#139) y lo convierte en un error de guest roto, no en un Domain que la UI traduce.
+        // Un typo aquí no degrada un mensaje: rompe el command entero.
+        let outs = [
+            delete_zone_pure(input_with_reads(json!({ "zone_id": "z" }), 0, json!({ "tables.zones.get": [] }))),
+            delete_table_pure(input_with_reads(json!({ "table_id": "t" }), 0, json!({ "tables.tables.get": [] }))),
+            open_session_pure(input_with_reads(json!({ "table_id": "t" }), 1, json!({ "tables.tables.get": [] }))),
+        ];
+        for out in outs.into_iter().flatten() {
+            if let Some(err) = out.error {
+                assert!(
+                    err.code.starts_with("tables."),
+                    "`{}` está fuera del namespace del módulo",
+                    err.code
+                );
+            }
+        }
     }
 }

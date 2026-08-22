@@ -9,6 +9,7 @@ import type { ListController, ListClient, ListParams, ListPage } from '@erplora/
 // Module i18n catalog (ADR-0055): esbuild inlines these JSON files into the WC `dist`.
 import esLocale from '../../../locales/es.json';
 import enLocale from '../../../locales/en.json';
+import { domainMessage } from '../../lib/domain-error';
 const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
 
 // erp-tables-zones — the ZONES view of the `tables` module (navigation entry `zones`, tables#3).
@@ -250,7 +251,7 @@ export class ErpTablesZones extends LitElement {
       this.dataTable()?.close();
       await this.ctrl.load();
     } catch (e) {
-      this.formError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errSaveZone');
+      this.formError = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errSaveZone'));
     } finally {
       this.saving = false;
     }
@@ -264,8 +265,10 @@ export class ErpTablesZones extends LitElement {
       await erplora().command('tables.zones.delete', { zone_id: target.id });
       await this.ctrl.load();
     } catch (e) {
-      // The WASM handler refuses when the zone still has tables (tables_attached).
-      this.formError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errDeleteZone');
+      // The WASM handler refuses when the zone still has tables (`tables.zone_has_tables`,
+      // tables#55). Before that code existed this painted the raw `tables__gate` CHECK violation
+      // of Postgres, identical for all three guards of the module.
+      this.formError = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errDeleteZone'));
     } finally {
       this.deleteTarget = null;
       this.saving = false;
@@ -335,7 +338,12 @@ export class ErpTablesZones extends LitElement {
               <b>${this.deleteTarget?.name ?? ''}</b> — ${t('ui.deleteZoneImpact', { count: this.deleteTarget?.table_count ?? 0 })}
             </ion-label></ion-item>
           </ion-list>
-          <ion-button class="ion-margin-top" expand="block" color="danger" ?disabled=${this.saving} @click=${() => this.confirmDelete()}>${t('ui.deleteZone')}</ion-button>
+          <!-- tables#55: the dialog already knows the zone has tables — it says so, with the
+               number, right above, out of the count tables.zones.list returns. Offering the
+               destructive action anyway is what tables#14 fixed for the POS blocked table. -->
+          <ion-button class="ion-margin-top" expand="block" color="danger"
+            ?disabled=${this.saving || (this.deleteTarget?.table_count ?? 0) > 0}
+            @click=${() => this.confirmDelete()}>${t('ui.deleteZone')}</ion-button>
           <ion-button expand="block" fill="outline" @click=${() => (this.deleteTarget = null)}>${t('ui.cancel')}</ion-button>
         </ion-content>
       </ion-modal>

@@ -9,6 +9,7 @@ import type { ListController, ListClient, ListParams, ListPage } from '@erplora/
 // Module i18n catalog (ADR-0055): esbuild inlines these JSON files into the WC `dist`.
 import esLocale from '../../../locales/es.json';
 import enLocale from '../../../locales/en.json';
+import { domainMessage } from '../../lib/domain-error';
 const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
 
 // erp-tables-sessions — the SESSIONS view of the `tables` module (navigation entry `sessions`,
@@ -305,7 +306,7 @@ export class ErpTablesSessions extends LitElement {
       await erplora().command('tables.sessions.close', { session_id: target.id, notes: null });
       await this.ctrl.load();
     } catch (e) {
-      this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errCloseSession');
+      this.error = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errCloseSession'));
     } finally {
       this.closeTarget = null;
       this.saving = false;

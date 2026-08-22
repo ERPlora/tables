@@ -10,6 +10,7 @@ import type { ListController, ListClient, ListParams, ListPage } from '@erplora/
 // internos se resuelven con `erplora.t(CATALOG, 'ui.clave')` (idioma activo, fallback locale→en→clave).
 import esLocale from '../../../locales/es.json';
 import enLocale from '../../../locales/en.json';
+import { domainMessage } from '../../lib/domain-error';
 const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
 
 interface ErploraClientLike extends ListClient {
@@ -199,7 +200,7 @@ export class ErpTablesFloorPlan extends LitElement {
       this.dataTable()?.close(); // si no, el panel se queda abierto tapando la mesa recién creada
       await this.ctrl.load(); // (además del evento; garantiza refresco inmediato)
     } catch (e) {
-      this.formError = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errCreateTable');
+      this.formError = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errCreateTable'));
     } finally {
       this.saving = false;
     }

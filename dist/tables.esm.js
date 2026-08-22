@@ -1896,7 +1896,10 @@ var es_default = {
     "tables.zone_not_found": "Esa zona no existe en este negocio.",
     "tables.table_not_found": "Esa mesa no existe en este negocio.",
     "tables.session_not_active": "Esa cuenta no est\xE1 abierta: no existe en este negocio, o ya se ha cerrado, trasladado, fusionado o aparcado.",
-    "tables.session_not_parked": "Esa cuenta no est\xE1 aparcada: no existe en este negocio, o ya est\xE1 sentada en una mesa."
+    "tables.session_not_parked": "Esa cuenta no est\xE1 aparcada: no existe en este negocio, o ya est\xE1 sentada en una mesa.",
+    "tables.zone_has_tables": "Esta zona todav\xEDa tiene mesas. Mu\xE9velas a otra zona o b\xF3rralas antes.",
+    "tables.table_has_active_session": "Esa mesa tiene una cuenta abierta. Ci\xE9rrala o trasl\xE1dala antes de borrar la mesa.",
+    "tables.table_not_available": "Esa mesa no se puede sentar ahora mismo: est\xE1 ocupada, fuera de servicio o ya no est\xE1 en uso."
   }
 };
 
@@ -2062,9 +2065,36 @@ var en_default = {
     "tables.zone_not_found": "That zone does not exist in this business.",
     "tables.table_not_found": "That table does not exist in this business.",
     "tables.session_not_active": "That check is not open: it does not exist in this business, or it has already been closed, transferred, merged or parked.",
-    "tables.session_not_parked": "That check is not parked: it does not exist in this business, or it is already seated at a table."
+    "tables.session_not_parked": "That check is not parked: it does not exist in this business, or it is already seated at a table.",
+    "tables.zone_has_tables": "That zone still has tables. Move them to another zone or delete them first.",
+    "tables.table_has_active_session": "That table still has an open check. Close or move it before deleting the table.",
+    "tables.table_not_available": "That table cannot be seated right now: it is taken, out of service or no longer in use."
   }
 };
+
+// modules/tables/ui/lib/domain-error.ts
+var ERRORS = {
+  es: es_default.errors ?? {},
+  en: en_default.errors ?? {}
+};
+var INTERNALS = ["sqlx", "db:", "bind parameter", "constraint", "at line ", "panicked", "tables__gate"];
+function presentable(text) {
+  const t5 = text.trim().toLowerCase();
+  return t5.length > 0 && !INTERNALS.some((mark) => t5.includes(mark));
+}
+function errorCode(e5) {
+  const code = typeof e5 === "object" && e5 !== null ? e5.code : void 0;
+  return typeof code === "string" ? code : void 0;
+}
+function domainMessage(e5, lang, fallback) {
+  const code = errorCode(e5);
+  if (code) {
+    const translated = ERRORS[lang]?.[code] ?? ERRORS.en[code];
+    if (translated) return translated;
+  }
+  const message = e5 instanceof Error ? e5.message : "";
+  return presentable(message) ? message : fallback;
+}
 
 // modules/tables/ui/components/erp-tables-canvas/erp-tables-canvas.ts
 var CATALOG = { es: es_default, en: en_default };
@@ -2247,7 +2277,7 @@ var ErpTablesCanvas = class extends i3 {
         this.activeZone = this.zones[0]?.id ?? "";
       }
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errLoadFloorPlan");
+      this.error = domainMessage(e5, erplora().locale, erplora().t(CATALOG, "ui.errLoadFloorPlan"));
     } finally {
       this.loading = false;
     }
@@ -2309,7 +2339,7 @@ var ErpTablesCanvas = class extends i3 {
         height: BOX
       });
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errSavePosition");
+      this.error = domainMessage(e5, erplora().locale, erplora().t(CATALOG, "ui.errSavePosition"));
     }
   }
   // ── Keyboard (tables#16): Enter/Space edits, arrows move (persisted like a drag) ─────────────
@@ -2365,7 +2395,7 @@ var ErpTablesCanvas = class extends i3 {
       });
       await this.reload();
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errCreateTable");
+      this.error = domainMessage(e5, erplora().locale, erplora().t(CATALOG, "ui.errCreateTable"));
     }
   }
   async addZone() {
@@ -2384,7 +2414,7 @@ var ErpTablesCanvas = class extends i3 {
       const created = this.zones.find((z2) => z2.name === name);
       if (created) this.activeZone = created.id;
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errCreateZone");
+      this.error = domainMessage(e5, erplora().locale, erplora().t(CATALOG, "ui.errCreateZone"));
     }
   }
   // ── Edición / borrado de mesa ────────────────────────────────────────────────────────────────
@@ -2414,7 +2444,7 @@ var ErpTablesCanvas = class extends i3 {
       this.edit = void 0;
       await this.reload();
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errSaveTable");
+      this.error = domainMessage(e5, erplora().locale, erplora().t(CATALOG, "ui.errSaveTable"));
     } finally {
       this.saving = false;
     }
@@ -2428,7 +2458,7 @@ var ErpTablesCanvas = class extends i3 {
       this.edit = void 0;
       await this.reload();
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errDeleteTable");
+      this.error = domainMessage(e5, erplora().locale, erplora().t(CATALOG, "ui.errDeleteTable"));
     } finally {
       this.saving = false;
     }
@@ -2467,7 +2497,7 @@ var ErpTablesCanvas = class extends i3 {
       this.zoneEdit = void 0;
       await this.reload();
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errSaveZone");
+      this.error = domainMessage(e5, erplora().locale, erplora().t(CATALOG, "ui.errSaveZone"));
     } finally {
       this.saving = false;
     }
@@ -2482,7 +2512,7 @@ var ErpTablesCanvas = class extends i3 {
       this.activeZone = "";
       await this.reload();
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : erplora().t(CATALOG, "ui.errDeleteZone");
+      this.error = domainMessage(e5, erplora().locale, erplora().t(CATALOG, "ui.errDeleteZone"));
     } finally {
       this.saving = false;
     }
@@ -4579,7 +4609,7 @@ var ErpTablesFloorPlan = class extends i3 {
       this.dataTable()?.close();
       await this.ctrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : erplora2().t(CATALOG2, "ui.errCreateTable");
+      this.formError = domainMessage(e5, erplora2().locale, erplora2().t(CATALOG2, "ui.errCreateTable"));
     } finally {
       this.saving = false;
     }
@@ -4886,7 +4916,7 @@ var ErpTablesPosZones = class extends i3 {
       this.promptGuests = settings ? Number(settings.prompt_guests_on_seat) !== 0 : true;
       if (!this.activeZone) this.activeZone = this.zones[0]?.id ?? "";
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : erplora3().t(CATALOG3, "ui.errLoadTables");
+      this.error = domainMessage(e5, erplora3().locale, erplora3().t(CATALOG3, "ui.errLoadTables"));
     } finally {
       this.loading = false;
     }
@@ -4978,7 +5008,11 @@ var ErpTablesPosZones = class extends i3 {
     this.guestsPrompt = void 0;
     try {
       await erplora3().command("tables.sessions.open", { table_id: t5.id, guests_count: guests });
-    } catch {
+    } catch (e5) {
+      if (errorCode(e5) && errorCode(e5) !== "tables.table_not_available") {
+        this.error = domainMessage(e5, erplora3().locale, erplora3().t(CATALOG3, "ui.errOccupyTable"));
+        return;
+      }
       this.error = erplora3().t(CATALOG3, "ui.errTableTaken");
       await this.refreshTables();
       return;
@@ -5556,7 +5590,7 @@ var ErpTablesSessions = class extends i3 {
       await erplora4().command("tables.sessions.close", { session_id: target.id, notes: null });
       await this.ctrl.load();
     } catch (e5) {
-      this.error = e5 instanceof Error ? e5.message : erplora4().t(CATALOG4, "ui.errCloseSession");
+      this.error = domainMessage(e5, erplora4().locale, erplora4().t(CATALOG4, "ui.errCloseSession"));
     } finally {
       this.closeTarget = null;
       this.saving = false;
@@ -5843,7 +5877,7 @@ var ErpTablesZones = class extends i3 {
       this.dataTable()?.close();
       await this.ctrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : erplora5().t(CATALOG5, "ui.errSaveZone");
+      this.formError = domainMessage(e5, erplora5().locale, erplora5().t(CATALOG5, "ui.errSaveZone"));
     } finally {
       this.saving = false;
     }
@@ -5856,7 +5890,7 @@ var ErpTablesZones = class extends i3 {
       await erplora5().command("tables.zones.delete", { zone_id: target.id });
       await this.ctrl.load();
     } catch (e5) {
-      this.formError = e5 instanceof Error ? e5.message : erplora5().t(CATALOG5, "ui.errDeleteZone");
+      this.formError = domainMessage(e5, erplora5().locale, erplora5().t(CATALOG5, "ui.errDeleteZone"));
     } finally {
       this.deleteTarget = null;
       this.saving = false;
@@ -5923,7 +5957,12 @@ var ErpTablesZones = class extends i3 {
               <b>${this.deleteTarget?.name ?? ""}</b> — ${t5("ui.deleteZoneImpact", { count: this.deleteTarget?.table_count ?? 0 })}
             </ion-label></ion-item>
           </ion-list>
-          <ion-button class="ion-margin-top" expand="block" color="danger" ?disabled=${this.saving} @click=${() => this.confirmDelete()}>${t5("ui.deleteZone")}</ion-button>
+          <!-- tables#55: the dialog already knows the zone has tables — it says so, with the
+               number, right above, out of the count tables.zones.list returns. Offering the
+               destructive action anyway is what tables#14 fixed for the POS blocked table. -->
+          <ion-button class="ion-margin-top" expand="block" color="danger"
+            ?disabled=${this.saving || (this.deleteTarget?.table_count ?? 0) > 0}
+            @click=${() => this.confirmDelete()}>${t5("ui.deleteZone")}</ion-button>
           <ion-button expand="block" fill="outline" @click=${() => this.deleteTarget = null}>${t5("ui.cancel")}</ion-button>
         </ion-content>
       </ion-modal>
