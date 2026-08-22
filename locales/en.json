@@ -159,6 +159,9 @@
     "tables.zone_not_found": "That zone does not exist in this business.",
     "tables.table_not_found": "That table does not exist in this business.",
     "tables.session_not_active": "That check is not open: it does not exist in this business, or it has already been closed, transferred, merged or parked.",
-    "tables.session_not_parked": "That check is not parked: it does not exist in this business, or it is already seated at a table."
+    "tables.session_not_parked": "That check is not parked: it does not exist in this business, or it is already seated at a table.",
+    "tables.zone_has_tables": "That zone still has tables. Move them to another zone or delete them first.",
+    "tables.table_has_active_session": "That table still has an open check. Close or move it before deleting the table.",
+    "tables.table_not_available": "That table cannot be seated right now: it is taken, out of service or no longer in use."
   }
 }

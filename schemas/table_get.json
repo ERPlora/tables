@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tables.tables.get params",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["table_id"],
+  "properties": {
+    "table_id": {
+      "type": "string",
+      "description": "UUID of the table to look up"
+    }
+  }
+}
