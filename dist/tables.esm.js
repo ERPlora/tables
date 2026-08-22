@@ -1890,6 +1890,13 @@ var es_default = {
   setup: {
     title: "Tus mesas",
     description: "A\xF1ade las mesas de tu sala: sin ellas no hay comanda por mesa, ni dividir ni transferir."
+  },
+  errors: {
+    "tables.zone_unavailable": "Esa zona no est\xE1 disponible: no existe en este negocio o se ha eliminado.",
+    "tables.zone_not_found": "Esa zona no existe en este negocio.",
+    "tables.table_not_found": "Esa mesa no existe en este negocio.",
+    "tables.session_not_active": "Esa cuenta no est\xE1 abierta: no existe en este negocio, o ya se ha cerrado, trasladado, fusionado o aparcado.",
+    "tables.session_not_parked": "Esa cuenta no est\xE1 aparcada: no existe en este negocio, o ya est\xE1 sentada en una mesa."
   }
 };
 
@@ -2049,6 +2056,13 @@ var en_default = {
   setup: {
     title: "Your tables",
     description: "Add the tables of your dining room: without them there is no order per table, no split and no transfer."
+  },
+  errors: {
+    "tables.zone_unavailable": "That zone is not available: it does not exist in this business or it has been deleted.",
+    "tables.zone_not_found": "That zone does not exist in this business.",
+    "tables.table_not_found": "That table does not exist in this business.",
+    "tables.session_not_active": "That check is not open: it does not exist in this business, or it has already been closed, transferred, merged or parked.",
+    "tables.session_not_parked": "That check is not parked: it does not exist in this business, or it is already seated at a table."
   }
 };
 
@@ -2769,12 +2783,53 @@ var o6 = e4(class extends i4 {
 
 // ../outfitkit/dist/ok-data-table.js
 var CSV_BOM = "\uFEFF";
+var WINDOWS_1252_C1 = [
+  8364,
+  129,
+  8218,
+  402,
+  8222,
+  8230,
+  8224,
+  8225,
+  710,
+  8240,
+  352,
+  8249,
+  338,
+  141,
+  381,
+  143,
+  144,
+  8216,
+  8217,
+  8220,
+  8221,
+  8226,
+  8211,
+  8212,
+  732,
+  8482,
+  353,
+  8250,
+  339,
+  157,
+  382,
+  376
+];
+function decodeWindows1252(bytes) {
+  let text = "";
+  for (const byte of bytes) {
+    text += String.fromCharCode(byte >= 128 && byte <= 159 ? WINDOWS_1252_C1[byte - 128] : byte);
+  }
+  return text;
+}
 function decodeCsvBuffer(buf) {
   let text;
   try {
     text = new TextDecoder("utf-8", { fatal: true }).decode(buf);
   } catch {
-    text = new TextDecoder("windows-1252").decode(buf);
+    text = decodeWindows1252(new Uint8Array(buf));
   }
   return text.charCodeAt(0) === 65279 ? text.slice(1) : text;
 }

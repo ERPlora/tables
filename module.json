@@ -335,6 +335,12 @@
       ],
       "ai": {
         "description": "Updates the name or configuration of an existing zone"
+      },
+      "expect_rows": {
+        "op": "min",
+        "n": 1,
+        "error": "tables.zone_not_found",
+        "message": "That zone does not exist in this business."
       }
     },
     "tables.zones.delete": {
@@ -384,6 +390,12 @@
       ],
       "ai": {
         "description": "Updates a table's data (name, capacity, position)"
+      },
+      "expect_rows": {
+        "op": "min",
+        "n": 1,
+        "error": "tables.table_not_found",
+        "message": "That table does not exist in this business."
       }
     },
     "tables.tables.move": {
@@ -398,6 +410,12 @@
       ],
       "ai": {
         "description": "Repositions or resizes a table on the floor plan (drag in the canvas editor)"
+      },
+      "expect_rows": {
+        "op": "min",
+        "n": 1,
+        "error": "tables.table_not_found",
+        "message": "That table does not exist in this business."
       }
     },
     "tables.tables.delete": {
@@ -443,6 +461,12 @@
       ],
       "ai": {
         "description": "Holds a table for a booking so the floor plan shows it as reserved"
+      },
+      "expect_rows": {
+        "op": "min",
+        "n": 1,
+        "error": "tables.table_not_found",
+        "message": "That table does not exist in this business."
       }
     },
     "tables.tables.release_hold": {
@@ -661,6 +685,12 @@
       ],
       "ai": {
         "description": "Links the active session of a table to an open order (ADR-0141 table-order junction). Called by the POS when it opens an order while a table is selected."
+      },
+      "expect_rows": {
+        "op": "min",
+        "n": 1,
+        "error": "tables.session_not_active",
+        "message": "That check is not open: it does not exist in this business, or it has already been closed, transferred, merged or parked."
       }
     },
     "tables.sessions.set_guests": {
@@ -675,6 +705,12 @@
       ],
       "ai": {
         "description": "Corrects the number of covers (guests) of an open table session, e.g. when an extra guest joins. Only active sessions are updated."
+      },
+      "expect_rows": {
+        "op": "min",
+        "n": 1,
+        "error": "tables.session_not_active",
+        "message": "That check is not open: it does not exist in this business, or it has already been closed, transferred, merged or parked."
       }
     },
     "tables._session_close_by_order": {
@@ -703,6 +739,12 @@
       ],
       "ai": {
         "description": "Parks an open check: releases the table WITHOUT closing the account (ADR-0146). The session stays alive (guests, waiter, start time) and its history segment closes with reason `parked`; parking never opens a new segment, because a parked check is not sitting at any table."
+      },
+      "expect_rows": {
+        "op": "min",
+        "n": 1,
+        "error": "tables.session_not_active",
+        "message": "That check is not open: it does not exist in this business, or it has already been closed, transferred, merged or parked."
       }
     },
     "tables.sessions.restore": {
@@ -720,6 +762,12 @@
       ],
       "ai": {
         "description": "Seats a parked check at a table again (the same one or another) — ADR-0146. Opens a new history segment with reason `restored`."
+      },
+      "expect_rows": {
+        "op": "min",
+        "n": 1,
+        "error": "tables.session_not_parked",
+        "message": "That check is not parked: it does not exist in this business, or it is already seated at a table."
       }
     },
     "tables._hold_from_reservation": {

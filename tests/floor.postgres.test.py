@@ -107,38 +107,119 @@ def bind(sql: str, params: dict) -> str:
     return PARAM.sub(lambda m: literal(params.get(m.group(1))), sql)
 
 
-def run_command(name: str, payload: dict, now: str) -> tuple[bool, str]:
-    """Execute a manifest command's `sql[]` the way the runtime does: one transaction,
-    system params injected. Returns (ok, error). A gate CHECK violation → (False, msg)."""
-    cmd = MANIFEST["commands"].get(name)
-    if cmd is None:
-        return False, f"command `{name}` is not declared in module.json"
-    files = cmd.get("sql")
-    if not files:
-        return (
-            False,
-            f"command `{name}` declares no sql[] (handler `{cmd.get('handler')}`)",
-        )
+# The outbox, in miniature. The runtime writes ONE row per `emit` INSIDE the command's
+# transaction (`outbox::insert_op`), so a rollback takes the event with it. Modelling it here is
+# what lets a test prove the half of tables#54 that hurts other modules: not "the answer lied", but
+# "a `tables.session.parked` that never happened reached the bus and woke up the automations".
+OUTBOX_DDL = """
+CREATE TABLE IF NOT EXISTS test_event_outbox (
+    id     BIGSERIAL PRIMARY KEY,
+    event  TEXT NOT NULL,
+    hub_id TEXT NOT NULL,
+    at     TEXT NOT NULL
+);
+"""
 
+# psql prints one command tag per statement (`UPDATE 3`, `INSERT 0 1`). That is the harness's
+# `sql_counts` — what `execute_tx_gated` sums to decide the `expect_rows` gate.
+TAG = re.compile(r"(?:INSERT \d+|UPDATE|DELETE|MERGE) (\d+)")
+
+
+class DomainError(Exception):
+    """What the runtime answers when a command's `expect_rows` gate rejects (hub#139): the whole
+    transaction rolls back — no row, NO EVENT — and the module's own namespaced code surfaces
+    instead of a `200 ok` with zero rows."""
+
+    def __init__(self, code: str, affected: int):
+        super().__init__(f"{code} (affected rows: {affected})")
+        self.code = code
+        self.affected = affected
+
+
+def outbox_count(event: str) -> int:
+    """Rows the miniature outbox holds for an event — 0 means the event never reached the bus."""
+    return int(q(f"SELECT count(*) FROM test_event_outbox WHERE event = '{event}'") or 0)
+
+
+_outbox_ready: set[str] = set()
+
+
+def ensure_outbox() -> None:
+    """The miniature outbox lives in whatever scratch DB the caller pointed the harness at
+    (`harness.DB`), and every test file brings its own — so it is created on first use instead of
+    at one fixed setup point."""
+    if DB not in _outbox_ready:
+        psql([], db=DB, stdin=OUTBOX_DDL)
+        _outbox_ready.add(DB)
+
+
+def _script_for(name: str, payload: dict, now: str) -> tuple[list[str], int, dict]:
+    """The ops of a command in runtime order: its `sql[]` first, then one outbox INSERT per
+    `emit`. Returns (statements, number-of-sql-ops, command-def)."""
+    cmd = MANIFEST["commands"][name]
     params = dict(payload)
     params.setdefault("hub_id", HUB)
     params.setdefault("current_user_id", USER)
     params.setdefault("now", now)
     params.setdefault("new_id", str(uuid.uuid4()))
 
-    script = ["BEGIN;"]
-    for rel in files:
-        path = MODULE_DIR / rel
-        if not path.exists():
-            return False, f"`{name}` declares `{rel}`, which does not exist"
+    stmts: list[str] = []
+    for rel in cmd["sql"]:
         # A fresh :new_id per statement, like the runtime does per operation.
         stmt_params = dict(params)
         stmt_params["new_id"] = str(uuid.uuid4())
-        script.append(bind(path.read_text(), stmt_params))
-    script.append("COMMIT;")
+        stmts.append(bind((MODULE_DIR / rel).read_text(), stmt_params))
+    sql_op_count = len(stmts)
+    for event in cmd.get("emit", []):
+        stmts.append(
+            f"INSERT INTO test_event_outbox (event, hub_id, at) "
+            f"VALUES ({literal(event)}, {literal(params['hub_id'])}, {literal(now)});"
+        )
+    return stmts, sql_op_count, cmd
 
+
+def run_command(name: str, payload: dict, now: str) -> tuple[bool, str]:
+    """Execute a manifest command's `sql[]` the way the runtime does: one transaction, system
+    params injected, one outbox row per `emit`, and — when the command declares `expect_rows` —
+    the gate applied on the SUM of the rows its `sql[]` affected (`execute_tx_gated`, hub#139).
+    Below `n` the transaction rolls back entirely and `DomainError` is raised. Returns (ok, error);
+    a gate CHECK violation → (False, msg)."""
+    cmd = MANIFEST["commands"].get(name)
+    if cmd is None:
+        return False, f"command `{name}` is not declared in module.json"
+    if not cmd.get("sql"):
+        return (
+            False,
+            f"command `{name}` declares no sql[] (handler `{cmd.get('handler')}`)",
+        )
+    for rel in cmd["sql"]:
+        if not (MODULE_DIR / rel).exists():
+            return False, f"`{name}` declares `{rel}`, which does not exist"
+
+    ensure_outbox()
+    gate = cmd.get("expect_rows")
+    if gate is not None:
+        # Decide INSIDE the transaction, like `execute_tx_gated`: count first, then commit or
+        # roll back. A dry run + rollback is the closest a psql script can get (it cannot branch
+        # mid-stream), and it leaves nothing behind either way.
+        stmts, sql_op_count, _ = _script_for(name, payload, now)
+        try:
+            out = psql([], db=DB, stdin="\n".join(["BEGIN;"] + stmts + ["ROLLBACK;"]))
+        except RuntimeError as exc:
+            psql(["-c", "DELETE FROM tables__gate"], db=DB)
+            return False, str(exc)
+        affected = sum(
+            int(m.group(1))
+            for line in out.splitlines()[:sql_op_count + 1]
+            for m in [TAG.fullmatch(line.strip())]
+            if m
+        )
+        if gate.get("op", "min") == "min" and affected < int(gate["n"]):
+            raise DomainError(gate["error"], affected)
+
+    stmts, _, _ = _script_for(name, payload, now)
     try:
-        psql([], db=DB, stdin="\n".join(script))
+        psql([], db=DB, stdin="\n".join(["BEGIN;"] + stmts + ["COMMIT;"]))
         return True, ""
     except RuntimeError as exc:
         psql(["-c", "DELETE FROM tables__gate"], db=DB)
@@ -661,11 +742,17 @@ def test_guests_count_is_visible_and_correctable():
         {"session_id": "s1g", "notes": None},
         "2026-08-07T21:00:00+00:00",
     )
-    ok, _ = run_command(
-        "tables.sessions.set_guests",
-        {"session_id": "s1g", "guests_count": 2},
-        "2026-08-07T21:05:00+00:00",
-    )
+    # tables#54: correcting a closed check is not a silent no-op any more — it is refused with the
+    # module's own code, so the POS can say WHY instead of showing a save that did not happen.
+    try:
+        run_command(
+            "tables.sessions.set_guests",
+            {"session_id": "s1g", "guests_count": 2},
+            "2026-08-07T21:05:00+00:00",
+        )
+        check("correcting a CLOSED check is refused", "tables.session_not_active", "ok:true")
+    except DomainError as exc:
+        check("correcting a CLOSED check is refused", "tables.session_not_active", exc.code)
     check(
         "a closed check keeps its covers (the update touches ACTIVE sessions only)",
         "5",
