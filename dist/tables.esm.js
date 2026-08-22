@@ -5647,7 +5647,7 @@ var ErpTablesSessions = class extends i3 {
         .fill=${true}
         .labels=${dataTableLabels(erplora4().locale)}
         .columns=${this.columns}
-        .actions=${this.actions}
+        .actions=${this.actions} .rowClickable=${true}
         .views=${true}
         .columnPicker=${true}
         .cardTitle=${(r6) => r6.table_number ? t5("ui.tableLabel", { number: r6.table_number }) : t5("ui.noTable")}
@@ -5661,7 +5661,7 @@ var ErpTablesSessions = class extends i3 {
         .searchable=${true}
         .searchPlaceholder=${t5("ui.searchSession")}
         .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptySessions")}
-        @rowAction=${(e5) => this.onRowAction(e5)}
+        @rowAction=${(e5) => this.onRowAction(e5)} @rowClick=${(e5) => this.onRowAction({ detail: { actionId: "detail", row: e5.detail.row } })}
         @pageChange=${(e5) => this.ctrl.setPage(e5.detail)}
         @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)}
         @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)}
@@ -5943,7 +5943,7 @@ var ErpTablesZones = class extends i3 {
         .fill=${true}
         .labels=${dataTableLabels(erplora5().locale)}
         .columns=${this.columns}
-        .actions=${this.actions}
+        .actions=${this.actions} .rowClickable=${true}
         .addable=${can2("tables.add_zone")}
         .views=${true}
         .cardTitle=${(r6) => String(r6.name ?? "")}
@@ -5957,7 +5957,7 @@ var ErpTablesZones = class extends i3 {
         .searchable=${true}
         .searchPlaceholder=${t5("ui.searchZone")}
         .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyZones")}
-        @rowAction=${(e5) => this.onRowAction(e5)}
+        @rowAction=${(e5) => this.onRowAction(e5)} @rowClick=${(e5) => this.onRowAction({ detail: { actionId: "edit", row: e5.detail.row } })}
         @pageChange=${(e5) => this.ctrl.setPage(e5.detail)}
         @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)}
         @sortChange=${(e5) => this.ctrl.setSort(e5.detail.sort, e5.detail.dir)}

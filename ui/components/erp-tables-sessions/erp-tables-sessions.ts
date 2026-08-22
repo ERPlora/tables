@@ -328,7 +328,7 @@ export class ErpTablesSessions extends LitElement {
         .fill=${true}
         .labels=${dataTableLabels(erplora().locale)}
         .columns=${this.columns}
-        .actions=${this.actions}
+        .actions=${this.actions} .rowClickable=${true}
         .views=${true}
         .columnPicker=${true}
         .cardTitle=${(r: Record<string, unknown>) => (r.table_number ? t('ui.tableLabel', { number: r.table_number }) : t('ui.noTable'))}
@@ -342,7 +342,7 @@ export class ErpTablesSessions extends LitElement {
         .searchable=${true}
         .searchPlaceholder=${t('ui.searchSession')}
         .emptyMessage=${this.ctrl?.loading ? t('ui.loading') : t('ui.emptySessions')}
-        @rowAction=${(e: CustomEvent<{ actionId: string; row: Record<string, unknown> }>) => this.onRowAction(e)}
+        @rowAction=${(e: CustomEvent<{ actionId: string; row: Record<string, unknown> }>) => this.onRowAction(e)} @rowClick=${(e: CustomEvent<{ row: Record<string, unknown> }>) => this.onRowAction({ detail: { actionId: 'detail', row: e.detail.row } } as CustomEvent<{ actionId: string; row: Record<string, unknown> }>)}
         @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)}
         @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)}
         @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)}
