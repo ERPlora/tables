@@ -5,8 +5,9 @@
 //! que el host valida y ejecuta en UNA transacción):
 //!
 //! * `bulk_create_tables` — alta en lote: itera `count` veces, calcula
-//!   `number = {prefix}{start_number + i}` y reparte la posición en rejilla
-//!   (`x = (i % 5) * 20`, `y = (i / 5) * 20`). N intenciones de
+//!   `number = {prefix}{start_number + i}` y reparte la posición en una rejilla
+//!   de PÍXELES del plano (`x = GAP + (i % COLS) * CELL`, ídem `y`, caja `BOX`),
+//!   la misma unidad que dibuja el lienzo (tables#53). N intenciones de
 //!   `tables._insert_table` (cada una con gate `zone_exists`).
 //! * `open_session` — delega en `tables._session_open`: INSERT condicional
 //!   (mesa `available`) + UPDATE mesa `occupied` + assert (gate `table_available`).
@@ -205,6 +206,23 @@ fn reject(code: &str, message: &str) -> Output {
 /// volvemos al mensaje de la constraint.
 const SEATABLE: [&str; 2] = ["available", "reserved"];
 
+// ── geometría del plano (tables#53) ──────────────────────────────────────────
+//
+// Las mesas se generan aquí y se dibujan en `ui/components/erp-tables-canvas`, y hasta tables#53
+// cada mitad usaba SU unidad: el generador repartía en una rejilla de paso 20 con cajas de 10, y
+// el lienzo pintaba cajas de 72 px en las coordenadas crudas. Con paso 20 y caja de 72 el solape
+// es aritmético —56 px, el 74 % del ancho—, así que de las 12 mesas del Salón se leían dos
+// números. La unidad es UNA: el PÍXEL del plano, y estos son sus valores. Si cambian aquí, cambian
+// en `erp-tables-canvas.ts` (mismos nombres) — y si alguna vez divergen, la red del lienzo
+// (auto-layout por solape) lo tapa sin que nadie vea una pila.
+const BOX: i64 = 72; // lado de la caja de mesa, en px del plano
+const GAP: i64 = 16; // hueco entre cajas: sin él la sala es una cuadrícula sólida e ilegible
+const CELL: i64 = BOX + GAP; // paso de la rejilla (una mesa por celda)
+const COLS: i64 = 5; // mesas por fila del lote
+/// Por debajo de esto un `width`/`height` no es una caja que alguien eligiera: es el residuo de la
+/// unidad vieja (10). Ni el generador lo emite ni el plano lo respeta.
+const MIN_BOX: i64 = 24;
+
 // ── bulk_create_tables ───────────────────────────────────────────────────────
 
 /// Máximo de mesas por lote: acotado por el lote de ids del host
@@ -263,10 +281,12 @@ pub fn bulk_create_tables_pure(input: Value) -> Result<Output, String> {
         );
         p.insert("name".into(), json!(""));
         p.insert("capacity".into(), json!(capacity));
-        p.insert("position_x".into(), json!((i % 5) * 20));
-        p.insert("position_y".into(), json!((i / 5) * 20));
-        p.insert("width".into(), json!(10));
-        p.insert("height".into(), json!(10));
+        // tables#53: píxeles del plano, con la caja que el plano va a pintar. El paso es
+        // `BOX + GAP`, así que dos mesas del lote no pueden solaparse por construcción.
+        p.insert("position_x".into(), json!(GAP + (i % COLS) * CELL));
+        p.insert("position_y".into(), json!(GAP + (i / COLS) * CELL));
+        p.insert("width".into(), json!(BOX));
+        p.insert("height".into(), json!(BOX));
         p.insert("shape".into(), json!(shape));
         ops.push(Operation::sql("tables._insert_table", p));
     }
@@ -892,5 +912,76 @@ mod tests {
                 );
             }
         }
+    }
+
+    // ── tables#53 · el lote nace en una rejilla LEGIBLE, no en una pila ───────────────
+    //
+    // `bulk_create` repartía en `x = (i % 5) * 20`, `y = (i / 5) * 20` y persistía `width`/
+    // `height` = 10. Esa rejilla es coherente CON SIGO MISMA —hueco de 10 entre cajas de 10—,
+    // pero el plano no dibuja en esa unidad: pinta cajas de 72 px en las coordenadas crudas. Con
+    // paso 20 y caja de 72 el solape es aritmético, no una casualidad: 56 px, el 74 % del ancho.
+    // De las 12 mesas del Salón de la plantilla Restaurante se leían DOS números.
+    //
+    // El arreglo es que las dos mitades hablen la MISMA unidad: el generador emite píxeles reales
+    // y persiste la caja que el plano va a pintar. El test no comprueba números mágicos, comprueba
+    // la propiedad que importa —ninguna mesa tapa a otra— usando la caja que el propio lote
+    // persiste, que es lo único que ata generador y lienzo.
+
+    fn rects(out: &Output) -> Vec<(i64, i64, i64, i64)> {
+        out.operations
+            .iter()
+            .map(|op| {
+                let g = |k: &str| as_i64(&op.params[k]).unwrap_or(0);
+                (g("position_x"), g("position_y"), g("width"), g("height"))
+            })
+            .collect()
+    }
+
+    fn overlap(a: (i64, i64, i64, i64), b: (i64, i64, i64, i64)) -> bool {
+        a.0 < b.0 + b.2 && b.0 < a.0 + a.2 && a.1 < b.1 + b.3 && b.1 < a.1 + a.3
+    }
+
+    #[test]
+    fn bulk_create_no_apila_ni_una_mesa_sobre_otra() {
+        // Los 8 del caso de la issue, y el lote entero, que es donde una rejilla mal escalada se
+        // nota más (12 del Salón, 8 de la Terraza, 6 de la Barra…).
+        for count in [1_i64, 2, 5, 6, 8, 12, 26, 100] {
+            let out = bulk_create_tables_pure(input(
+                json!({ "zone_id": "z1", "count": count, "prefix": "Q", "start_number": 1 }),
+                count as usize,
+            ))
+            .unwrap_or_else(|e| panic!("lote de {count}: {e}"));
+
+            let r = rects(&out);
+            assert_eq!(r.len(), count as usize);
+            for (i, a) in r.iter().enumerate() {
+                assert!(
+                    a.2 >= MIN_BOX && a.3 >= MIN_BOX,
+                    "la caja que se persiste tiene que ser la que el plano pinta: {a:?}"
+                );
+                for b in r.iter().skip(i + 1) {
+                    assert!(!overlap(*a, *b), "lote de {count}: {a:?} tapa a {b:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn bulk_create_deja_hueco_entre_mesas_no_solo_las_pega() {
+        // Pegadas tampoco vale: sin hueco el plano es una cuadrícula sólida y no se distingue una
+        // mesa de la de al lado, que es lo que el encargado tiene que leer de un vistazo.
+        let out = bulk_create_tables_pure(input(
+            json!({ "zone_id": "z1", "count": 6, "prefix": "Q", "start_number": 1 }),
+            6,
+        ))
+        .expect("lote de 6");
+        let r = rects(&out);
+        assert!(r[0].0 > 0 && r[0].1 > 0, "la primera mesa no se pega al borde: {:?}", r[0]);
+        let step_x = r[1].0 - r[0].0;
+        assert!(
+            step_x >= r[0].2 + 8,
+            "el paso ({step_x}) tiene que dejar hueco sobre la caja ({})",
+            r[0].2
+        );
     }
 }

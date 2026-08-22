@@ -82,45 +82,91 @@ function rows<T>(r: unknown): T[] {
 
 // #271 — las mesas de un blueprint/seed llegan SIN posición (0,0) y colapsaban en la esquina
 // superior izquierda, apiladas. Las creadas a mano (`addTable`) sí calculaban un offset en cascada;
-// las importadas no. Esto reparte en un grid las mesas cuyo (x,y) es (0,0) (sin pisar a las que
-// ya tienen coords reales) para que el plano se vea usable nada más cargar. El usuario luego las
-// arrastra y persiste la posición final con `tables.tables.move`.
+// las importadas no. Esto reparte en un grid las mesas que quedarían tapadas, para que el plano se
+// vea usable nada más cargar. El usuario luego las arrastra y persiste la posición final con
+// `tables.tables.move`.
+//
+// tables#53 — «solo las que están en (0,0)» tapaba UNA de las dos puertas. La otra es la que usa
+// el propio módulo: `bulk_create` repartía en una rejilla de paso 20 con cajas de 10 y el lienzo
+// pintaba cajas fijas de 72 px en esas coordenadas crudas — 56 px de solape, el 74 % del ancho, y
+// de las 12 mesas del Salón se leían dos números. (20,0) y (40,0) le parecían «coordenadas
+// reales» a `sinCoordenadas`, así que se pintaban verbatim, una encima de otra.
+//
+// Ahora la condición es la que de verdad importa: **¿esta mesa taparía a otra con su caja real?**
+// Eso cubre el (0,0) del seed, el paso-20 del lote y cualquier combinación futura, y arregla los
+// hubs que YA tienen esas coordenadas guardadas sin pedir una migración. El generador emite
+// píxeles reales desde tables#53 (`handler/src/lib.rs`), así que en un hub nuevo esta red no llega
+// a activarse: se comprueba en `erp-tables-canvas.test.ts`.
 const AUTO_GAP = 16;       // px de margen entre celdas
 const AUTO_CELL = BOX + AUTO_GAP; // paso del grid (una mesa por celda)
 const AUTO_COLS = 4;       // nº de columnas del grid de fallback
+// Por debajo de esto un `width`/`height` no es una caja que alguien eligiera: es el residuo de la
+// unidad vieja (10, cuando la rejilla se contaba en celdas y no en px). Ni se pinta ni se respeta
+// — se usa `BOX`. Mismo umbral que `MIN_BOX` en `handler/src/lib.rs`.
+const MIN_BOX = 24;
+
+/** La caja que esta mesa PINTA: la suya si es una caja real, la de por defecto si no (tables#53). */
+function boxOf(t: Pick<Table, 'width' | 'height'>): { w: number; h: number } {
+  const w = Number(t.width) || 0;
+  const h = Number(t.height) || 0;
+  return { w: w >= MIN_BOX ? w : BOX, h: h >= MIN_BOX ? h : BOX };
+}
 
 /** `true` si la mesa no tiene una posición real (0,0 = default del Number(m)||0 en reload). */
 function sinCoordenadas(t: Table): boolean {
   return !t.position_x && !t.position_y;
 }
 
-/** Reparte las mesas sin coords sobre un grid, respetando las que ya tienen posición. */
+/** ¿Se tapan estas dos mesas, con la caja que cada una pinta? */
+function seTapan(a: Table, b: Table): boolean {
+  const ca = boxOf(a);
+  const cb = boxOf(b);
+  return (
+    a.position_x < b.position_x + cb.w && b.position_x < a.position_x + ca.w &&
+    a.position_y < b.position_y + cb.h && b.position_y < a.position_y + ca.h
+  );
+}
+
+/**
+ * Reparte sobre un grid las mesas que quedarían tapadas, respetando las que ya están bien puestas.
+ * Se resuelve POR ZONA: cada zona es un plano propio y dos mesas de salas distintas nunca se ven
+ * juntas, así que compartir hueco entre zonas no es un solape.
+ */
 function autoLayoutTables(tables: Table[]): Table[] {
-  // Primero recoge las posiciones ya ocupadas por mesas con coords reales (para no pisarlas).
-  const ocupadas = new Set(tables.filter((t) => !sinCoordenadas(t)).map((t) => `${t.position_x},${t.position_y}`));
-  let col = 0;
-  let row = 0;
-  const out: Table[] = [];
+  const byZone = new Map<string, Table[]>();
   for (const t of tables) {
-    if (!sinCoordenadas(t)) {
-      out.push(t);
-      continue;
-    }
-    // Busca la próxima celda libre (saltando las ocupadas por mesas con coords reales).
-    let x = AUTO_GAP + col * AUTO_CELL;
-    let y = AUTO_GAP + row * AUTO_CELL;
-    while (ocupadas.has(`${x},${y}`)) {
-      col++;
-      if (col >= AUTO_COLS) { col = 0; row++; }
-      x = AUTO_GAP + col * AUTO_CELL;
-      y = AUTO_GAP + row * AUTO_CELL;
-    }
-    ocupadas.add(`${x},${y}`);
-    out.push({ ...t, position_x: x, position_y: y });
-    col++;
-    if (col >= AUTO_COLS) { col = 0; row++; }
+    const key = t.zone_id ?? '';
+    const bucket = byZone.get(key);
+    if (bucket) bucket.push(t);
+    else byZone.set(key, [t]);
   }
-  return out;
+  const fixed = new Map<string, Table>();
+  for (const zoneTables of byZone.values()) {
+    // Las que se quedan donde están: tienen coordenadas propias y no tapan a ninguna anterior.
+    const placed: Table[] = [];
+    const pending: Table[] = [];
+    for (const t of zoneTables) {
+      if (sinCoordenadas(t) || placed.some((p) => seTapan(p, t))) pending.push(t);
+      else placed.push(t);
+    }
+    // Y las demás, a la primera celda libre del grid — con una caja legible, porque una posición
+    // nueva con el tamaño viejo seguiría siendo ilegible.
+    let col = 0;
+    let row = 0;
+    for (const t of pending) {
+      let candidate: Table;
+      for (;;) {
+        candidate = { ...t, position_x: AUTO_GAP + col * AUTO_CELL, position_y: AUTO_GAP + row * AUTO_CELL, width: BOX, height: BOX };
+        col++;
+        if (col >= AUTO_COLS) { col = 0; row++; }
+        if (!placed.some((p) => seTapan(p, candidate))) break;
+      }
+      placed.push(candidate);
+      fixed.set(candidate.id, candidate);
+    }
+  }
+  // Se devuelve en el orden de entrada: el plano no reordena, solo recoloca lo que se tapaba.
+  return tables.map((t) => fixed.get(t.id) ?? t);
 }
 
 export class ErpTablesCanvas extends LitElement {
@@ -141,6 +187,9 @@ export class ErpTablesCanvas extends LitElement {
         repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px),
         repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px);
       overflow:hidden; touch-action:none; }
+    /* tables#53: el TAMAÑO ya no se clava aquí — lo pinta cada mesa con el suyo (estilo inline),
+       porque la fila lo trae y tables.tables.move lo persiste. Se deja como respaldo para una
+       mesa que no lo declare. */
     .mesa { position:absolute; width:${BOX}px; height:${BOX}px; border:2px solid; border-radius: var(--ok-radius, 12px);
       display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:grab;
       background:var(--ion-background-color,#fff); user-select:none; box-shadow:0 1px 4px rgba(0,0,0,.12); }
@@ -280,8 +329,10 @@ export class ErpTablesCanvas extends LitElement {
     const canvas = this.canvasEl();
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const maxX = Math.max(0, rect.width - BOX);
-    const maxY = Math.max(0, rect.height - BOX);
+    const dragged = this.tables.find((t) => t.id === this.dragId);
+    const box = dragged ? boxOf(dragged) : { w: BOX, h: BOX };
+    const maxX = Math.max(0, rect.width - box.w);
+    const maxY = Math.max(0, rect.height - box.h);
     const x = Math.min(maxX, Math.max(0, e.clientX - rect.left - this.dragDX));
     const y = Math.min(maxY, Math.max(0, e.clientY - rect.top - this.dragDY));
     this.tables = this.tables.map((t) => (t.id === this.dragId ? { ...t, position_x: x, position_y: y } : t));
@@ -299,12 +350,15 @@ export class ErpTablesCanvas extends LitElement {
       return;
     }
     try {
+      // tables#53: se persiste LA CAJA DE ESTA MESA, no la de por defecto. Mandando `BOX` fijo,
+      // arrastrar una mesa larga de 10 comensales la encogía y el plano dejaba de parecerse a la
+      // sala en cuanto alguien la recolocaba.
       await erplora().command('tables.tables.move', {
         table_id: t.id,
         position_x: Math.round(t.position_x),
         position_y: Math.round(t.position_y),
-        width: BOX,
-        height: BOX,
+        width: boxOf(t).w,
+        height: boxOf(t).h,
       });
     } catch (e) {
       this.error = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errSavePosition'));
@@ -325,13 +379,14 @@ export class ErpTablesCanvas extends LitElement {
     e.preventDefault();
     // Clamp to the canvas only when it has a layout (no layout → no clamp, e.g. before first paint).
     const rect = this.canvasEl()?.getBoundingClientRect();
-    const maxX = rect && rect.width > 0 ? Math.max(0, rect.width - BOX) : Number.POSITIVE_INFINITY;
-    const maxY = rect && rect.height > 0 ? Math.max(0, rect.height - BOX) : Number.POSITIVE_INFINITY;
+    const box = boxOf(t);
+    const maxX = rect && rect.width > 0 ? Math.max(0, rect.width - box.w) : Number.POSITIVE_INFINITY;
+    const maxY = rect && rect.height > 0 ? Math.max(0, rect.height - box.h) : Number.POSITIVE_INFINITY;
     const x = Math.round(Math.min(maxX, Math.max(0, t.position_x + d[0])));
     const y = Math.round(Math.min(maxY, Math.max(0, t.position_y + d[1])));
     this.tables = this.tables.map((m) => (m.id === t.id ? { ...m, position_x: x, position_y: y } : m));
     try {
-      await erplora().command('tables.tables.move', { table_id: t.id, position_x: x, position_y: y, width: BOX, height: BOX });
+      await erplora().command('tables.tables.move', { table_id: t.id, position_x: x, position_y: y, width: boxOf(t).w, height: boxOf(t).h });
     } catch (err) {
       this.error = err instanceof Error ? err.message : erplora().t(CATALOG, 'ui.errSavePosition');
     }
@@ -349,18 +404,38 @@ export class ErpTablesCanvas extends LitElement {
     ].filter(Boolean).join(' · ');
   }
 
+  /** Primera celda de la rejilla de esta zona que no tapa a ninguna mesa ya colocada. */
+  private freeSpotInZone(): { x: number; y: number } {
+    const taken = this.tablesInZone;
+    for (let i = 0; ; i++) {
+      const candidate = {
+        id: '',
+        position_x: AUTO_GAP + (i % AUTO_COLS) * AUTO_CELL,
+        position_y: AUTO_GAP + Math.floor(i / AUTO_COLS) * AUTO_CELL,
+        width: BOX,
+        height: BOX,
+      } as Table;
+      if (!taken.some((t) => seTapan(t, candidate))) return { x: candidate.position_x, y: candidate.position_y };
+    }
+  }
+
   // ── Altas ───────────────────────────────────────────────────────────────────────────────────
   private async addTable() {
     this.error = '';
     const next = this.tablesInZone.length + 1;
+    // tables#53: la cascada de antes (`20 + (n*16) % 200`) era la misma unidad mal usada que en el
+    // lote — offsets de 16 px para cajas de 72 —, así que la mesa nueva nacía tapando a la
+    // anterior. El lienzo la recolocaría al recargar, y el plano daría un salto delante del
+    // encargado. Nace ya en el primer hueco libre de la rejilla de SU zona.
+    const spot = this.freeSpotInZone();
     try {
       await erplora().command('tables.tables.create', {
         zone_id: this.activeZone || null,
         number: String(next),
         name: '',
         capacity: 4,
-        position_x: 20 + ((next * 16) % 200),
-        position_y: 20 + ((next * 12) % 160),
+        position_x: spot.x,
+        position_y: spot.y,
         width: BOX,
         height: BOX,
         shape: 'square',
@@ -522,7 +597,7 @@ export class ErpTablesCanvas extends LitElement {
             role="button" tabindex="0"
             aria-label=${this.tableName(tb, t)}
             @keydown=${(e: KeyboardEvent) => this.onTableKey(tb, e)}
-            style=${`left:${tb.position_x}px; top:${tb.position_y}px; border-color:${STATUS_COLOR[tb.status] ?? '#d9d6cf'}`}
+            style=${`left:${tb.position_x}px; top:${tb.position_y}px; width:${boxOf(tb).w}px; height:${boxOf(tb).h}px; border-color:${STATUS_COLOR[tb.status] ?? '#d9d6cf'}`}
             title=${[
               t('ui.tableTooltip', { status: STATUS_KEY[tb.status] ? t(STATUS_KEY[tb.status]) : tb.status, count: tb.capacity }),
               tb.reserved_for

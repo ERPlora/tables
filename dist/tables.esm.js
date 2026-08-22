@@ -2135,39 +2135,54 @@ function rows(r6) {
 var AUTO_GAP = 16;
 var AUTO_CELL = BOX + AUTO_GAP;
 var AUTO_COLS = 4;
+var MIN_BOX = 24;
+function boxOf(t5) {
+  const w2 = Number(t5.width) || 0;
+  const h4 = Number(t5.height) || 0;
+  return { w: w2 >= MIN_BOX ? w2 : BOX, h: h4 >= MIN_BOX ? h4 : BOX };
+}
 function sinCoordenadas(t5) {
   return !t5.position_x && !t5.position_y;
 }
+function seTapan(a3, b3) {
+  const ca = boxOf(a3);
+  const cb = boxOf(b3);
+  return a3.position_x < b3.position_x + cb.w && b3.position_x < a3.position_x + ca.w && a3.position_y < b3.position_y + cb.h && b3.position_y < a3.position_y + ca.h;
+}
 function autoLayoutTables(tables) {
-  const ocupadas = new Set(tables.filter((t5) => !sinCoordenadas(t5)).map((t5) => `${t5.position_x},${t5.position_y}`));
-  let col = 0;
-  let row = 0;
-  const out = [];
+  const byZone = /* @__PURE__ */ new Map();
   for (const t5 of tables) {
-    if (!sinCoordenadas(t5)) {
-      out.push(t5);
-      continue;
+    const key = t5.zone_id ?? "";
+    const bucket = byZone.get(key);
+    if (bucket) bucket.push(t5);
+    else byZone.set(key, [t5]);
+  }
+  const fixed = /* @__PURE__ */ new Map();
+  for (const zoneTables of byZone.values()) {
+    const placed = [];
+    const pending = [];
+    for (const t5 of zoneTables) {
+      if (sinCoordenadas(t5) || placed.some((p4) => seTapan(p4, t5))) pending.push(t5);
+      else placed.push(t5);
     }
-    let x2 = AUTO_GAP + col * AUTO_CELL;
-    let y3 = AUTO_GAP + row * AUTO_CELL;
-    while (ocupadas.has(`${x2},${y3}`)) {
-      col++;
-      if (col >= AUTO_COLS) {
-        col = 0;
-        row++;
+    let col = 0;
+    let row = 0;
+    for (const t5 of pending) {
+      let candidate;
+      for (; ; ) {
+        candidate = { ...t5, position_x: AUTO_GAP + col * AUTO_CELL, position_y: AUTO_GAP + row * AUTO_CELL, width: BOX, height: BOX };
+        col++;
+        if (col >= AUTO_COLS) {
+          col = 0;
+          row++;
+        }
+        if (!placed.some((p4) => seTapan(p4, candidate))) break;
       }
-      x2 = AUTO_GAP + col * AUTO_CELL;
-      y3 = AUTO_GAP + row * AUTO_CELL;
-    }
-    ocupadas.add(`${x2},${y3}`);
-    out.push({ ...t5, position_x: x2, position_y: y3 });
-    col++;
-    if (col >= AUTO_COLS) {
-      col = 0;
-      row++;
+      placed.push(candidate);
+      fixed.set(candidate.id, candidate);
     }
   }
-  return out;
+  return tables.map((t5) => fixed.get(t5.id) ?? t5);
 }
 var ErpTablesCanvas = class extends i3 {
   constructor() {
@@ -2206,6 +2221,9 @@ var ErpTablesCanvas = class extends i3 {
         repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px),
         repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px);
       overflow:hidden; touch-action:none; }
+    /* tables#53: el TAMAÑO ya no se clava aquí — lo pinta cada mesa con el suyo (estilo inline),
+       porque la fila lo trae y tables.tables.move lo persiste. Se deja como respaldo para una
+       mesa que no lo declare. */
     .mesa { position:absolute; width:${BOX}px; height:${BOX}px; border:2px solid; border-radius: var(--ok-radius, 12px);
       display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:grab;
       background:var(--ion-background-color,#fff); user-select:none; box-shadow:0 1px 4px rgba(0,0,0,.12); }
@@ -2314,8 +2332,10 @@ var ErpTablesCanvas = class extends i3 {
     const canvas = this.canvasEl();
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const maxX = Math.max(0, rect.width - BOX);
-    const maxY = Math.max(0, rect.height - BOX);
+    const dragged = this.tables.find((t5) => t5.id === this.dragId);
+    const box = dragged ? boxOf(dragged) : { w: BOX, h: BOX };
+    const maxX = Math.max(0, rect.width - box.w);
+    const maxY = Math.max(0, rect.height - box.h);
     const x2 = Math.min(maxX, Math.max(0, e5.clientX - rect.left - this.dragDX));
     const y3 = Math.min(maxY, Math.max(0, e5.clientY - rect.top - this.dragDY));
     this.tables = this.tables.map((t5) => t5.id === this.dragId ? { ...t5, position_x: x2, position_y: y3 } : t5);
@@ -2335,8 +2355,8 @@ var ErpTablesCanvas = class extends i3 {
         table_id: t5.id,
         position_x: Math.round(t5.position_x),
         position_y: Math.round(t5.position_y),
-        width: BOX,
-        height: BOX
+        width: boxOf(t5).w,
+        height: boxOf(t5).h
       });
     } catch (e5) {
       this.error = domainMessage(e5, erplora().locale, erplora().t(CATALOG, "ui.errSavePosition"));
@@ -2355,13 +2375,14 @@ var ErpTablesCanvas = class extends i3 {
     if (!d3) return;
     e5.preventDefault();
     const rect = this.canvasEl()?.getBoundingClientRect();
-    const maxX = rect && rect.width > 0 ? Math.max(0, rect.width - BOX) : Number.POSITIVE_INFINITY;
-    const maxY = rect && rect.height > 0 ? Math.max(0, rect.height - BOX) : Number.POSITIVE_INFINITY;
+    const box = boxOf(t5);
+    const maxX = rect && rect.width > 0 ? Math.max(0, rect.width - box.w) : Number.POSITIVE_INFINITY;
+    const maxY = rect && rect.height > 0 ? Math.max(0, rect.height - box.h) : Number.POSITIVE_INFINITY;
     const x2 = Math.round(Math.min(maxX, Math.max(0, t5.position_x + d3[0])));
     const y3 = Math.round(Math.min(maxY, Math.max(0, t5.position_y + d3[1])));
     this.tables = this.tables.map((m4) => m4.id === t5.id ? { ...m4, position_x: x2, position_y: y3 } : m4);
     try {
-      await erplora().command("tables.tables.move", { table_id: t5.id, position_x: x2, position_y: y3, width: BOX, height: BOX });
+      await erplora().command("tables.tables.move", { table_id: t5.id, position_x: x2, position_y: y3, width: boxOf(t5).w, height: boxOf(t5).h });
     } catch (err) {
       this.error = err instanceof Error ? err.message : erplora().t(CATALOG, "ui.errSavePosition");
     }
@@ -2377,18 +2398,33 @@ var ErpTablesCanvas = class extends i3 {
       tb.reserved_for ? t5("ui.reservedFor", { name: tb.reserved_for }) : ""
     ].filter(Boolean).join(" \xB7 ");
   }
+  /** Primera celda de la rejilla de esta zona que no tapa a ninguna mesa ya colocada. */
+  freeSpotInZone() {
+    const taken = this.tablesInZone;
+    for (let i7 = 0; ; i7++) {
+      const candidate = {
+        id: "",
+        position_x: AUTO_GAP + i7 % AUTO_COLS * AUTO_CELL,
+        position_y: AUTO_GAP + Math.floor(i7 / AUTO_COLS) * AUTO_CELL,
+        width: BOX,
+        height: BOX
+      };
+      if (!taken.some((t5) => seTapan(t5, candidate))) return { x: candidate.position_x, y: candidate.position_y };
+    }
+  }
   // ── Altas ───────────────────────────────────────────────────────────────────────────────────
   async addTable() {
     this.error = "";
     const next = this.tablesInZone.length + 1;
+    const spot = this.freeSpotInZone();
     try {
       await erplora().command("tables.tables.create", {
         zone_id: this.activeZone || null,
         number: String(next),
         name: "",
         capacity: 4,
-        position_x: 20 + next * 16 % 200,
-        position_y: 20 + next * 12 % 160,
+        position_x: spot.x,
+        position_y: spot.y,
         width: BOX,
         height: BOX,
         shape: "square"
@@ -2557,7 +2593,7 @@ var ErpTablesCanvas = class extends i3 {
             role="button" tabindex="0"
             aria-label=${this.tableName(tb, t5)}
             @keydown=${(e5) => this.onTableKey(tb, e5)}
-            style=${`left:${tb.position_x}px; top:${tb.position_y}px; border-color:${STATUS_COLOR[tb.status] ?? "#d9d6cf"}`}
+            style=${`left:${tb.position_x}px; top:${tb.position_y}px; width:${boxOf(tb).w}px; height:${boxOf(tb).h}px; border-color:${STATUS_COLOR[tb.status] ?? "#d9d6cf"}`}
             title=${[
       t5("ui.tableTooltip", { status: STATUS_KEY[tb.status] ? t5(STATUS_KEY[tb.status]) : tb.status, count: tb.capacity }),
       tb.reserved_for ? `${t5("ui.reservedFor", { name: tb.reserved_for })} ${[hhmm(tb.reserved_from), hhmm(tb.reserved_until)].filter(Boolean).join("\u2013")}`.trim() : ""
