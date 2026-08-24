@@ -309,13 +309,13 @@ export class ErpTablesZones extends LitElement {
       >
         <!-- Create / edit: always projected (the «+» must never open an empty panel). -->
         <form slot="create" class="form" @submit=${(e: Event) => this.submit(e)}>
-          <ion-input fill="outline" label-placement="floating" label=${t('ui.colName')} .value=${this.form.name}
+          <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.colName')} .value=${this.form.name}
             @ionInput=${(e: Event) => (this.form = { ...this.form, name: (e.target as HTMLInputElement).value || '' })}></ion-input>
-          <ion-select fill="outline" label-placement="floating" label=${t('ui.colColor')} interface="popover" .value=${this.form.color}
+          <ion-select mode="md" fill="outline" label-placement="floating" label=${t('ui.colColor')} interface="popover" .value=${this.form.color}
             @ionChange=${(e: CustomEvent) => (this.form = { ...this.form, color: (e.detail as { value: string }).value || 'primary' })}>
             ${COLORS.map((c) => html`<ion-select-option value=${c}>${t(COLOR_KEY[c])}</ion-select-option>`)}
           </ion-select>
-          <ion-input fill="outline" label-placement="floating" label=${t('ui.colOrder')} type="number" min="0" .value=${this.form.sortOrder}
+          <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.colOrder')} type="number" min="0" .value=${this.form.sortOrder}
             @ionInput=${(e: Event) => (this.form = { ...this.form, sortOrder: (e.target as HTMLInputElement).value || '0' })}></ion-input>
           ${this.editingId
             ? html`<ion-toggle .checked=${this.form.isActive} @ionChange=${(e: CustomEvent) => (this.form = { ...this.form, isActive: !!(e.detail as { checked: boolean }).checked })}>${t('ui.zoneActive')}</ion-toggle>`
