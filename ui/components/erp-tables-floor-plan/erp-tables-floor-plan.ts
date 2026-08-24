@@ -216,9 +216,9 @@ export class ErpTablesFloorPlan extends LitElement {
           <!-- Alta de mesa: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
                solo con el panel abierto, el «+» de la barra abriría un panel vacío. -->
           <form slot="create" class="form" @submit=${(e: Event) => this.createTable(e)}>
-            <ion-input fill="outline" label-placement="floating" label=${t('ui.colNumber')} .value=${this.newNumber} @ionInput=${(e: any) => (this.newNumber = e.target.value)}></ion-input>
-            <ion-input fill="outline" label-placement="floating" label=${t('ui.colCapacity')} type="number" min="1" .value=${this.newCapacity} @ionInput=${(e: any) => (this.newCapacity = e.target.value)}></ion-input>
-            <ion-select fill="outline" label-placement="floating" label=${t('ui.fieldZone')} interface="popover" .value=${this.newZoneId} @ionChange=${(e: CustomEvent) => (this.newZoneId = (e.detail as { value: string }).value || '')}>
+            <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.colNumber')} .value=${this.newNumber} @ionInput=${(e: any) => (this.newNumber = e.target.value)}></ion-input>
+            <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.colCapacity')} type="number" min="1" .value=${this.newCapacity} @ionInput=${(e: any) => (this.newCapacity = e.target.value)}></ion-input>
+            <ion-select mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldZone')} interface="popover" .value=${this.newZoneId} @ionChange=${(e: CustomEvent) => (this.newZoneId = (e.detail as { value: string }).value || '')}>
               <ion-select-option value="">${t('ui.noZone')}</ion-select-option>
               ${this.zones.map((z) => html`<ion-select-option value=${z.id}>${z.name}</ion-select-option>`)}
             </ion-select>
