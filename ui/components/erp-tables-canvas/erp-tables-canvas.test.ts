@@ -341,3 +341,54 @@ describe('the plan is accessible: tables are buttons, controls are Ionic and ≥
     expect(cssText).toMatch(/ion-button\s*\{[^}]*min-height:\s*44px/);
   });
 });
+
+// tables#182 (opened as sales#182) — the auto-layout of a room WITHOUT saved coordinates follows
+// the natural order.
+//
+// The issue said the floor plan was safe because tables go by (x, y). That holds for a room the
+// host has already arranged — but a room seeded by a blueprint has no coordinates, and then
+// `autoLayoutTables` drops the tables into the grid IN THE ORDER THE QUERY RETURNED. With the old
+// text order that grid read `S1 · S10 · S11 · S12 · S2 …`, the very same defect the picker had.
+describe('auto-layout en orden natural (tables#182)', () => {
+  const ZONA = [{ id: 'z1', name: 'Salón', color: '#00f', sort_order: 1, is_active: 1 }];
+
+  async function montarCanvas(numbers: string[]) {
+    (globalThis as Record<string, unknown>).erplora = {
+      query: async () => [],
+      queryAll: async (name: string) => (name === 'tables.zones.list' ? ZONA : numbers.map((n, i) => ({
+        id: `m${i}`, number: n, name: '', capacity: 4, shape: 'square', status: 'available',
+        is_active: 1, zone_id: 'z1', position_x: 0, position_y: 0, width: 0, height: 0,
+      }))),
+      queryPage: async () => ({ rows: [], total: 0 }),
+      command: async () => ({}),
+      on: () => () => {},
+      locale: 'es',
+      t: (_c: unknown, key: string) => key,
+    };
+    await import('./erp-tables-canvas');
+    const el = document.createElement('erp-tables-canvas') as HTMLElement & { shadowRoot: ShadowRoot };
+    document.body.appendChild(el);
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    return el;
+  }
+
+  /** Table labels in READING order: top row left→right, then the next one. */
+  function reading(el: HTMLElement & { shadowRoot: ShadowRoot }): string[] {
+    const px = (m: HTMLElement, prop: string) =>
+      Number(/(-?\d+(?:\.\d+)?)px/.exec(m.style.getPropertyValue(prop))?.[1] ?? NaN);
+    return [...el.shadowRoot.querySelectorAll<HTMLElement>('.mesa')]
+      .map((m) => ({ x: px(m, 'left'), y: px(m, 'top'), n: (m.textContent ?? '').trim() }))
+      .sort((a, b) => a.y - b.y || a.x - b.x)
+      .map((m) => m.n.split(/\s+/)[0]);
+  }
+
+  it('un salón recién sembrado se reparte S1, S2, S3 … S10, S11, S12', async () => {
+    // Exactly the order the raw text sort used to hand over.
+    const el = await montarCanvas(['S1', 'S10', 'S11', 'S12', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9']);
+    expect(reading(el)).toEqual(
+      ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12'],
+    );
+  });
+});

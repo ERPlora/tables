@@ -8,6 +8,7 @@ import '@erplora/outfitkit/ok-empty-state';
 import esLocale from '../../../locales/es.json';
 import enLocale from '../../../locales/en.json';
 import { domainMessage } from '../../lib/domain-error';
+import { sortNaturallyBy } from '../../lib/natural-order';
 const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
 
 // erp-tables-canvas — editor visual del PLANO DE SALA (la "estructura de la terraza"). Pantalla
@@ -271,10 +272,14 @@ export class ErpTablesCanvas extends LitElement {
     try {
       const [z, t] = await Promise.all([
         erplora().queryAll('tables.zones.list', { sort: 'sort_order', dir: 'asc' }).catch(() => []),
-        erplora().queryAll('tables.tables.list', { sort: 'number', dir: 'asc' }).catch(() => []),
+        erplora().queryAll('tables.tables.list', { sort: 'number_sort', dir: 'asc' }).catch(() => []),
       ]);
       this.zones = rows<Zone>(z);
-      this.tables = autoLayoutTables(rows<Table>(t).map((m) => ({
+      // tables#182: a room the host already arranged goes by its own (x, y), but one seeded by a
+      // blueprint has NO coordinates, and then `autoLayoutTables` fills the grid in the order the
+      // rows arrive. Ordering naturally here is what makes that grid read S1, S2, S3 … S10 instead
+      // of S1, S10, S11, S12, S2 — the same rule the POS picker paints.
+      this.tables = autoLayoutTables(sortNaturallyBy(rows<Table>(t), (m) => m.number, erplora().locale).map((m) => ({
         ...m,
         capacity: Number(m.capacity) || 1,
         is_active: Number(m.is_active),
