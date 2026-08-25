@@ -36,6 +36,14 @@
     "admin": [
       "*"
     ],
+    "cashier": [
+      "tables.view_zone",
+      "tables.view_table",
+      "tables.view_tablesession",
+      "tables.add_tablesession",
+      "tables.change_tablesession",
+      "tables.view_settings"
+    ],
     "manager": [
       "tables.view_zone",
       "tables.add_zone",
