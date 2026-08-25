@@ -918,7 +918,7 @@ describe('cambiar de mesa y sentar una reserva (tables#14)', () => {
 // the fifth slot behind 10, 11 and 12. The picker holds every table of the hub in memory (queryAll)
 // and filters by zone here, so the order is this component's to get right — it cannot be delegated
 // to whatever a caller passed as `sort`.
-describe('orden natural de la rejilla (tables#182)', () => {
+describe('natural order of the picker grid (tables#182)', () => {
   const ZONAS = [{ id: 'z1', name: 'Salón' }, { id: 'z2', name: 'Terraza' }];
   // Exactly what Postgres returns today for a room named S1…S12 ordered by text.
   const SALON = ['S1', 'S10', 'S11', 'S12', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9']
@@ -932,7 +932,7 @@ describe('orden natural de la rejilla (tables#182)', () => {
     await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
   };
 
-  async function abrir() {
+  async function openPicker() {
     (globalThis as Record<string, unknown>).erplora = {
       query: async (name: string) => (name.includes('zone') ? ZONAS : name.includes('session') ? [] : [...SALON, ...TERRAZA]),
       queryAll: async (name: string) => (name.includes('zone') ? ZONAS : [...SALON, ...TERRAZA]),
@@ -946,25 +946,25 @@ describe('orden natural de la rejilla (tables#182)', () => {
     return el;
   }
 
-  const pintadas = (el: HTMLElement & { shadowRoot: ShadowRoot }) =>
+  const painted = (el: HTMLElement & { shadowRoot: ShadowRoot }) =>
     [...el.shadowRoot.querySelectorAll('.mesa .n')].map((n) => n.textContent?.trim());
 
-  it('un salón numerado sale S1, S2, S3 … S10, S11, S12 — no en lexicográfico', async () => {
-    const el = await abrir();
-    expect(pintadas(el)).toEqual(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12']);
+  it('a numbered room reads S1, S2, S3 … S10, S11, S12 — not lexicographic', async () => {
+    const el = await openPicker();
+    expect(painted(el)).toEqual(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12']);
   });
 
-  it('una mesa con NOMBRE sigue en alfabético: el criterio es por fila', async () => {
-    const el = await abrir();
+  it('a NAMED table stays alphabetical: the criterion is per row', async () => {
+    const el = await openPicker();
     (el as unknown as { activeZone: string }).activeZone = 'z2';
     await tick(el);
-    expect(pintadas(el)).toEqual(['Terraza A', 'Terraza B']);
+    expect(painted(el)).toEqual(['Terraza A', 'Terraza B']);
   });
 
-  it('el orden se conserva tras recargar el estado de las mesas', async () => {
-    const el = await abrir();
+  it('the order survives a refresh of the table statuses', async () => {
+    const el = await openPicker();
     await (el as unknown as { refreshTables: () => Promise<void> }).refreshTables();
     await tick(el);
-    expect(pintadas(el)).toEqual(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12']);
+    expect(painted(el)).toEqual(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12']);
   });
 });

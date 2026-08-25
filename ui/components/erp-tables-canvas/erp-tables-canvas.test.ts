@@ -349,13 +349,13 @@ describe('the plan is accessible: tables are buttons, controls are Ionic and ≥
 // host has already arranged — but a room seeded by a blueprint has no coordinates, and then
 // `autoLayoutTables` drops the tables into the grid IN THE ORDER THE QUERY RETURNED. With the old
 // text order that grid read `S1 · S10 · S11 · S12 · S2 …`, the very same defect the picker had.
-describe('auto-layout en orden natural (tables#182)', () => {
-  const ZONA = [{ id: 'z1', name: 'Salón', color: '#00f', sort_order: 1, is_active: 1 }];
+describe('auto-layout in natural order (tables#182)', () => {
+  const ZONE = [{ id: 'z1', name: 'Salón', color: '#00f', sort_order: 1, is_active: 1 }];
 
-  async function montarCanvas(numbers: string[]) {
+  async function mountCanvas(numbers: string[]) {
     (globalThis as Record<string, unknown>).erplora = {
       query: async () => [],
-      queryAll: async (name: string) => (name === 'tables.zones.list' ? ZONA : numbers.map((n, i) => ({
+      queryAll: async (name: string) => (name === 'tables.zones.list' ? ZONE : numbers.map((n, i) => ({
         id: `m${i}`, number: n, name: '', capacity: 4, shape: 'square', status: 'available',
         is_active: 1, zone_id: 'z1', position_x: 0, position_y: 0, width: 0, height: 0,
       }))),
@@ -384,9 +384,9 @@ describe('auto-layout en orden natural (tables#182)', () => {
       .map((m) => m.n.split(/\s+/)[0]);
   }
 
-  it('un salón recién sembrado se reparte S1, S2, S3 … S10, S11, S12', async () => {
+  it('a freshly seeded room is laid out S1, S2, S3 … S10, S11, S12', async () => {
     // Exactly the order the raw text sort used to hand over.
-    const el = await montarCanvas(['S1', 'S10', 'S11', 'S12', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9']);
+    const el = await mountCanvas(['S1', 'S10', 'S11', 'S12', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9']);
     expect(reading(el)).toEqual(
       ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12'],
     );
