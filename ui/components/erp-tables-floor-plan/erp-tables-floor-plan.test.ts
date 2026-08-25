@@ -155,3 +155,61 @@ describe('el alta sigue funcionando desde el panel', () => {
     expect(comandos.find((c) => c.name === 'tables.tables.create')!.payload.zone_id).toBeNull();
   });
 });
+
+// tables#182 (opened as sales#182) — the list shares the POS picker's NATURAL order.
+//
+// This list is paginated by the SERVER, so its order is decided by the `sort` it asks for, not by
+// anything the browser can reorder afterwards: sorting the visible page in JS would order each
+// page on its own and still cut the pages by the wrong key. `tables.tables.list` therefore exposes
+// `number_sort` — the same per-row rule (numeric tail as a number, alphabetical otherwise) that
+// the picker applies with `Intl.Collator`. The visible column stays `number`: the key is an
+// implementation detail of the ordering, not a column anybody wants to read.
+describe('orden natural de la lista (tables#182)', () => {
+  /** Mounts capturing every `queryPage` call, so we can see WHICH sort the server is asked for. */
+  async function montarEspiando() {
+    const llamadas: Record<string, unknown>[] = [];
+    const base = (globalThis as Record<string, unknown>).erplora as Record<string, unknown>;
+    (globalThis as Record<string, unknown>).erplora = {
+      ...base,
+      queryPage: async (_name: string, params: Record<string, unknown>) => {
+        llamadas.push(params);
+        return { rows: [MESA], total: 1 };
+      },
+    };
+    const el = await montar();
+    return { el, llamadas };
+  }
+
+  it('arranca pidiendo `number_sort`, no el texto crudo de `name`', async () => {
+    const { llamadas } = await montarEspiando();
+    expect(llamadas.length, 'la lista carga al montar').toBeGreaterThan(0);
+    expect(llamadas[0].sort, 'S2 antes que S10 lo decide el servidor').toBe('number_sort');
+    expect(llamadas[0].dir).toBe('asc');
+  });
+
+  it('la tabla marca la columna VISIBLE («number»), no la clave de orden', async () => {
+    const { el } = await montarEspiando();
+    const t = el.shadowRoot.querySelector('ok-data-table') as HTMLElement & { sort?: string };
+    expect(t?.sort, 'el indicador va sobre la columna que la gente lee').toBe('number');
+  });
+
+  it('ordenar por la columna «number» pide `number_sort` al servidor', async () => {
+    const { el, llamadas } = await montarEspiando();
+    const t = el.shadowRoot.querySelector('ok-data-table')!;
+    llamadas.length = 0;
+    t.dispatchEvent(new CustomEvent('sortChange', { detail: { sort: 'number', dir: 'desc' } }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(llamadas.map((c) => c.sort), 'el texto crudo volvería a dar S1, S10, S11, S12, S2…')
+      .toEqual(['number_sort']);
+    expect(llamadas[0].dir).toBe('desc');
+  });
+
+  it('el resto de columnas se siguen ordenando por sí mismas', async () => {
+    const { el, llamadas } = await montarEspiando();
+    const t = el.shadowRoot.querySelector('ok-data-table')!;
+    llamadas.length = 0;
+    t.dispatchEvent(new CustomEvent('sortChange', { detail: { sort: 'capacity', dir: 'asc' } }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(llamadas.map((c) => c.sort)).toEqual(['capacity']);
+  });
+});

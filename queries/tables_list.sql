@@ -13,6 +13,20 @@
 SELECT t.id, t.number, t.name, t.capacity, t.shape, t.status, t.is_active,
        t.position_x, t.position_y, t.width, t.height,
        t.zone_id, z.name AS zone,
+       -- tables#182: clave de ORDEN NATURAL. La lista de mesas se pagina en el servidor, así que
+       -- su orden se decide aquí y no en el navegador: ordenar la página visible en JS ordenaría
+       -- cada página por su cuenta y seguiría partiendo las páginas por la clave equivocada. Con
+       -- el orden de texto, un salón S1…S12 salía `S1 · S10 · S11 · S12 · S2 …` y la mesa 2
+       -- quedaba la quinta. Regla POR FILA (la misma que el TPV aplica con
+       -- `Intl.Collator(..., { numeric: true })`): si el nombre acaba en dígitos, esa cola se
+       -- compara como número —se rellena con ceros a la izquierda, y `GREATEST` evita que `lpad`
+       -- RECORTE una cola de más de 12 dígitos—; si no, se queda tal cual, en alfabético.
+       CASE WHEN t.number ~ '[0-9]+$'
+            THEN regexp_replace(t.number, '[0-9]+$', '')
+                 || lpad(substring(t.number FROM '[0-9]+$'),
+                         GREATEST(12, length(substring(t.number FROM '[0-9]+$'))), '0')
+            ELSE t.number
+       END AS number_sort,
        h.label      AS reserved_for,
        h.held_from  AS reserved_from,
        h.held_until AS reserved_until,

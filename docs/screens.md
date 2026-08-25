@@ -35,7 +35,11 @@ Only possible if it has **no active tables**. Move or delete the tables first. R
 ## Tables
 
 Every table with its current status and zone (`tables.tables.list`, 50 rows per page). Requires
-`tables.view_table`. Sorted by name.
+`tables.view_table`. Sorted in **natural order** by table number (tables#182): a number ending in
+digits compares that tail as a number (`S2` before `S10`), a named table (`Terraza A`) stays
+alphabetical, and the criterion is decided per row. The ordering key is the query's `number_sort`
+column, so the paging cuts by the same order the POS table picker paints; the list still shows —
+and marks as sorted — the plain `number` column.
 
 - **Search** by number or name.
 - **Sort and filter** by number, name, capacity, shape, status, active flag, position, size or zone.

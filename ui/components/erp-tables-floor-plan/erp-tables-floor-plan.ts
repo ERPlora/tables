@@ -48,6 +48,17 @@ const STATUS_KEY: Record<string, string> = {
   blocked: 'ui.statusBlocked',
 };
 
+// tables#182 — the column the user reads (`number`) is not the column the server orders by. The
+// natural key lives in the query as `number_sort`; the table keeps showing (and marking) `number`.
+const SORT_KEY: Record<string, string> = { number: 'number_sort' };
+
+/** Column key → the key the server sorts by. */
+const toServerSort = (col: string): string => SORT_KEY[col] ?? col;
+
+/** The reverse, so `ok-data-table` paints its arrow on the column that is actually visible. */
+const toColumnSort = (sort?: string): string | undefined =>
+  Object.keys(SORT_KEY).find((col) => SORT_KEY[col] === sort) ?? sort;
+
 function erplora(): ErploraClientLike {
   const c = (globalThis as { erplora?: ErploraClientLike }).erplora;
   if (!c) throw new Error('erplora SDK no inicializado por el shell');
@@ -130,7 +141,11 @@ export class ErpTablesFloorPlan extends LitElement {
     window.addEventListener('erplora:locale-changed', this.onLocaleChange);
     this.ctrl = createListController<Table>(erplora(), 'tables.tables.list', () => this.requestUpdate(), {
       pageSize: 50,
-      sort: 'name',
+      // tables#182: NATURAL order, the same the POS picker paints — `S2` before `S10`, and a named
+      // table (`Terraza A`) alphabetical. The list is paginated by the SERVER, so the order is
+      // decided by the key we ask for; reordering the visible page here would sort each page on
+      // its own and still cut the pages by the wrong key.
+      sort: SORT_KEY.number,
       dir: 'asc',
     });
     await this.ctrl.load();
@@ -212,7 +227,7 @@ export class ErpTablesFloorPlan extends LitElement {
     return html`<div class="page">
         ${this.formError ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.formError}</ok-inline-feedback>` : nothing}
         ${this.ctrl?.error ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : nothing}
-        <ok-data-table .serverSide=${true} .fill=${true} .addable=${true} .columns=${this.columns} .views=${true} .cardTitle=${(r: Record<string, unknown>) => String(r.name || r.number || '—')} .cardIcon=${() => 'grid-outline'} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${this.ctrl?.state.sort} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${t('ui.searchPlaceholder')} .emptyMessage=${this.ctrl?.loading ? t('ui.loading') : t('ui.emptyTables')} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(e.detail.sort, e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
+        <ok-data-table .serverSide=${true} .fill=${true} .addable=${true} .columns=${this.columns} .views=${true} .cardTitle=${(r: Record<string, unknown>) => String(r.name || r.number || '—')} .cardIcon=${() => 'grid-outline'} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${toColumnSort(this.ctrl?.state.sort)} .sortDir=${this.ctrl?.state.dir ?? 'asc'} .searchable=${true} .searchPlaceholder=${t('ui.searchPlaceholder')} .emptyMessage=${this.ctrl?.loading ? t('ui.loading') : t('ui.emptyTables')} @pageChange=${(e: CustomEvent<number>) => this.ctrl.setPage(e.detail)} @pageSizeChange=${(e: CustomEvent<number>) => this.ctrl.setPageSize(e.detail)} @sortChange=${(e: CustomEvent<{ sort: string; dir: 'asc' | 'desc' }>) => this.ctrl.setSort(toServerSort(e.detail.sort), e.detail.dir)} @searchChange=${(e: CustomEvent<string>) => this.ctrl.setSearch(e.detail)} @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}>
           <!-- Alta de mesa: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
                solo con el panel abierto, el «+» de la barra abriría un panel vacío. -->
           <form slot="create" class="form" @submit=${(e: Event) => this.createTable(e)}>
