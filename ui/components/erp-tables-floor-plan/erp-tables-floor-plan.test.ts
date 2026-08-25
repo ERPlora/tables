@@ -155,3 +155,61 @@ describe('el alta sigue funcionando desde el panel', () => {
     expect(comandos.find((c) => c.name === 'tables.tables.create')!.payload.zone_id).toBeNull();
   });
 });
+
+// tables#182 (opened as sales#182) — the list shares the POS picker's NATURAL order.
+//
+// This list is paginated by the SERVER, so its order is decided by the `sort` it asks for, not by
+// anything the browser can reorder afterwards: sorting the visible page in JS would order each
+// page on its own and still cut the pages by the wrong key. `tables.tables.list` therefore exposes
+// `number_sort` — the same per-row rule (numeric tail as a number, alphabetical otherwise) that
+// the picker applies with `Intl.Collator`. The visible column stays `number`: the key is an
+// implementation detail of the ordering, not a column anybody wants to read.
+describe('natural order of the list (tables#182)', () => {
+  /** Mounts capturing every `queryPage` call, so we can see WHICH sort the server is asked for. */
+  async function mountSpying() {
+    const calls: Record<string, unknown>[] = [];
+    const base = (globalThis as Record<string, unknown>).erplora as Record<string, unknown>;
+    (globalThis as Record<string, unknown>).erplora = {
+      ...base,
+      queryPage: async (_name: string, params: Record<string, unknown>) => {
+        calls.push(params);
+        return { rows: [MESA], total: 1 };
+      },
+    };
+    const el = await montar();
+    return { el, calls };
+  }
+
+  it('starts by asking for `number_sort`, not the raw text of `name`', async () => {
+    const { calls } = await mountSpying();
+    expect(calls.length, 'the list loads on mount').toBeGreaterThan(0);
+    expect(calls[0].sort, 'S2 before S10 is the server\'s call').toBe('number_sort');
+    expect(calls[0].dir).toBe('asc');
+  });
+
+  it('the table marks the VISIBLE column (`number`), not the sort key', async () => {
+    const { el } = await mountSpying();
+    const t = el.shadowRoot.querySelector('ok-data-table') as HTMLElement & { sort?: string };
+    expect(t?.sort, 'the indicator belongs on the column people read').toBe('number');
+  });
+
+  it('sorting by the `number` column asks the server for `number_sort`', async () => {
+    const { el, calls } = await mountSpying();
+    const t = el.shadowRoot.querySelector('ok-data-table')!;
+    calls.length = 0;
+    t.dispatchEvent(new CustomEvent('sortChange', { detail: { sort: 'number', dir: 'desc' } }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(calls.map((c) => c.sort), 'the raw text would hand back S1, S10, S11, S12, S2…')
+      .toEqual(['number_sort']);
+    expect(calls[0].dir).toBe('desc');
+  });
+
+  it('every other column still sorts by itself', async () => {
+    const { el, calls } = await mountSpying();
+    const t = el.shadowRoot.querySelector('ok-data-table')!;
+    calls.length = 0;
+    t.dispatchEvent(new CustomEvent('sortChange', { detail: { sort: 'capacity', dir: 'asc' } }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(calls.map((c) => c.sort)).toEqual(['capacity']);
+  });
+});

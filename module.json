@@ -178,6 +178,7 @@
         "sort": [
           "id",
           "number",
+          "number_sort",
           "name",
           "capacity",
           "shape",
@@ -190,7 +191,7 @@
           "zone_id",
           "zone"
         ],
-        "default_sort": "name",
+        "default_sort": "number_sort",
         "default_dir": "asc",
         "filters": {
           "number": {

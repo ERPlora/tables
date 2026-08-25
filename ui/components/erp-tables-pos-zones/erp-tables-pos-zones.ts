@@ -6,6 +6,7 @@ import { define } from '@erplora/outfitkit/define';
 import esLocale from '../../../locales/es.json';
 import enLocale from '../../../locales/en.json';
 import { domainMessage, errorCode } from '../../lib/domain-error';
+import { sortNaturallyBy } from '../../lib/natural-order';
 const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
 
 // erp-tables-pos-zones — selector de MESA inyectado en la pantalla de venta (ADR-0043). El módulo
@@ -252,7 +253,7 @@ export class ErpTablesPosZones extends LitElement {
     try {
       const [z, t, s] = await Promise.all([
         erplora().queryAll('tables.zones.list', { sort: 'sort_order', dir: 'asc' }).catch(() => []),
-        erplora().queryAll('tables.tables.list', { sort: 'number', dir: 'asc' }).catch(() => []),
+        erplora().queryAll('tables.tables.list', { sort: 'number_sort', dir: 'asc' }).catch(() => []),
         // tables#3 (c): room settings — no row (or no permission) → the schema default: prompt ON.
         erplora().query('tables.settings.get').catch(() => []),
       ]);
@@ -373,7 +374,7 @@ export class ErpTablesPosZones extends LitElement {
   /** Recarga el estado de las mesas (colores ocupada/libre) tras abrir/cerrar una sesión. */
   private async refreshTables() {
     try {
-      const t = await erplora().queryAll('tables.tables.list', { sort: 'number', dir: 'asc' });
+      const t = await erplora().queryAll('tables.tables.list', { sort: 'number_sort', dir: 'asc' });
       this.tables = rows<Table>(t);
     } catch { /* ignore */ }
   }
@@ -659,9 +660,15 @@ export class ErpTablesPosZones extends LitElement {
     void this.refreshTables();
   }
 
+  /** Tables of the active zone, in NATURAL order (tables#182): `S2` before `S10`, and a named
+   *  table (`Terraza A`) stays alphabetical — the criterion is per row, not per room. Ordering
+   *  here and not at the query is deliberate: the picker loads EVERY table once and re-filters by
+   *  zone on each tap, so the order the grid paints is this component's, not the caller's `sort`. */
   private get tablesInZone(): Table[] {
-    if (!this.activeZone) return this.tables;
-    return this.tables.filter((t) => t.zone_id === this.activeZone);
+    const inZone = this.activeZone
+      ? this.tables.filter((t) => t.zone_id === this.activeZone)
+      : this.tables;
+    return sortNaturallyBy(inZone, (t) => t.number, erplora().locale);
   }
 
   render() {

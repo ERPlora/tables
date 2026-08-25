@@ -239,6 +239,29 @@ def run_query(name: str, params: dict) -> list[dict]:
     return [json.loads(line) for line in out.splitlines() if line.strip()]
 
 
+def run_list_query(name: str, sort: str, where: str = "", direction: str = "ASC") -> list[dict]:
+    """Execute a manifest query THROUGH the list wrapper, exactly as `queries.rs` builds it:
+    the base SELECT becomes a derived table `sub` and the engine appends `ORDER BY sub.<col>`.
+    `run_query` above skips that wrapper, so it can never see an ordering defect (tables#182)."""
+    qdef = MANIFEST["queries"][name]
+    base = (MODULE_DIR / qdef["sql"]).read_text().strip().rstrip(";")
+    allowed = qdef.get("list", {}).get("sort", [])
+    if sort not in allowed:
+        failures.append(f"`{name}` does not allow sorting by `{sort}` (manifest whitelist)")
+        print(f"  FAIL: `{name}` does not allow sorting by `{sort}`")
+        return []
+    p = {"hub_id": HUB}
+    clause = f" WHERE {where}" if where else ""
+    sql = f"SELECT sub.* FROM ( {bind(base, p)} ) AS sub{clause} ORDER BY sub.{sort} {direction}"
+    try:
+        out = psql(["-tAc", f"SELECT row_to_json(r) FROM ({sql}) r"], db=DB)
+    except RuntimeError as exc:
+        failures.append(f"`{name}` sorted by `{sort}` did not run: {exc}")
+        print(f"  FAIL: `{name}` sorted by `{sort}` did not run: {exc}")
+        return []
+    return [json.loads(line) for line in out.splitlines() if line.strip()]
+
+
 # ── Assertions ───────────────────────────────────────────────────────────────────────────
 
 
@@ -760,6 +783,64 @@ def test_guests_count_is_visible_and_correctable():
     )
 
 
+# ── 5. The paginated Tables list orders NATURALLY (tables#182) ───────────────────────────
+
+
+def test_tables_list_orders_naturally():
+    """`/m/tables/mesas` is server-side paginated, so its order is decided in SQL, not in the
+    browser: sorting the visible page in JS would order each page on its own and still cut the
+    pages by the wrong key. A room named S1…S12 used to come out `S1 · S10 · S11 · S12 · S2 …`,
+    with table 2 in the fifth slot. The list therefore exposes `number_sort`, the same per-row
+    rule the POS picker applies with `Intl.Collator(..., { numeric: true })`: numeric tail
+    compared as a number, plain alphabetical for a named table."""
+    print("\n== 5. the tables list orders naturally, S1 … S12 (tables#182) ==")
+
+    psql(
+        [
+            "-c",
+            (
+                f"INSERT INTO tables_zone (id, hub_id, name, description, color, sort_order, "
+                f"is_active, is_deleted, created_at) VALUES "
+                f"('z2', '{HUB}', 'Terrace', '', 'primary', 2, 1, 0, '2026-08-07T09:00:00+00:00')"
+            ),
+        ],
+        db=DB,
+    )
+    # Inserted in the very order the old text sort produced, so a no-op fix cannot look green.
+    numbered = ["S1", "S10", "S11", "S12", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9"]
+    for i, number in enumerate(numbered + ["Terraza B", "Terraza A"]):
+        psql(
+            [
+                "-c",
+                (
+                    f"INSERT INTO tables_table (id, hub_id, zone_id, number, name, capacity, shape, "
+                    f"status, is_active, position_x, position_y, width, height, is_deleted, created_at) "
+                    f"VALUES ('o{i}', '{HUB}', 'z2', '{number}', '', 4, 'square', 'available', 1, "
+                    f"0, 0, 10, 10, 0, '2026-08-07T09:00:00+00:00')"
+                ),
+            ],
+            db=DB,
+        )
+
+    rows = run_list_query("tables.tables.list", "number_sort", where="sub.zone_id = 'z2'")
+    check(
+        "the numbered room reads 1, 2, 3 … 10, 11, 12",
+        ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12"],
+        [r["number"] for r in rows if r["number"].startswith("S")],
+    )
+    check(
+        "a NAMED table stays alphabetical — the criterion is per row",
+        ["Terraza A", "Terraza B"],
+        [r["number"] for r in rows if r["number"].startswith("T")],
+    )
+    check(
+        "and the whole room is one list, numbers before names",
+        ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12",
+         "Terraza A", "Terraza B"],
+        [r["number"] for r in rows],
+    )
+
+
 def main() -> int:
     running = subprocess.run(
         ["docker", "inspect", "-f", "{{.State.Running}}", CONTAINER],
@@ -780,6 +861,7 @@ def main() -> int:
         test_transfer_repoints_the_order()
         test_split_and_merge_keep_the_check()
         test_guests_count_is_visible_and_correctable()
+        test_tables_list_orders_naturally()
     finally:
         psql(["-c", f"DROP DATABASE IF EXISTS {DB} WITH (FORCE)"])
 
