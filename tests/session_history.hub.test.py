@@ -74,20 +74,29 @@ def table_status(hub: Hub, table_id: str) -> str:
 
 def session_on(hub: Hub, table_id: str) -> dict:
     """The single ACTIVE session on a table — every test here seats at most one party per table,
-    so this is always exactly the one it just opened."""
-    rows = [
-        r
-        for r in hub.query("tables.sessions.list")
-        if r.get("table_id") == table_id and r.get("status") == "active"
-    ]
-    if not rows:
-        raise AssertionError(f"no active session on table {table_id}")
+    so this is always exactly the one it just opened.
+
+    Filtered by the list engine (`f_table_id`, `f_status`), never by scanning one page: the
+    query pages at 50 rows sorted by `id` (random uuids), so on a hub that has already hosted a
+    few runs the session this test just opened may simply not be on the page it scanned."""
+    rows = hub.query(
+        "tables.sessions.list", {"f_table_id": table_id, "f_status": "active"}
+    )
+    if len(rows) != 1:
+        raise AssertionError(
+            f"expected exactly one active session on table {table_id}, got {len(rows)}: {rows}"
+        )
     return rows[0]
 
 
 def session_by_id(hub: Hub, session_id: str) -> dict:
-    rows = [r for r in hub.query("tables.sessions.list") if r.get("id") == session_id]
-    return rows[0] if rows else {}
+    """One session by id, whatever its status. `id` is not a list filter, so this reads the most
+    recently opened sessions (newest first) — every session this battery looks up it opened
+    itself moments ago, so it is always among them, however many runs the hub has hosted."""
+    rows = hub.query(
+        "tables.sessions.list", {"sort": "opened_at", "dir": "desc", "limit": 200}
+    )
+    return next((r for r in rows if r.get("id") == session_id), {})
 
 
 def test_opening_a_session_occupies_its_table(hub: Hub) -> None:
@@ -96,7 +105,7 @@ def test_opening_a_session_occupies_its_table(hub: Hub) -> None:
     hub.check("born available", table_status(hub, tid), "available")
     hub.run("tables.sessions.open", {"table_id": tid})
     hub.check("occupied by the party", table_status(hub, tid), "occupied")
-    hub.check_true("it estrena exactly one active session", bool(session_on(hub, tid)))
+    hub.check_true("it opens exactly one active session", bool(session_on(hub, tid)))
 
 
 def test_closing_a_session_frees_its_table(hub: Hub) -> None:
@@ -253,6 +262,14 @@ def test_parking_frees_the_table_without_closing_the_account(hub: Hub) -> None:
     )
     parked = session_by_id(hub, sid)
     hub.check("the account is PARKED, not closed", parked.get("status"), "parked")
+    # `table_id` means the table it sits at NOW, and a parked check sits at none: NULL, not the
+    # one it left. Otherwise every reader of the projection has to remember that "the table of
+    # a parked check" is really "the last table it was seen at" (ADR-0146, the `006` migration).
+    hub.check(
+        "…and points at no table: `table_id` is NULL, not the one it left",
+        parked.get("table_id"),
+        None,
+    )
 
 
 def test_restoring_a_parked_check_occupies_its_new_table(hub: Hub) -> None:
@@ -292,6 +309,11 @@ def test_a_parked_account_holds_no_table_at_all(hub: Hub) -> None:
     hub.run("tables.sessions.park", {"session_id": sid})
     hub.check(
         "the table shows free the instant it parks", table_status(hub, tid), "available"
+    )
+    hub.check(
+        "the parked account itself claims no table",
+        session_by_id(hub, sid).get("table_id"),
+        None,
     )
 
     hub.run("tables.sessions.open", {"table_id": tid})

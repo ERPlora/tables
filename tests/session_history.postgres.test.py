@@ -16,7 +16,7 @@ promise below is a Postgres CHECK, a unique index or a migration's backfill, nev
 business decision. That is exactly what `floor.postgres.test.py`'s miniature runtime already
 proves for `tables#12`, so this battery reuses it instead of inventing a second one.
 
-Six invariants of `005_session_assignment.sql`:
+Seven promises of `005_session_assignment.sql` and the commands that write it:
 
   1. The table exists and takes one open segment.
   2. A session cannot hold two LIVE segments at once — the unique partial index
@@ -30,6 +30,13 @@ Six invariants of `005_session_assignment.sql`:
      re-running it does not duplicate (idempotent by `WHERE NOT EXISTS`).
   6. Postgres dropped the inherited `ON DELETE CASCADE` (`007_session_history_fk.sql`, tables#21):
      deleting a session does not take its history with it.
+  7. The declarative commands write the history in the SAME transaction as the projection:
+     parking closes the live segment with `release_reason = 'parked'` and opens none (a parked
+     check sits at no table), restoring opens a fresh `restored` segment on the table it lands
+     on. Run through the harness's miniature runtime (`run_command`: the command's `sql[]` in
+     one transaction, system params bound), because no HTTP query exposes this table — this is
+     the half of the old e2e's `aparcar_…` / `restaurar_…` tests that `session_history.hub.test.py`
+     cannot see from outside.
 
 Usage: tests/session_history.postgres.test.py
   Uses the `erplora-test-pg-5433` container by default (override: TABLES_TEST_PG_CONTAINER).
@@ -57,6 +64,8 @@ psql = harness.psql
 q = harness.q
 check = harness.check
 failures = harness.failures
+run_command = harness.run_command
+DomainError = harness.DomainError
 
 
 def check_true(label: str, condition: bool, detail: str = "") -> None:
@@ -328,6 +337,92 @@ def test_deleting_a_session_does_not_cascade_its_history() -> None:
     )
 
 
+def command_ok(label: str, name: str, payload: dict, now: str) -> None:
+    """A declarative command that MUST run clean through the miniature runtime."""
+    try:
+        ok, err = run_command(name, payload, now)
+    except DomainError as exc:
+        ok, err = False, f"refused by expect_rows: {exc}"
+    check_true(label, ok, err)
+
+
+def test_parking_closes_the_live_segment_and_restoring_opens_the_next() -> None:
+    print(
+        "\n7 · parking closes the live segment (reason `parked`, no new row); restoring opens a"
+        " `restored` one"
+    )
+    # The projection (`tables_session.status`, `tables_table.status`) is what the hub battery
+    # sees over HTTP. THIS is the half it cannot: the segment must close in the same transaction
+    # as the park, with the reason the command derived, and parking must not invent a row for the
+    # period the check spends off the floor (ADR-0146).
+    legacy_session("s7", "m12", "2026-07-19T20:00:00+00:00")
+    ok, err = assignment("a7", "s7", "m12", "op-7")
+    check_true("a seated check with its live segment", ok, err)
+
+    command_ok(
+        "parking the check runs clean",
+        "tables.sessions.park",
+        {"session_id": "s7"},
+        "2026-07-19T20:30:00+00:00",
+    )
+    check(
+        "the live segment closed with reason `parked`",
+        "parked",
+        q(
+            f"SELECT release_reason FROM tables_session_assignment WHERE id = 'a7' "
+            f"AND hub_id = '{HUB}'"
+        ),
+    )
+    check(
+        "…at the moment of the park",
+        "2026-07-19T20:30:00+00:00",
+        q(
+            f"SELECT released_at FROM tables_session_assignment WHERE id = 'a7' "
+            f"AND hub_id = '{HUB}'"
+        ),
+    )
+    check(
+        "parked = no live segment at all",
+        0,
+        count(
+            f"SELECT COUNT(*) FROM tables_session_assignment WHERE hub_id = '{HUB}' "
+            f"AND session_id = 's7' AND released_at IS NULL AND is_deleted = 0"
+        ),
+    )
+    check(
+        "parking invents no row for the parked period",
+        1,
+        count(
+            f"SELECT COUNT(*) FROM tables_session_assignment WHERE hub_id = '{HUB}' "
+            f"AND session_id = 's7'"
+        ),
+    )
+
+    command_ok(
+        "restoring the check at table 8 runs clean",
+        "tables.sessions.restore",
+        {"session_id": "s7", "table_id": "m8", "operation_id": ""},
+        "2026-07-19T21:00:00+00:00",
+    )
+    check(
+        "one segment per stay: 12 → (parked) → 8",
+        2,
+        count(
+            f"SELECT COUNT(*) FROM tables_session_assignment WHERE hub_id = '{HUB}' "
+            f"AND session_id = 's7'"
+        ),
+    )
+    check(
+        "the live segment is the new one, on table 8, with reason `restored`",
+        "m8|restored",
+        q(
+            f"SELECT table_id || '|' || assignment_reason FROM tables_session_assignment "
+            f"WHERE hub_id = '{HUB}' AND session_id = 's7' AND released_at IS NULL "
+            f"AND is_deleted = 0"
+        ),
+    )
+
+
 def main() -> int:
     running = subprocess.run(
         ["docker", "inspect", "-f", "{{.State.Running}}", harness.CONTAINER],
@@ -350,6 +445,7 @@ def main() -> int:
         test_an_invented_reason_is_rejected()
         test_the_backfill_gives_history_to_sessions_that_already_existed()
         test_deleting_a_session_does_not_cascade_its_history()
+        test_parking_closes_the_live_segment_and_restoring_opens_the_next()
     finally:
         psql(["-c", f"DROP DATABASE IF EXISTS {DB} WITH (FORCE)"])
 

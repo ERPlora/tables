@@ -9,7 +9,7 @@ it, so a red run names EVERY broken assertion and not just the first.
 
 Ported from `sales/tests/hub_harness.py` (ERPlora/hub#1264 slice 1) for `tables`' own slice: the
 open-check life cycle (`tables.sessions.open/close/transfer/park/restore`) is a WASM handler here
-too, and its promise — "opening a session estrena exactly one history segment" — only means
+too, and its promise — "opening a session opens exactly one history segment" — only means
 something once the runtime has minted the ids and run the SQL, which is exactly what a scratch
 harness cannot reproduce.
 
