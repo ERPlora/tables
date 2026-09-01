@@ -181,7 +181,8 @@ def _script_for(name: str, payload: dict, now: str) -> tuple[list[str], int, dic
 def run_command(name: str, payload: dict, now: str) -> tuple[bool, str]:
     """Execute a manifest command's `sql[]` the way the runtime does: one transaction, system
     params injected, one outbox row per `emit`, and — when the command declares `expect_rows` —
-    the gate applied on the SUM of the rows its `sql[]` affected (`execute_tx_gated`, hub#139).
+    the gate applied on the rows its `sql[]` affected (`execute_tx_gated`, hub#139): the SUM of
+    them all, or only those of `expect_rows.statement` when the command anchors it (hub#1091).
     Below `n` the transaction rolls back entirely and `DomainError` is raised. Returns (ok, error);
     a gate CHECK violation → (False, msg)."""
     cmd = MANIFEST["commands"].get(name)
@@ -208,12 +209,38 @@ def run_command(name: str, payload: dict, now: str) -> tuple[bool, str]:
         except RuntimeError as exc:
             psql(["-c", "DELETE FROM tables__gate"], db=DB)
             return False, str(exc)
-        affected = sum(
+        counts = [
             int(m.group(1))
-            for line in out.splitlines()[:sql_op_count + 1]
+            for line in out.splitlines()
             for m in [TAG.fullmatch(line.strip())]
             if m
-        )
+        ]
+        anchor = gate.get("statement")
+        if anchor is None:
+            # The documented default: the SUM of the command's own sql[] (never the outbox
+            # INSERTs, which always affect 1 and would make every gate vacuous).
+            affected = sum(counts[:sql_op_count])
+        else:
+            # hub#1091: `expect_rows.statement` ANCHORS the gate to ONE statement, so an
+            # unconditional sibling can no longer satisfy a guard the guarded statement failed.
+            # Resolved here the way the runtime resolves it (`anchored_statement_index`): the
+            # index of the declared path among `sql[]` IS the index of the statement that runs.
+            if anchor not in cmd["sql"]:
+                return False, (
+                    f"`{name}` anchors expect_rows.statement to `{anchor}`, which is not one "
+                    "of its sql statements"
+                )
+            expected_tags = sql_op_count + len(cmd.get("emit", []))
+            if len(counts) != expected_tags:
+                # One psql command tag per statement is what makes the index meaningful. If a
+                # .sql file ever carries two statements the mapping silently shifts, so this
+                # REFUSES instead of anchoring to the wrong one — degrading quietly would
+                # re-create the very hole the anchor exists to close.
+                return False, (
+                    f"`{name}`: cannot anchor the row gate — expected {expected_tags} command "
+                    f"tags (one per statement), got {len(counts)}"
+                )
+            affected = counts[cmd["sql"].index(anchor)]
         if gate.get("op", "min") == "min" and affected < int(gate["n"]):
             raise DomainError(gate["error"], affected)
 

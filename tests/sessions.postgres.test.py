@@ -47,7 +47,15 @@ def seed():
             ],
             db=DB,
         )
-    for tid, zid, number in (("t1", "z1", "1"), ("t2", "z2", "2")):
+    # t3/t4 are the pair `test_the_waiter_follows_the_check` moves a party across: the
+    # batteries share one scratch DB, so a test that reuses t1/t2 would find them already
+    # occupied by the zone test above and fail on the seating gate, not on its own contract.
+    for tid, zid, number in (
+        ("t1", "z1", "1"),
+        ("t2", "z2", "2"),
+        ("t3", "z1", "3"),
+        ("t4", "z2", "4"),
+    ):
         psql(
             [
                 "-c",
@@ -105,6 +113,62 @@ def test_sessions_carry_their_zone():
     )
 
 
+def waiter_of(session_id: str) -> str:
+    """The attribution stored on a session row, `''` when it has none."""
+    return harness.q(
+        f"SELECT COALESCE(waiter_id, '') FROM tables_session "
+        f"WHERE id = '{session_id}' AND hub_id = '{HUB}'"
+    )
+
+
+def test_the_waiter_follows_the_check():
+    """tables#70: the attribution has to SURVIVE the moves, not just the opening.
+
+    `tables.sessions.open` now defaults `waiter_id` to the signed-in user, but that value only
+    means something if it follows the check: transferring a party to another table and splitting
+    the bill both mint a NEW session row, and a row that forgets the waiter drops the attribution
+    exactly where a busy service needs it — several checks open at once and nobody knowing whose
+    is whose. `_session_transfer_insert.sql` and `_session_split_insert.sql` copy `s.waiter_id`
+    from the source row; this is the regression test that keeps them doing it.
+    """
+    print("\n== the waiter follows the check across transfer and split (tables#70) ==")
+    command_ok(
+        "Ana opens a check on table 3",
+        "tables._session_open",
+        {
+            "session_id": "s-w1",
+            "table_id": "t3",
+            "guests_count": 2,
+            "waiter_id": "u-ana",
+            "notes": "",
+        },
+        "2026-08-07T20:00:00+00:00",
+    )
+    check("the check is attributed to Ana", "u-ana", waiter_of("s-w1"))
+
+    command_ok(
+        "the party moves to table 4",
+        "tables._session_transfer",
+        {"session_id": "s-w1", "target_table_id": "t4", "new_session_id": "s-w2"},
+        "2026-08-07T20:30:00+00:00",
+    )
+    check("the transferred check is still Ana's", "u-ana", waiter_of("s-w2"))
+
+    command_ok(
+        "half the party asks for a separate bill",
+        "tables._session_split",
+        {
+            "session_id": "s-w2",
+            "new_session_id": "s-w3",
+            "target_table_id": None,
+            "guests_count": 1,
+            "notes": "",
+        },
+        "2026-08-07T21:00:00+00:00",
+    )
+    check("the split check is still Ana's", "u-ana", waiter_of("s-w3"))
+
+
 def main() -> int:
     running = subprocess.run(
         ["docker", "inspect", "-f", "{{.State.Running}}", harness.CONTAINER],
@@ -123,6 +187,7 @@ def main() -> int:
             psql([], db=DB, stdin=mig.read_text())
         seed()
         test_sessions_carry_their_zone()
+        test_the_waiter_follows_the_check()
     finally:
         psql(["-c", f"DROP DATABASE IF EXISTS {DB} WITH (FORCE)"])
 
@@ -132,7 +197,7 @@ def main() -> int:
         for f in failures:
             print(f"  - {f}")
         return 1
-    print("PASS — sessions carry their zone (tables#3 b)")
+    print("PASS — sessions carry their zone (tables#3 b) and their waiter (tables#70)")
     return 0
 
 

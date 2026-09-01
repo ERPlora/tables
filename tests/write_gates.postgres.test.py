@@ -416,6 +416,73 @@ def test_editing_something_that_is_not_there_is_an_error():
     )
 
 
+def test_releasing_a_hold_that_is_not_there_is_an_error():
+    print(
+        "\n== 5. releasing a hold that is not there must not announce a release (tables#61) =="
+    )
+    # THE LEAK this test exists to catch. `release_hold` runs TWO statements:
+    #   1. `table_hold_release.sql` — the GUARDED one: flips THIS hold to `released`.
+    #   2. `_hold_free_stale.sql`   — a HUB-WIDE sweep: hands back to the plan every table still
+    #                                 painted `reserved` with no live reason.
+    # A plain `min: 1` on the batch SUM would be paid by the sweep alone, so releasing a reference
+    # that does not exist would answer ok and put `tables.table.hold_released` on the bus for a
+    # release that never happened. The sweep has work to do here ON PURPOSE: t2 is painted
+    # `reserved` while its own hold already expired — the real state of a floor between a booking's
+    # window closing and `expire_holds` running (every 15 min). Without this neighbour the test
+    # passes whether the gate is anchored or not, which is to say it proves nothing.
+    psql(
+        [
+            "-c",
+            (
+                f"INSERT INTO tables_table_hold (id, hub_id, table_id, source, source_ref, "
+                f"held_from, held_until, party_size, label, status, is_deleted, created_at, "
+                f"updated_at) VALUES ('h-stale', '{HUB}', 't2', 'reservations', 'r-stale', "
+                f"'2026-08-18T09:00:00', '2026-08-18T11:00:00', 2, 'Nobody', 'expired', 0, "
+                f"'{T0}', '{T0}')"
+            ),
+        ],
+        db=DB,
+    )
+    psql(["-c", "UPDATE tables_table SET status = 'reserved' WHERE id = 't2'"], db=DB)
+    check(
+        "the stale neighbour is there for the sweep to find",
+        "reserved",
+        q("SELECT status FROM tables_table WHERE id = 't2'"),
+    )
+
+    command_rejected(
+        "releasing a hold that was never taken",
+        "tables.tables.release_hold",
+        {"source": "reservations", "source_ref": "r-ghost"},
+        "2026-08-18T17:06:00+00:00",
+        "tables.hold_not_found",
+    )
+    check(
+        "the refused release swept nothing either",
+        "reserved",
+        q("SELECT status FROM tables_table WHERE id = 't2'"),
+    )
+
+    # And the legitimate release still does its job: the hold dies AND its table goes back on the
+    # plan. A guard that also blocks the real case is not a fix.
+    command_ok(
+        "releasing the hold that IS there",
+        "tables.tables.release_hold",
+        {"source": "reservations", "source_ref": "r-1"},
+        "2026-08-18T17:07:00+00:00",
+    )
+    check(
+        "the hold is marked released",
+        "released",
+        q("SELECT status FROM tables_table_hold WHERE source_ref = 'r-1'"),
+    )
+    check(
+        "the released table is back on the plan",
+        "available",
+        q("SELECT status FROM tables_table WHERE id = 't1'"),
+    )
+
+
 def main() -> int:
     running = subprocess.run(
         ["docker", "inspect", "-f", "{{.State.Running}}", harness.CONTAINER],
@@ -438,6 +505,7 @@ def main() -> int:
         test_parking_and_restoring_refuse_out_of_state()
         test_the_gate_is_not_neutralised_by_a_neighbour_statement()
         test_editing_something_that_is_not_there_is_an_error()
+        test_releasing_a_hold_that_is_not_there_is_an_error()
     finally:
         psql(["-c", f"DROP DATABASE IF EXISTS {DB} WITH (FORCE)"])
 
