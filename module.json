@@ -517,6 +517,13 @@
       ],
       "ai": {
         "description": "Releases a table held for a booking that was cancelled or moved"
+      },
+      "expect_rows": {
+        "op": "min",
+        "n": 1,
+        "statement": "commands/table_hold_release.sql",
+        "error": "tables.hold_not_found",
+        "message": "That hold is not there any more: it was already released, it expired, or that booking never held a table."
       }
     },
     "tables.tables.expire_holds": {

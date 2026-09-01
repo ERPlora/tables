@@ -160,6 +160,40 @@ fn opt_str(payload: &Value, key: &str) -> Value {
     }
 }
 
+/// Who is serving the check (tables#70).
+///
+/// The payload when it names somebody, else the user with the session open on the terminal. It is
+/// the SAME rule `sales` settled in sales#179 for `staff_id` / `waiter_id`, and the market one
+/// (Toast, Square for Restaurants, Lightspeed): the server is pinned to the check from the moment
+/// it opens — by default whoever is logged in — and stays transferable afterwards.
+///
+/// A blank string is NOT an attribution: the POS sends `null` and integrations send `""`, and a
+/// blank waiter persisted on the row is worse than NULL because it looks like somebody. Both fall
+/// back to the signed-in user.
+///
+/// `context.current_user_id` is injected by the runtime into every handler input and cannot be
+/// forged by the caller, so resolving it HERE (and not in the SQL) is what lets the attribution
+/// travel in the `tables.session.opened` event as well. If the runtime handed no user at all the
+/// value stays NULL — the session still opens, because refusing to seat a table over a missing
+/// attribution would be a worse defect than the one this closes.
+fn waiter_or_signed_in_user(payload: &Value, input: &Value) -> Value {
+    match opt_str(payload, "waiter_id") {
+        Value::Null => {
+            let user = as_str(
+                input
+                    .pointer("/context/current_user_id")
+                    .unwrap_or(&Value::Null),
+            );
+            if user.trim().is_empty() {
+                Value::Null
+            } else {
+                json!(user)
+            }
+        }
+        named => named,
+    }
+}
+
 // ── guardas de estado sobre las filas PRE-CARGADAS (`reads`, ADR-0069 — tables#55) ───────────
 //
 // Las tres guardas del módulo vivían solo en el SQL interno (escritura condicional + assert sobre
@@ -347,7 +381,8 @@ pub fn open_session_pure(input: Value) -> Result<Output, String> {
     p.insert("session_id".into(), json!(session_id));
     p.insert("table_id".into(), json!(table_id));
     p.insert("guests_count".into(), json!(guests_count));
-    p.insert("waiter_id".into(), opt_str(&payload, "waiter_id"));
+    // tables#70: the check is never born unattributed — payload, else the signed-in user.
+    p.insert("waiter_id".into(), waiter_or_signed_in_user(&payload, &input));
     p.insert(
         "notes".into(),
         json!(as_str(payload.get("notes").unwrap_or(&Value::Null))),
@@ -640,6 +675,61 @@ mod tests {
             out2.operations[0].params["order_id"].is_null(),
             "order_id es opcional → NULL"
         );
+    }
+
+    // ── tables#70 · the check ALWAYS has a waiter ────────────────────────────
+
+    #[test]
+    fn open_session_defaults_the_waiter_to_the_signed_in_user() {
+        // tables#70: seating a table never asked who was serving it, so every session was born
+        // with `waiter_id = NULL` — no audit of who owns the check, no base to split tips, and no
+        // way to tell whose bill is whose when several are open at once. The POS cannot be the one
+        // to answer it: it only knows the terminal. The runtime does — it injects
+        // `context.current_user_id` into every handler input and that value is NOT spoofable.
+        // Same rule `sales` settled in sales#179 for `staff_id`/`waiter_id`: the payload when it
+        // names somebody, else the user with the session open. Resolving it HERE and not in the
+        // SQL is what lets the attribution travel in the event too.
+        let out = open_session_pure(input(json!({ "table_id": "mesa-5" }), 1))
+            .expect("open without a waiter in the payload");
+        assert_eq!(
+            out.operations[0].params["waiter_id"],
+            json!("u1"),
+            "an unattributed check falls back to the user with the session open"
+        );
+    }
+
+    #[test]
+    fn open_session_keeps_an_explicit_waiter() {
+        // The default must never overwrite a real attribution: the check is TRANSFERABLE, and a
+        // caller that names a waiter is the authority (a manager seating a table for someone else).
+        let out = open_session_pure(input(
+            json!({ "table_id": "mesa-5", "waiter_id": "u-ana" }),
+            1,
+        ))
+        .expect("open with an explicit waiter");
+        assert_eq!(
+            out.operations[0].params["waiter_id"],
+            json!("u-ana"),
+            "an explicit waiter wins over the signed-in user"
+        );
+    }
+
+    #[test]
+    fn open_session_treats_a_blank_waiter_as_no_attribution() {
+        // The POS sends `null` and integrations send `""`; neither is an attribution. A blank
+        // string persisted as a waiter is WORSE than NULL, because it looks like somebody.
+        for blank in [json!(""), json!("   "), Value::Null] {
+            let out = open_session_pure(input(
+                json!({ "table_id": "mesa-5", "waiter_id": blank }),
+                1,
+            ))
+            .expect("open with a blank waiter");
+            assert_eq!(
+                out.operations[0].params["waiter_id"],
+                json!("u1"),
+                "a blank waiter is not an attribution: it falls back to the signed-in user"
+            );
+        }
     }
 
     // ── split_session (dividir la cuenta, tables#12) ─────────────────────────
