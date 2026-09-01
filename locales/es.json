@@ -16,7 +16,21 @@
     }
   },
   "settings": {
-    "title": "Mesas"
+    "title": "Mesas",
+    "fields": {
+      "prompt_guests_on_seat": {
+        "label": "Preguntar los comensales al sentar una mesa",
+        "description": "Desactivado: sentar una mesa libre abre la cuenta con el aforo de la mesa en un solo toque."
+      },
+      "timer_warning_minutes": {
+        "label": "Aviso ámbar (minutos)",
+        "description": "Una cuenta abierta se pone ámbar en la vista de Sesiones a partir de estos minutos."
+      },
+      "timer_critical_minutes": {
+        "label": "Aviso rojo (minutos)",
+        "description": "Una cuenta abierta se pone roja a partir de estos minutos."
+      }
+    }
   },
   "ui": {
     "floorPlan": "Plano de sala",

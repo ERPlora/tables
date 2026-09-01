@@ -15,7 +15,21 @@
     }
   },
   "settings": {
-    "title": "Tables"
+    "title": "Tables",
+    "fields": {
+      "prompt_guests_on_seat": {
+        "label": "Ask for the number of guests when seating a table",
+        "description": "Off: seating a free table opens the check with the table capacity in one tap."
+      },
+      "timer_warning_minutes": {
+        "label": "Amber after (minutes)",
+        "description": "An open check turns amber in the Sessions view after this many minutes."
+      },
+      "timer_critical_minutes": {
+        "label": "Red after (minutes)",
+        "description": "An open check turns red after this many minutes."
+      }
+    }
   },
   "ui": {
     "floorPlan": "Floor Plan",
