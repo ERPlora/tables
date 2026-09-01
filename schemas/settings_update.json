@@ -4,7 +4,11 @@
   "description": "Room settings (singleton per hub, tables#3 c). The UI sends the complete snapshot (upsert). Defaults here ARE the behaviour of a hub that never saved anything.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["prompt_guests_on_seat", "timer_warning_minutes", "timer_critical_minutes"],
+  "required": [
+    "prompt_guests_on_seat",
+    "timer_warning_minutes",
+    "timer_critical_minutes"
+  ],
   "properties": {
     "prompt_guests_on_seat": {
       "type": "boolean",
@@ -14,17 +18,17 @@
     },
     "timer_warning_minutes": {
       "type": "integer",
+      "title": "Amber after (minutes)",
       "minimum": 1,
       "maximum": 600,
-      "title": "Amber after (minutes)",
       "description": "An open check turns amber in the Sessions view after this many minutes.",
       "default": 60
     },
     "timer_critical_minutes": {
       "type": "integer",
+      "title": "Red after (minutes)",
       "minimum": 1,
       "maximum": 600,
-      "title": "Red after (minutes)",
       "description": "An open check turns red after this many minutes.",
       "default": 90
     }
