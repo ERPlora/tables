@@ -13,20 +13,28 @@
 SELECT t.id, t.number, t.name, t.capacity, t.shape, t.status, t.is_active,
        t.position_x, t.position_y, t.width, t.height,
        t.zone_id, z.name AS zone,
-       -- tables#182: NATURAL sort key. The tables list is paginated by the SERVER, so its order is
-       -- decided here and not in the browser: sorting the visible page in JS would order each page
-       -- on its own and still cut the pages by the wrong key. Under the plain text order a room
-       -- named S1…S12 came out `S1 · S10 · S11 · S12 · S2 …` and table 2 sat in the fifth slot.
-       -- The rule is PER ROW (the same one the POS applies with
-       -- `Intl.Collator(..., { numeric: true })`): a number ending in digits has that tail
-       -- compared as a number — left-padded with zeros, and `GREATEST` keeps `lpad` from
-       -- TRUNCATING a tail longer than 12 digits; anything else stays as it is, alphabetical.
-       CASE WHEN t.number ~ '[0-9]+$'
-            THEN regexp_replace(t.number, '[0-9]+$', '')
-                 || lpad(substring(t.number FROM '[0-9]+$'),
-                         GREATEST(12, length(substring(t.number FROM '[0-9]+$'))), '0')
-            ELSE t.number
-       END AS number_sort,
+       -- tables#182 / tables#68: NATURAL sort key. The tables list is paginated by the SERVER, so
+       -- its order is decided here and not in the browser: sorting the visible page in JS would
+       -- order each page on its own and still cut the pages by the wrong key. Under the plain text
+       -- order a room named S1…S12 came out `S1 · S10 · S11 · S12 · S2 …` and table 2 sat in the
+       -- fifth slot.
+       --
+       -- The rule is PER ROW and it is the SAME one the POS applies with
+       -- `Intl.Collator(..., { numeric: true })`: EVERY run of digits compares as a number,
+       -- wherever it sits in the label; anything else stays alphabetical. tables#68: this used to
+       -- pad only the run at the END, so `Barra 2 Bis` and `Barra 10 Bis` came out one way in this
+       -- list and the opposite way in the picker — the very incoherence between screens tables#182
+       -- set out to remove, hiding in a label that ends in text. `tests/natural-order-corpus.json`
+       -- is the shared corpus that keeps the two sides honest.
+       --
+       -- Two passes, and no database object of our own: Postgres cannot call a function per regexp
+       -- match, so pass 1 prefixes EVERY run with 12 zeros and pass 2 keeps the last 12 digits of
+       -- each (now over-long) run. A run longer than 12 digits comes out untruncated and therefore
+       -- still sorts after every shorter one, which is what `GREATEST(12, …)` used to buy.
+       regexp_replace(
+           regexp_replace(t.number, '([0-9]+)', '000000000000\1', 'g'),
+           '0*([0-9]{12})', '\1', 'g'
+       ) AS number_sort,
        h.label      AS reserved_for,
        h.held_from  AS reserved_from,
        h.held_until AS reserved_until,

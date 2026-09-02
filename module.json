@@ -28,6 +28,7 @@
     "tables.view_tablesession",
     "tables.add_tablesession",
     "tables.change_tablesession",
+    "tables.transfer_tablesession",
     "tables.delete_tablesession",
     "tables.view_settings",
     "tables.manage_settings"
@@ -42,6 +43,7 @@
       "tables.view_tablesession",
       "tables.add_tablesession",
       "tables.change_tablesession",
+      "tables.transfer_tablesession",
       "tables.view_settings"
     ],
     "manager": [
@@ -54,6 +56,7 @@
       "tables.view_tablesession",
       "tables.add_tablesession",
       "tables.change_tablesession",
+      "tables.transfer_tablesession",
       "tables.view_settings"
     ],
     "employee": [
@@ -62,6 +65,7 @@
       "tables.view_tablesession",
       "tables.add_tablesession",
       "tables.change_tablesession",
+      "tables.transfer_tablesession",
       "tables.view_settings"
     ]
   },
@@ -577,7 +581,7 @@
       }
     },
     "tables.sessions.transfer": {
-      "permission": "tables.change_tablesession",
+      "permission": "tables.transfer_tablesession",
       "schema": "schemas/session_transfer.json",
       "handler": {
         "type": "wasm",
@@ -592,7 +596,7 @@
       }
     },
     "tables.sessions.merge": {
-      "permission": "tables.change_tablesession",
+      "permission": "tables.transfer_tablesession",
       "schema": "schemas/session_merge.json",
       "handler": {
         "type": "wasm",
@@ -666,7 +670,7 @@
       ]
     },
     "tables._session_transfer": {
-      "permission": "tables.change_tablesession",
+      "permission": "tables.transfer_tablesession",
       "sql": [
         "commands/_session_transfer_close.sql",
         "commands/_assignment_release_transferred.sql",
@@ -681,7 +685,7 @@
       ]
     },
     "tables._session_merge": {
-      "permission": "tables.change_tablesession",
+      "permission": "tables.transfer_tablesession",
       "sql": [
         "commands/_session_merge_close.sql",
         "commands/_assignment_release_merged.sql",
@@ -854,6 +858,17 @@
         "description": "Updates the room settings (guests prompt on seating, amber/red timer thresholds)"
       }
     }
+  },
+  "errors": {
+    "tables.hold_not_found": {},
+    "tables.session_not_active": {},
+    "tables.session_not_parked": {},
+    "tables.table_has_active_session": {},
+    "tables.table_not_available": {},
+    "tables.table_not_found": {},
+    "tables.zone_has_tables": {},
+    "tables.zone_not_found": {},
+    "tables.zone_unavailable": {}
   },
   "ui": {
     "entry": "dist/tables.esm.js"

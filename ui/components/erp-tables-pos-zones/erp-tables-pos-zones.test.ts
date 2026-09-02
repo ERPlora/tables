@@ -134,9 +134,13 @@ describe('erp-tables-pos-zones — transferir / fusionar (⋮)', () => {
   const FREE = { id: 'tbl-2', number: '5', zone_id: 'z1', capacity: 2, status: 'available' };
   const OCC2 = { id: 'tbl-3', number: '6', zone_id: 'z1', capacity: 2, status: 'occupied' };
 
-  function setup(tables: Array<Record<string, unknown>>) {
+  function setup(
+    tables: Array<Record<string, unknown>>,
+    hasPermission?: (permission: string) => boolean,
+  ) {
     const calls: Array<{ name: string; payload?: Record<string, unknown> }> = [];
     (globalThis as Record<string, unknown>).erplora = {
+      ...(hasPermission ? { hasPermission } : {}),
       query: async (name: string) => {
         if (name.includes('zone')) return [ZONA];
         if (name.includes('session')) return [{ id: 's1' }]; // activeSessionFor → 's1'
@@ -192,6 +196,39 @@ describe('erp-tables-pos-zones — transferir / fusionar (⋮)', () => {
     expect(calls.some((c) => c.name === 'tables.sessions.transfer'), 'ejecuta el comando de sesión').toBe(true);
     expect(d?.from_table_id).toBe('tbl-1');
     expect(d?.to_table_id).toBe('tbl-2');
+  });
+
+  // tables#66 — transferir y fusionar dejan de compartir llave con cerrar/comensales: piden
+  // `tables.transfer_tablesession`. Un local que se la quita a los camareros (el gate que Toast
+  // resuelve con el código de encargado y Lightspeed con la casilla «Table transfer») no puede
+  // quedarse con dos botones que solo saben devolver 403: si no hay llave, no hay botón. Dividir y
+  // Comensales son servicio rutinario y siguen ahí — es justo lo que la llave separada compra.
+  it('sin `tables.transfer_tablesession` el ⋮ no ofrece Transferir ni Fusionar', async () => {
+    setup([OCC, FREE], (p) => p !== 'tables.transfer_tablesession');
+    const el = await montar();
+    await abrir(el);
+    el.shadowRoot.querySelector<HTMLElement>('.kebab')!.click();
+    await tick(el);
+
+    const etiquetas = [...el.shadowRoot.querySelectorAll('.actions ion-button')]
+      .map((b) => b.textContent?.trim() ?? '');
+    expect(etiquetas.some((l) => l.includes('ui.transfer')), 'Transferir queda oculto').toBe(false);
+    expect(etiquetas.some((l) => l.includes('ui.merge')), 'Fusionar queda oculto').toBe(false);
+    expect(etiquetas.some((l) => l.includes('ui.split')), 'Dividir sigue siendo servicio rutinario').toBe(true);
+    expect(etiquetas.some((l) => l.includes('ui.guests')), 'Comensales sigue siendo servicio rutinario').toBe(true);
+  });
+
+  it('con la llave, el ⋮ sigue ofreciendo Transferir y Fusionar', async () => {
+    setup([OCC, FREE], () => true);
+    const el = await montar();
+    await abrir(el);
+    el.shadowRoot.querySelector<HTMLElement>('.kebab')!.click();
+    await tick(el);
+
+    const etiquetas = [...el.shadowRoot.querySelectorAll('.actions ion-button')]
+      .map((b) => b.textContent?.trim() ?? '');
+    expect(etiquetas.some((l) => l.includes('ui.transfer'))).toBe(true);
+    expect(etiquetas.some((l) => l.includes('ui.merge'))).toBe(true);
   });
 
   it('Fusionar → elige mesa OCUPADA → ejecuta merge y emite erp:order-merge', async () => {

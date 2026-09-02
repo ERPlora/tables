@@ -115,7 +115,16 @@ KNOWN_TOP_LEVEL = {
     "network",
     "capabilities",
     "setup",
+    "errors",
 }
+
+# ADR-0398 — the value of every entry in `errors`. `{}` is the normal case; `deprecated` carries the
+# version from which the code is announced as going away. Nothing else is part of the contract.
+ERROR_ENTRY_KEYS = {"deprecated"}
+
+# `errors::valid_domain_code` in the runtime: `<module>.<snake_case>`, 128 characters at most.
+DOMAIN_CODE = re.compile(r"^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$")
+DOMAIN_CODE_MAX = 128
 
 JSON_TYPE_NAME = {
     bool: "boolean",
@@ -322,31 +331,125 @@ def check_expect_rows(path: str, c: dict) -> None:
 
 # The domain codes a Tier-2 handler mints (tables#55). They are the same public ABI as the
 # `expect_rows` ones and need the same translation, but they are NOT in the manifest — the WASM
-# guard lives in `handler/src/lib.rs` — so they are read from there. Regex and not a parser on
-# purpose: the point is to notice a code that shipped with no Spanish, and the shape of the call
-# (`reject("tables.x", …)`) is fixed by the module's own helper.
-HANDLER_CODE = re.compile(r'reject\(\s*"(tables\.[a-z0-9_]+)"')
+# guard lives in `handler/src/lib.rs` — so they are read from there.
+#
+# 🔴 The scan is LEXICAL over every `"tables.<snake_case>"` literal of the handler, not over the
+# `reject(...)` call shape (interop-contract §8.2, ADR-0398). Pinning it to the helper made the
+# check a mirror of ONE call site: a code minted through any other path — a constant, a `format!`,
+# a second helper — read as "no code here" and shipped with neither catalogue entry nor Spanish.
+# What the manifest already NAMES is excluded, because `<module>.<snake_case>` is equally the shape
+# of a code, of a query and of a command: a handler reading its own data (`read_rows(&ctx,
+# "tables.tables.get")`) or pushing an intention (`Operation::sql("tables._session_merge", …)`)
+# is not emitting an error (module-toolkit#107).
+HANDLER_LITERAL = re.compile(r'"(tables\.[a-z0-9_.]+)"')
 
 
-def handler_codes() -> set[str]:
+def handler_codes(m: dict) -> set[str]:
     src = MODULE_DIR / "handler" / "src" / "lib.rs"
-    return set(HANDLER_CODE.findall(src.read_text())) if src.exists() else set()
+    if not src.exists():
+        return set()
+    names = set(m.get("commands") or {}) | set(m.get("queries") or {})
+    return {
+        code
+        for code in HANDLER_LITERAL.findall(src.read_text())
+        if code not in names and not code.split(".", 1)[1].startswith("_")
+    }
+
+
+def emitted_codes(m: dict) -> set[str]:
+    """Every domain code this module can answer with: the declarative gate plus the handler."""
+    return {
+        c["expect_rows"]["error"]
+        for c in (m.get("commands") or {}).values()
+        if isinstance(c, dict)
+        and isinstance(c.get("expect_rows"), dict)
+        and isinstance(c["expect_rows"].get("error"), str)
+    } | handler_codes(m)
+
+
+def check_error_catalog(m: dict) -> None:
+    """ADR-0398 — the codes are DECLARED surface (`module.json → errors`), not a side effect.
+
+    Until this block existed a code was born in a literal of the handler or in an
+    `expect_rows.error` and died where it was born: nothing published it, so nothing could notice
+    it going away. `appointments` turned an `Err("overlap: …")` into a coded `DomainError` with its
+    gate green and broke the pre-push gate of the whole fleet in under an hour, and hub#1070 lists
+    18 tests of the hub asserting on the error TEXT because there was no code to assert on.
+
+    With `errors` present the runtime is STRICT: an `Output.error` carrying a code that is not in
+    the catalogue is a broken guest contract (`RuntimeError::Wasm`, `unexpected`), not a domain
+    rejection the screen can translate. So the catalogue being one code short does not degrade a
+    message — it turns a legitimate rejection into a 500. That is why the three lists
+    (`expect_rows.error`, the handler's literals, and `locales/*.json → errors`) are compared
+    against each other here and not merely against the manifest.
+    """
+    emitted = emitted_codes(m)
+    catalog = m.get("errors")
+
+    if catalog is None:
+        if emitted:
+            failures.append(
+                f"errors: missing, and this module answers {len(emitted)} domain code(s) "
+                f"({', '.join(sorted(emitted))}). ADR-0398: retiring one of them has to be a "
+                f"visible change, and without the block nothing publishes them"
+            )
+        return
+    if not expect("errors", catalog, dict):
+        return
+
+    for code, entry in sorted(catalog.items()):
+        if len(code) > DOMAIN_CODE_MAX or not DOMAIN_CODE.match(code):
+            failures.append(
+                f"errors.{code}: not a domain code — the contract is `<module>.<snake_case>`, "
+                f"{DOMAIN_CODE_MAX} characters at most (`errors::valid_domain_code`)"
+            )
+        elif not code.startswith(f"{m.get('id')}."):
+            failures.append(
+                f"errors.{code}: outside this module's namespace — the runtime rejects a code "
+                f"a module does not own"
+            )
+        if not expect(f"errors.{code}", entry, dict):
+            continue
+        for key in sorted(set(entry) - ERROR_ENTRY_KEYS):
+            failures.append(
+                f"errors.{code}.{key}: not part of the contract — the value carries the STATE of "
+                f"the code ({sorted(ERROR_ENTRY_KEYS)}), never its text. The sentence lives in "
+                f"`locales/<lang>.json → errors` (ADR-0055)"
+            )
+        field(f"errors.{code}", entry, "deprecated", str)
+
+    for code in sorted(emitted - set(catalog)):
+        failures.append(
+            f"errors: `{code}` is answered by this module but not declared. With `errors` present "
+            f"the runtime is strict, so this code stops being a translatable rejection and "
+            f"becomes `unexpected` (ADR-0398 §8.2)"
+        )
+
+    for code in sorted(set(catalog) - emitted):
+        if isinstance(catalog[code], dict) and catalog[code].get("deprecated"):
+            continue
+        failures.append(
+            f"errors.{code}: declared but nothing emits it. Either the code is gone — and then it "
+            f"needs `deprecated` for one release before being removed — or the scan above lost "
+            f"sight of where it is minted"
+        )
 
 
 def check_error_locales(m: dict) -> None:
-    """Every code a command can answer must have its sentence in EN (source) and ES (ADR-0055)."""
-    declared = {
-        c["expect_rows"]["error"]
-        for c in m.get("commands", {}).values()
-        if isinstance(c, dict) and isinstance(c.get("expect_rows"), dict)
-        and isinstance(c["expect_rows"].get("error"), str)
-    } | handler_codes()
+    """Every code a command can answer must have its sentence in EN (source) and ES (ADR-0055).
+
+    Includes the DECLARED catalogue, deprecated entries and all: a code still in the ABI is a code
+    a hub can still answer, so the Spanish user must still be able to read it.
+    """
+    declared = emitted_codes(m) | set(m.get("errors") or {})
     if not declared:
         return
     for lang in ("en", "es"):
         path = MODULE_DIR / "locales" / f"{lang}.json"
         if not path.exists():
-            failures.append(f"locales/{lang}.json: missing, and the error codes need it")
+            failures.append(
+                f"locales/{lang}.json: missing, and the error codes need it"
+            )
             continue
         errors = json.loads(path.read_text()).get("errors")
         if not expect(f"locales/{lang}.json.errors", errors, dict):
@@ -355,6 +458,11 @@ def check_error_locales(m: dict) -> None:
             failures.append(
                 f"locales/{lang}.json.errors: `{code}` is answered by a command but has no "
                 f"translation — the screen would show the manifest's English"
+            )
+        for code in sorted(set(errors) - declared):
+            failures.append(
+                f"locales/{lang}.json.errors: `{code}` is translated but this module neither "
+                f"emits nor declares it — a sentence for a code that does not exist"
             )
 
 
@@ -829,6 +937,7 @@ def main() -> int:
     check_scheduled_tasks(manifest)
     check_setup(manifest)
     check_setup_locales(manifest)
+    check_error_catalog(manifest)
     check_error_locales(manifest)
     check_unknown_top_level(manifest)
     check_against_canonical_schema(manifest)

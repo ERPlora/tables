@@ -10,6 +10,7 @@ import type { ListController, ListClient, ListParams, ListPage } from '@erplora/
 import esLocale from '../../../locales/es.json';
 import enLocale from '../../../locales/en.json';
 import { domainMessage } from '../../lib/domain-error';
+import { can } from '../../lib/permissions';
 const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
 
 // erp-tables-zones — the ZONES view of the `tables` module (navigation entry `zones`, tables#3).
@@ -67,12 +68,6 @@ function erplora(): ErploraClientLike {
   const c = (globalThis as { erplora?: ErploraClientLike }).erplora;
   if (!c) throw new Error('erplora SDK not initialised by the shell');
   return c;
-}
-
-/** UI visibility only; the runtime re-validates the permission on every command. */
-function can(permission: string): boolean {
-  const client = erplora();
-  return typeof client.hasPermission === 'function' ? client.hasPermission(permission) : true;
 }
 
 const EMPTY_FORM: ZoneForm = { name: '', color: 'primary', sortOrder: '0', isActive: true };

@@ -34,7 +34,8 @@ Bulk-created tables are laid out five per row on the canvas; you can drag them a
 | Create or change a zone | `tables.add_zone` / `tables.change_zone` |
 | Create, change, move or bulk-create tables | `tables.add_table` / `tables.change_table` |
 | Open a session (seat a party) | `tables.add_tablesession` |
-| Close, transfer, merge, split, park, restore, hold, release | `tables.change_tablesession` |
+| Close, split, park, restore, hold, release | `tables.change_tablesession` |
+| **Transfer or merge** a check (it changes who owns the money) | `tables.transfer_tablesession` — tables#66. Llave aparte, concedida por defecto a `manager`, `employee` y `cashier`: el local que quiera el gate de encargado (la casilla «Table transfer» de Lightspeed, el código de encargado de Toast) la quita a un rol y no pierde cerrar ni corregir comensales |
 | Link an order to a session | `tables.add_tablesession` |
 | Delete a zone / a table / a session | `tables.delete_zone` / `tables.delete_table` / `tables.delete_tablesession` |
 | Change the module settings | `tables.manage_settings` |

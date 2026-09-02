@@ -7,6 +7,7 @@ import esLocale from '../../../locales/es.json';
 import enLocale from '../../../locales/en.json';
 import { domainMessage, errorCode } from '../../lib/domain-error';
 import { sortNaturallyBy } from '../../lib/natural-order';
+import { can } from '../../lib/permissions';
 const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
 
 // erp-tables-pos-zones — selector de MESA inyectado en la pantalla de venta (ADR-0043). El módulo
@@ -706,12 +707,14 @@ export class ErpTablesPosZones extends LitElement {
         ${this.actionSource && !inAction && !this.guestsPrompt
           ? html`<div class="actions">
               <span class="lbl">${t('ui.tableLabel', { number: srcNum })}</span>
-              <ion-button fill="outline" @click=${() => this.startTransfer()}>
+              ${can('tables.transfer_tablesession')
+                ? html`<ion-button fill="outline" @click=${() => this.startTransfer()}>
                 <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>${t('ui.transfer')}
               </ion-button>
               <ion-button fill="outline" @click=${() => this.startMerge()}>
                 <ion-icon slot="start" name="git-merge-outline"></ion-icon>${t('ui.merge')}
-              </ion-button>
+              </ion-button>`
+                : nothing}
               <ion-button fill="outline" @click=${() => void this.doSplit()}>
                 <ion-icon slot="start" name="git-branch-outline"></ion-icon>${t('ui.split')}
               </ion-button>

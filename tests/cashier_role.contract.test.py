@@ -13,6 +13,7 @@ every reference (Toast configures tables in Toast Web, Lightspeed under user/flo
 Odoo in the POS edit mode), and a cashier who can delete a zone deletes the room mid-service.
 Usage: tests/cashier_role.contract.test.py   (exit 0 = green)
 """
+
 import json, pathlib, sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -24,7 +25,11 @@ MUST = [
     "tables.view_tablesession",
     "tables.add_tablesession",
     "tables.change_tablesession",
-    "tables.view_settings"
+    # tables#66 — transfer and merge left `change_tablesession` for a key of their own. The cashier
+    # keeps them by default: the split exists so a room CAN close that gate (Lightspeed's «Table
+    # transfer» checkbox, Toast's manager passcode), not so the update closes it for them.
+    "tables.transfer_tablesession",
+    "tables.view_settings",
 ]
 MUST_NOT = [
     "tables.add_zone",
@@ -34,7 +39,7 @@ MUST_NOT = [
     "tables.change_table",
     "tables.delete_table",
     "tables.delete_tablesession",
-    "tables.manage_settings"
+    "tables.manage_settings",
 ]
 
 errors = []
@@ -42,12 +47,17 @@ if grants is None:
     errors.append("role_permissions.cashier is not declared")
 else:
     for p in MUST:
-        if p not in grants: errors.append(f"cashier lacks {p}")
+        if p not in grants:
+            errors.append(f"cashier lacks {p}")
     for p in MUST_NOT:
-        if p in grants: errors.append(f"cashier must not get {p}")
-    if "*" in grants: errors.append("cashier must never get *")
+        if p in grants:
+            errors.append(f"cashier must not get {p}")
+    if "*" in grants:
+        errors.append("cashier must never get *")
     for p in grants:
-        if p not in m["permissions"]: errors.append(f"cashier is granted {p}, which this module does not declare")
-for e in errors: print("FAIL:", e)
+        if p not in m["permissions"]:
+            errors.append(f"cashier is granted {p}, which this module does not declare")
+for e in errors:
+    print("FAIL:", e)
 print("cashier role grants:", "OK" if not errors else f"{len(errors)} error(s)")
 sys.exit(1 if errors else 0)

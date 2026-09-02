@@ -9,7 +9,41 @@
 // suffix as a number; anything else falls back to alphabetical. `Intl.Collator(locale, { numeric:
 // true })` is the standard that does exactly that, and it also keeps accents/case sane per locale.
 import { describe, expect, it } from 'vitest';
-import { compareNatural, sortNaturallyBy } from './natural-order';
+import { compareNatural, naturalKey, sortNaturallyBy } from './natural-order';
+import corpus from '../../tests/natural-order-corpus.json';
+
+// tables#68 — the SAME corpus `tests/floor.postgres.test.py` runs against real Postgres. Two
+// implementations of one rule drift silently, and they did: the SQL padded only the FINAL run of
+// digits, so `Barra 2 Bis` came after `Barra 10 Bis` in the paginated list and before it in the POS
+// picker. One file, two runners: whichever side moves turns red.
+describe('the shared natural-order corpus', () => {
+  for (const c of corpus.cases) {
+    it(c.name, () => {
+      expect([...c.shuffled].sort((a, b) => compareNatural(a, b, 'es'))).toEqual(c.expected);
+    });
+  }
+});
+
+describe('naturalKey', () => {
+  it('pads EVERY run of digits, not just the last one', () => {
+    expect(naturalKey('Barra 2 Bis')).toBe('Barra 000000000002 Bis');
+    expect(naturalKey('Sala 2 Mesa 10')).toBe('Sala 000000000002 Mesa 000000000010');
+  });
+
+  it('leaves a label with no digits exactly as it is', () => {
+    expect(naturalKey('Terraza A')).toBe('Terraza A');
+  });
+
+  it('never TRUNCATES a run longer than the padding width', () => {
+    expect(naturalKey('M1234567890123')).toBe('M1234567890123');
+  });
+
+  it('is total on empty/missing labels', () => {
+    expect(naturalKey('')).toBe('');
+    expect(naturalKey(null)).toBe('');
+    expect(naturalKey(undefined)).toBe('');
+  });
+});
 
 describe('compareNatural', () => {
   it('orders a numbered room naturally: S1 < S2 < S9 < S10 < S12', () => {
