@@ -810,6 +810,59 @@ def test_guests_count_is_visible_and_correctable():
     )
 
 
+# ── 4b. The plan says WHO serves the table and SINCE WHEN (tables#74, tables#64) ─────────
+
+
+def test_plan_projects_who_serves_and_since_when():
+    """tables#74 / tables#64 — `waiter_id` has travelled on the session since tables#70 and the
+    plan could not read it: `tables.tables.list` did not project it, so the tile had nothing to
+    paint and the floor manager could not tell whose table was whose. Same for the clock: Square
+    paints how long a party has been sitting on the tile itself, and `opened_at` never left the
+    session either. Both ride the LATERAL that already resolves the live check, so the paginated
+    list does not multiply.
+
+    The id stays OPAQUE on purpose (ADR-0192): the plan resolves the name against
+    `hub.users.list`, never with a JOIN against the core's tables — which is exactly why this has
+    to be asserted here, where a browser test cannot see it."""
+    print("\n== 4b. the plan projects who serves the table and since when (tables#74) ==")
+
+    command_ok(
+        "a party sits at table 1, served by u-7",
+        "tables._session_open",
+        {
+            "session_id": "s1w",
+            "table_id": "t1",
+            "guests_count": 2,
+            "waiter_id": "u-7",
+            "notes": "",
+            "order_id": None,
+        },
+        "2026-08-07T22:00:00+00:00",
+    )
+    rows = {r["id"]: r for r in run_query("tables.tables.list", {})}
+    check("the plan projects WHO serves table 1", "u-7", rows.get("t1", {}).get("live_waiter_id"))
+    check(
+        "and since when it has been sitting",
+        "2026-08-07T22:00:00+00:00",
+        rows.get("t1", {}).get("live_since"),
+    )
+    check("a free table has no waiter", None, rows.get("t2", {}).get("live_waiter_id"))
+    check("nor a clock", None, rows.get("t2", {}).get("live_since"))
+
+    command_ok(
+        "the party pays",
+        "tables._session_close",
+        {"session_id": "s1w", "notes": None},
+        "2026-08-07T23:00:00+00:00",
+    )
+    rows = {r["id"]: r for r in run_query("tables.tables.list", {})}
+    check(
+        "a released table stops naming a waiter",
+        None,
+        rows.get("t1", {}).get("live_waiter_id"),
+    )
+
+
 # ── 5. The paginated Tables list orders NATURALLY (tables#182) ───────────────────────────
 
 
@@ -888,6 +941,7 @@ def main() -> int:
         test_transfer_repoints_the_order()
         test_split_and_merge_keep_the_check()
         test_guests_count_is_visible_and_correctable()
+        test_plan_projects_who_serves_and_since_when()
         test_tables_list_orders_naturally()
     finally:
         psql(["-c", f"DROP DATABASE IF EXISTS {DB} WITH (FORCE)"])

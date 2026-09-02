@@ -9,7 +9,7 @@ var __decorateClass = (decorators, target, key, kind) => {
   return result;
 };
 
-// ../../../module-toolkit/node_modules/@lit-labs/ssr-dom-shim/lib/element-internals.js
+// @lit-labs/ssr-dom-shim/lib/element-internals.js
 var ElementInternalsShim = class ElementInternals {
   get shadowRoot() {
     return this.__host.__shadowRoot;
@@ -88,7 +88,7 @@ var ElementInternalsShim = class ElementInternals {
   }
 };
 
-// ../../../module-toolkit/node_modules/@lit-labs/ssr-dom-shim/lib/events.js
+// @lit-labs/ssr-dom-shim/lib/events.js
 var __classPrivateFieldSet = function(receiver, state, value, kind, f3) {
   if (kind === "m") throw new TypeError("Private method is not writable");
   if (kind === "a" && !f3) throw new TypeError("Private accessor was defined without a setter");
@@ -246,7 +246,7 @@ Object.defineProperties(CustomEventShim.prototype, {
 var EventShimWithRealType = EventShim;
 var CustomEventShimWithRealType = CustomEventShim;
 
-// ../../../module-toolkit/node_modules/@lit-labs/ssr-dom-shim/lib/css.js
+// @lit-labs/ssr-dom-shim/lib/css.js
 var _a2;
 var CSSRuleShim = (_a2 = class CSSRule {
   constructor() {
@@ -277,7 +277,7 @@ var CSSRuleShim = (_a2 = class CSSRule {
   }
 }, _a2.STYLE_RULE = 1, _a2.CHARSET_RULE = 2, _a2.IMPORT_RULE = 3, _a2.MEDIA_RULE = 4, _a2.FONT_FACE_RULE = 5, _a2.PAGE_RULE = 6, _a2.NAMESPACE_RULE = 10, _a2.KEYFRAMES_RULE = 7, _a2.KEYFRAME_RULE = 8, _a2.SUPPORTS_RULE = 12, _a2.COUNTER_STYLE_RULE = 11, _a2.FONT_FEATURE_VALUES_RULE = 14, _a2.MARGIN_RULE = 9, _a2);
 
-// ../../../module-toolkit/node_modules/@lit-labs/ssr-dom-shim/index.js
+// @lit-labs/ssr-dom-shim/index.js
 globalThis.Event ??= EventShimWithRealType;
 globalThis.CustomEvent ??= CustomEventShimWithRealType;
 var constructionToken = Symbol();
@@ -674,7 +674,7 @@ var CustomElementRegistryShimWithRealType = CustomElementRegistry;
 var customElements2 = new CustomElementRegistryShimWithRealType();
 var windowShim = new WindowShim(constructionToken);
 
-// ../../../module-toolkit/node_modules/@lit/reactive-element/node/css-tag.js
+// @lit/reactive-element/node/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
 var s = Symbol();
@@ -719,7 +719,7 @@ var c = e || void 0 === t.CSSStyleSheet ? (t5) => t5 : (t5) => t5 instanceof CSS
   return r(e5);
 })(t5) : t5;
 
-// ../../../module-toolkit/node_modules/@lit/reactive-element/node/reactive-element.js
+// @lit/reactive-element/node/reactive-element.js
 var { is: h, defineProperty: r2, getOwnPropertyDescriptor: o2, getOwnPropertyNames: n2, getOwnPropertySymbols: a, getPrototypeOf: c2 } = Object;
 var l = globalThis;
 l.customElements ??= customElements2;
@@ -942,7 +942,7 @@ var g = class extends (globalThis.HTMLElement ?? HTMLElementShimWithRealType) {
 };
 g.elementStyles = [], g.shadowRootOptions = { mode: "open" }, g[f("elementProperties")] = /* @__PURE__ */ new Map(), g[f("finalized")] = /* @__PURE__ */ new Map(), u?.({ ReactiveElement: g }), (l.reactiveElementVersions ??= []).push("2.1.2");
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/lit-html.js
+// lit-html/lit-html.js
 var t2 = globalThis;
 var i2 = (t5) => t5;
 var s2 = t2.trustedTypes;
@@ -1197,7 +1197,7 @@ var D = (t5, i7, s5) => {
   return h4._$AI(t5), h4;
 };
 
-// ../../node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
+// lit-element/lit-element.js
 var s3 = globalThis;
 var i3 = class extends g {
   constructor() {
@@ -1226,7 +1226,7 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i3 });
 (s3.litElementVersions ??= []).push("4.2.2");
 
-// ../../../module-toolkit/node_modules/@lit/reactive-element/node/decorators/property.js
+// @lit/reactive-element/node/decorators/property.js
 var o5 = { attribute: true, type: String, converter: b, reflect: false, hasChanged: m };
 var r4 = (t5 = o5, e5, r6) => {
   const { kind: n6, metadata: i7 } = r6;
@@ -1256,19 +1256,19 @@ function n4(t5) {
   })(t5, e5, o7);
 }
 
-// ../../../module-toolkit/node_modules/@lit/reactive-element/node/decorators/state.js
+// @lit/reactive-element/node/decorators/state.js
 function r5(r6) {
   return n4({ ...r6, state: true, attribute: false });
 }
 
-// ../../../outfitkit/dist/define.js
+// @erplora/outfitkit/dist/define.js
 function define(tag, ctor) {
   if (typeof customElements !== "undefined" && !customElements.get(tag)) {
     customElements.define(tag, ctor);
   }
 }
 
-// ../../../outfitkit/dist/shared/icons.js
+// @erplora/outfitkit/dist/shared/icons.js
 var rawAdd = '<svg viewBox="0 0 512 512" width="1.2em" height="1.2em" ><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M256 112v288m144-144H112"/></svg>';
 var rawAlertCircle = '<svg viewBox="0 0 512 512" width="1.2em" height="1.2em" ><path fill="currentColor" d="M256 48C141.31 48 48 141.31 48 256s93.31 208 208 208s208-93.31 208-208S370.69 48 256 48m0 319.91a20 20 0 1 1 20-20a20 20 0 0 1-20 20m21.72-201.15l-5.74 122a16 16 0 0 1-32 0l-5.74-121.94v-.05a21.74 21.74 0 1 1 43.44 0Z"/></svg>';
 var rawAlertCircleOutline = '<svg viewBox="0 0 512 512" width="1.2em" height="1.2em" ><path fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="32" d="M448 256c0-106-86-192-192-192S64 150 64 256s86 192 192 192s192-86 192-192Z"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M250.26 166.05L256 288l5.73-121.95a5.74 5.74 0 0 0-5.79-6h0a5.74 5.74 0 0 0-5.68 6"/><path fill="currentColor" d="M256 367.91a20 20 0 1 1 20-20a20 20 0 0 1-20 20"/></svg>';
@@ -1416,7 +1416,7 @@ function okIcon(value) {
   return BY_NAME[value] ?? value;
 }
 
-// ../../../outfitkit/dist/ok-inline-feedback.js
+// @erplora/outfitkit/dist/ok-inline-feedback.js
 var __defProp2 = Object.defineProperty;
 var __decorateClass2 = (decorators, target, key, kind) => {
   var result = void 0;
@@ -1633,7 +1633,7 @@ __decorateClass2([
 ], OkInlineFeedback.prototype, "hasActions");
 define("ok-inline-feedback", OkInlineFeedback);
 
-// ../../../outfitkit/dist/ok-empty-state.js
+// @erplora/outfitkit/dist/ok-empty-state.js
 var __defProp3 = Object.defineProperty;
 var __decorateClass3 = (decorators, target, key, kind) => {
   var result = void 0;
@@ -1752,7 +1752,21 @@ var es_default = {
     }
   },
   settings: {
-    title: "Mesas"
+    title: "Mesas",
+    fields: {
+      prompt_guests_on_seat: {
+        label: "Preguntar los comensales al sentar una mesa",
+        description: "Desactivado: sentar una mesa libre abre la cuenta con el aforo de la mesa en un solo toque."
+      },
+      timer_warning_minutes: {
+        label: "Aviso \xE1mbar (minutos)",
+        description: "Una cuenta abierta se pone \xE1mbar en la vista de Sesiones a partir de estos minutos."
+      },
+      timer_critical_minutes: {
+        label: "Aviso rojo (minutos)",
+        description: "Una cuenta abierta se pone roja a partir de estos minutos."
+      }
+    }
   },
   ui: {
     floorPlan: "Plano de sala",
@@ -1792,6 +1806,8 @@ var es_default = {
     deleteZone: "Borrar zona",
     addTable: "A\xF1adir mesa",
     addZone: "A\xF1adir zona",
+    addTitle: "A\xF1adir",
+    addAction: "A\xF1adir zona o mesa",
     editZone: "Editar zona",
     editTable: "Editar mesa",
     newZonePlaceholder: "Nueva zona\u2026",
@@ -1820,6 +1836,7 @@ var es_default = {
     statusOccupied: "Ocupada",
     statusReserved: "Reservada",
     reservedFor: "Reservada para {name}",
+    servedBy: "Atiende {name}",
     statusBlocked: "Bloqueada",
     shapeSquare: "Cuadrada",
     shapeRound: "Redonda",
@@ -1861,6 +1878,7 @@ var es_default = {
     colorDanger: "Rojo",
     colorMedium: "Gris",
     colTable: "Mesa",
+    colWaiter: "Camarero",
     noTable: "Sin mesa (aparcada)",
     colGuests: "Comensales",
     colOpenedAt: "Apertura",
@@ -1899,6 +1917,7 @@ var es_default = {
     "tables.session_not_parked": "Esa cuenta no est\xE1 aparcada: no existe en este negocio, o ya est\xE1 sentada en una mesa.",
     "tables.zone_has_tables": "Esta zona todav\xEDa tiene mesas. Mu\xE9velas a otra zona o b\xF3rralas antes.",
     "tables.table_has_active_session": "Esa mesa tiene una cuenta abierta. Ci\xE9rrala o trasl\xE1dala antes de borrar la mesa.",
+    "tables.hold_not_found": "Esa retenci\xF3n ya no est\xE1: se solt\xF3, ha vencido, o esa reserva nunca lleg\xF3 a retener una mesa.",
     "tables.table_not_available": "Esa mesa no se puede sentar ahora mismo: est\xE1 ocupada, fuera de servicio o ya no est\xE1 en uso."
   }
 };
@@ -1921,7 +1940,21 @@ var en_default = {
     }
   },
   settings: {
-    title: "Tables"
+    title: "Tables",
+    fields: {
+      prompt_guests_on_seat: {
+        label: "Ask for the number of guests when seating a table",
+        description: "Off: seating a free table opens the check with the table capacity in one tap."
+      },
+      timer_warning_minutes: {
+        label: "Amber after (minutes)",
+        description: "An open check turns amber in the Sessions view after this many minutes."
+      },
+      timer_critical_minutes: {
+        label: "Red after (minutes)",
+        description: "An open check turns red after this many minutes."
+      }
+    }
   },
   ui: {
     floorPlan: "Floor Plan",
@@ -1961,6 +1994,8 @@ var en_default = {
     deleteZone: "Delete zone",
     addTable: "Add table",
     addZone: "Add zone",
+    addTitle: "Add",
+    addAction: "Add zone or table",
     editZone: "Edit zone",
     editTable: "Edit table",
     newZonePlaceholder: "New zone\u2026",
@@ -1989,6 +2024,7 @@ var en_default = {
     statusOccupied: "Occupied",
     statusReserved: "Reserved",
     reservedFor: "Reserved for {name}",
+    servedBy: "Served by {name}",
     statusBlocked: "Blocked",
     shapeSquare: "Square",
     shapeRound: "Round",
@@ -2030,6 +2066,7 @@ var en_default = {
     colorDanger: "Red",
     colorMedium: "Grey",
     colTable: "Table",
+    colWaiter: "Server",
     noTable: "No table (parked)",
     colGuests: "Guests",
     colOpenedAt: "Opened",
@@ -2068,6 +2105,7 @@ var en_default = {
     "tables.session_not_parked": "That check is not parked: it does not exist in this business, or it is already seated at a table.",
     "tables.zone_has_tables": "That zone still has tables. Move them to another zone or delete them first.",
     "tables.table_has_active_session": "That table still has an open check. Close or move it before deleting the table.",
+    "tables.hold_not_found": "That hold is not there any more: it was already released, it expired, or that booking never held a table.",
     "tables.table_not_available": "That table cannot be seated right now: it is taken, out of service or no longer in use."
   }
 };
@@ -2126,6 +2164,12 @@ function hhmm(iso) {
   if (Number.isNaN(d3.getTime())) return "";
   return `${String(d3.getHours()).padStart(2, "0")}:${String(d3.getMinutes()).padStart(2, "0")}`;
 }
+function minutesSince(iso, now) {
+  if (!iso) return null;
+  const from = new Date(iso).getTime();
+  if (Number.isNaN(from)) return null;
+  return Math.max(0, Math.floor((now.getTime() - from) / 6e4));
+}
 var BOX = 72;
 var DRAG_THRESHOLD = 5;
 var KEY_STEP = 8;
@@ -2144,6 +2188,13 @@ var STATUS_COLOR = {
   reserved: "#f08c00",
   blocked: "#868e96"
 };
+var STATUS_ICON = {
+  available: { icon: "checkmark-circle-outline" },
+  occupied: { icon: "people-outline" },
+  reserved: { icon: "time-outline" },
+  blocked: { icon: "ban-outline" }
+};
+var REFRESH_MS = 3e4;
 function erplora() {
   const c5 = globalThis.erplora;
   if (!c5) throw new Error("erplora SDK no inicializado por el shell");
@@ -2163,8 +2214,8 @@ function boxOf(t5) {
   const h4 = Number(t5.height) || 0;
   return { w: w2 >= MIN_BOX ? w2 : BOX, h: h4 >= MIN_BOX ? h4 : BOX };
 }
-function sinCoordenadas(t5) {
-  return !t5.position_x && !t5.position_y;
+function neverPlaced(t5) {
+  return !(Number(t5.width) >= MIN_BOX && Number(t5.height) >= MIN_BOX);
 }
 function seTapan(a3, b3) {
   const ca = boxOf(a3);
@@ -2184,7 +2235,7 @@ function autoLayoutTables(tables) {
     const placed = [];
     const pending = [];
     for (const t5 of zoneTables) {
-      if (sinCoordenadas(t5) || placed.some((p4) => seTapan(p4, t5))) pending.push(t5);
+      if (neverPlaced(t5)) pending.push(t5);
       else placed.push(t5);
     }
     let col = 0;
@@ -2216,6 +2267,10 @@ var ErpTablesCanvas = class extends i3 {
     this.error = "";
     this.loading = true;
     this.saving = false;
+    this.addOpen = false;
+    this.waitersById = /* @__PURE__ */ new Map();
+    /** Reloj inyectable (los tests lo clavan): lo lee el «lleva N min sentada». */
+    this.now = () => /* @__PURE__ */ new Date();
     this.dragDX = 0;
     this.dragDY = 0;
     this.dragStartX = 0;
@@ -2230,15 +2285,11 @@ var ErpTablesCanvas = class extends i3 {
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
     /* tables#16: every own control is a touch target (44px), like the ok-data-table actions. */
     ion-button { min-height:44px; --min-height:44px; }
-    header { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:.6rem; }
-    h2 { margin:0; font-size:1.15rem; flex:1; }
-    .newzone { display:flex; gap:.75rem; align-items:end; }
-    .newzone ion-input { flex:1 1 11rem; min-width:9rem; }
-    .zonebar { display:flex; gap:.5rem; align-items:center; margin-bottom:.6rem; }
-    .zonebar ion-segment { flex:1; }
-    .legend { display:flex; gap:.8rem; flex-wrap:wrap; margin:.2rem 0 .6rem; font-size:.75rem; color:#8b897f; }
-    .legend span { display:inline-flex; align-items:center; gap:.3rem; }
-    .dot { width:.7rem; height:.7rem; border-radius: var(--ok-radius-pill, 50%); display:inline-block; }
+    /* tables#64: la ÚNICA fila de cabecera — navegación (zonas) + las dos acciones de
+       configuración, en iconos. A 390 px el plano empieza justo debajo. */
+    .zonebar { display:flex; gap:.25rem; align-items:center; margin-bottom:.4rem; }
+    .zonebar ion-segment { flex:1; min-width:0; }
+    .zonebar .flex { flex:1; }
     .canvas { position:relative; height:60vh; min-height:22rem; border:1px dashed var(--ion-border-color,#cfcabd); border-radius: var(--ok-radius, 14px); background:
         repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px),
         repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px);
@@ -2253,8 +2304,19 @@ var ErpTablesCanvas = class extends i3 {
     .mesa.dragging { cursor:grabbing; opacity:.85; box-shadow:0 6px 18px rgba(0,0,0,.28); z-index:5; }
     /* Keyboard focus is visible: the table is a button (tables#16). */
     .mesa:focus-visible { outline:3px solid var(--ion-color-primary,#0091ce); outline-offset:2px; }
-    .mesa .n { font-weight:700; font-size:1.05rem; }
-    .mesa .c { font-size:.7rem; color:#8b897f; }
+    /* La baldosa por defecto son 72 px: cada línea se acota al ancho o se corta a media palabra
+       (medido en navegador a 390 px). Nada de text-transform:uppercase en el estado — ensancha
+       ~15 % y «DISPONIBLE» dejaba de caber. */
+    .mesa { padding:.1rem .15rem; overflow:hidden; line-height:1.12; text-align:center; }
+    .mesa > * { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .mesa .n { font-weight:700; font-size:1rem; }
+    .mesa .c { font-size:.56rem; color:#8b897f; }
+    /* tables#74: quién atiende la mesa ocupada. Nombre, nunca el id. */
+    .mesa .w { font-size:.56rem; font-weight:600; }
+    /* tables#64: el estado ESCRITO + su icono. El color se conserva, pero ya no está solo. */
+    .mesa .s { display:inline-flex; align-items:center; justify-content:center; gap:.12rem;
+      font-size:.55rem; font-weight:700; }
+    .mesa .s ion-icon { font-size:.7rem; flex:none; }
     /* Nombre y hora de la reserva. Es lo que convierte el color ambar en informacion util:
        sin esto el encargado ve «reservada» y no sabe si le da tiempo a sentar a alguien. */
     .mesa .hold { font-size:.62rem; color:var(--ion-color-warning,#f08c00); font-weight:600;
@@ -2290,28 +2352,40 @@ var ErpTablesCanvas = class extends i3 {
       this.unsub = () => offs.forEach((o7) => o7());
     } catch {
     }
+    this.timer = setInterval(() => this.requestUpdate(), REFRESH_MS);
   }
   disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener("erplora:locale-changed", this.onLocaleChange);
     this.unsub?.();
+    if (this.timer) clearInterval(this.timer);
   }
   async reload() {
     this.loading = true;
     try {
-      const [z2, t5] = await Promise.all([
+      const [z2, t5, people] = await Promise.all([
         erplora().queryAll("tables.zones.list", { sort: "sort_order", dir: "asc" }).catch(() => []),
-        erplora().queryAll("tables.tables.list", { sort: "number_sort", dir: "asc" }).catch(() => [])
+        erplora().queryAll("tables.tables.list", { sort: "number_sort", dir: "asc" }).catch(() => []),
+        // tables#74: the people behind `live_waiter_id`. Same door the KDS card and the printed
+        // chit use (`hub.users.list`, ADR-0192) and the same policy on failure — no permission, no
+        // SDK, an id the hub no longer lists: the plan paints, the tile just says nothing.
+        erplora().query("hub.users.list").catch(() => [])
       ]);
       this.zones = rows(z2);
+      this.waitersById = new Map(
+        rows(people).filter((u5) => u5 && u5.id && String(u5.name ?? "").trim()).map((u5) => [String(u5.id), String(u5.name).trim()])
+      );
       this.tables = autoLayoutTables(sortNaturallyBy(rows(t5), (m4) => m4.number, erplora().locale).map((m4) => ({
         ...m4,
         capacity: Number(m4.capacity) || 1,
         is_active: Number(m4.is_active),
         position_x: Number(m4.position_x) || 0,
         position_y: Number(m4.position_y) || 0,
-        width: Number(m4.width) || BOX,
-        height: Number(m4.height) || BOX
+        // tables#57: the box is kept AS THE ROW HAS IT. Defaulting it to `BOX` here erased the only
+        // thing that tells a placed table from a seeded one, and every table looked placed — the
+        // fallback for painting is `boxOf()`, which already substitutes `BOX` at the last moment.
+        width: Number(m4.width) || 0,
+        height: Number(m4.height) || 0
       })));
       if (!this.activeZone || !this.zones.some((zo) => zo.id === this.activeZone)) {
         this.activeZone = this.zones[0]?.id ?? "";
@@ -2409,14 +2483,49 @@ var ErpTablesCanvas = class extends i3 {
       this.error = err instanceof Error ? err.message : erplora().t(CATALOG, "ui.errSavePosition");
     }
   }
-  /** Accessible name of a table tile: «nº · zone · capacity · status» (+ reservation). */
+  /**
+   * tables#74 — the NAME of whoever is serving this table, or '' when there is none to show.
+   *
+   * '' covers four cases on purpose and all of them paint the same nothing: the table is free, the
+   * check carries no waiter (opened before tables#70), the hub does not list that id any more
+   * (someone who left the shift), or the list could not be loaded. A raw UUID on a floor plan read
+   * from across the room would be worse than a blank — nobody can act on it.
+   */
+  waiterName(tb) {
+    if (tb.status !== "occupied" || !tb.live_waiter_id) return "";
+    return this.waitersById.get(String(tb.live_waiter_id)) ?? "";
+  }
+  /**
+   * tables#64 — what an OCCUPIED table says instead of its capacity: the party seated and how long
+   * it has been sitting (Square paints the very same two on its floor plan). '' when the table is
+   * not serving.
+   *
+   * Two wordings on purpose. The tile is 72 px wide, and «3 comensales · 35 min» does not fit — it
+   * came out clipped mid-word in a real browser at 390 px, which is worse than not painting it. So
+   * the TILE says «3 pax · 35 min», the same unit the capacity already uses right there, and the
+   * accessible name (and the tooltip) keeps the unambiguous «3 comensales», where there is room.
+   */
+  liveLine(tb, t5, compact = false) {
+    if (tb.status !== "occupied") return "";
+    const seated = Number(tb.live_guests) || 0;
+    if (!seated) return "";
+    const minutes = minutesSince(tb.live_since, this.now());
+    return [
+      t5(compact ? "ui.paxCount" : "ui.liveGuests", { count: seated }),
+      minutes == null ? "" : t5("ui.durationMinutes", { minutes })
+    ].filter(Boolean).join(" \xB7 ");
+  }
+  /** Accessible name of a table tile: «nº · zone · capacity · status» (+ party, waiter, hold). */
   tableName(tb, t5) {
     const zone = this.zones.find((z2) => z2.id === tb.zone_id)?.name;
+    const waiter = this.waiterName(tb);
     return [
       t5("ui.tableLabel", { number: tb.number }),
       zone,
       t5("ui.paxCount", { count: tb.capacity }),
       STATUS_KEY[tb.status] ? t5(STATUS_KEY[tb.status]) : tb.status,
+      this.liveLine(tb, t5),
+      waiter ? t5("ui.servedBy", { name: waiter }) : "",
       tb.reserved_for ? t5("ui.reservedFor", { name: tb.reserved_for }) : ""
     ].filter(Boolean).join(" \xB7 ");
   }
@@ -2451,6 +2560,7 @@ var ErpTablesCanvas = class extends i3 {
         height: BOX,
         shape: "square"
       });
+      this.addOpen = false;
       await this.reload();
     } catch (e5) {
       this.error = domainMessage(e5, erplora().locale, erplora().t(CATALOG, "ui.errCreateTable"));
@@ -2468,6 +2578,7 @@ var ErpTablesCanvas = class extends i3 {
         sort_order: this.zones.length
       });
       this.newZoneName = "";
+      this.addOpen = false;
       await this.reload();
       const created = this.zones.find((z2) => z2.name === name);
       if (created) this.activeZone = created.id;
@@ -2578,62 +2689,95 @@ var ErpTablesCanvas = class extends i3 {
   render() {
     const t5 = (k2, params) => erplora().t(CATALOG, k2, params);
     return b2`
-      <header>
-        <h2>${t5("ui.floorPlan")}</h2>
-        <div class="newzone">
-          <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.colZone")} placeholder=${t5("ui.newZonePlaceholder")} .value=${this.newZoneName}
-            @ionInput=${(e5) => {
-      this.newZoneName = e5.target.value || "";
-    }}></ion-input>
-          <ion-button fill="outline" ?disabled=${!this.newZoneName.trim()} @click=${() => this.addZone()}>${t5("ui.addZone")}</ion-button>
-        </div>
-        <ion-button ?disabled=${!this.zones.length} @click=${() => this.addTable()}>${t5("ui.addTable")}</ion-button>
-      </header>
-
-      ${this.error ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : A}
-
-      ${this.zones.length ? b2`<div class="zonebar">
-            <ion-segment scrollable value=${this.activeZone}
+      <!-- tables#64 — at 390 px there used to be ~340 px of chrome before the first table: the view
+           title (the shell topbar already paints it), a stray «Zone» input with «Add zone», «Add
+           table», the zone segment and the colour legend, each on its own row. What is left is
+           navigation: the zone segment, and behind two icon buttons everything that is
+           configuration — the same shape Square gives its mobile floor plan. The legend is gone
+           because the status is now written on every tile. -->
+      <div class="zonebar">
+        ${this.zones.length ? b2`<ion-segment scrollable value=${this.activeZone}
               @ionChange=${(e5) => {
       this.activeZone = e5.detail.value;
     }}>
               ${this.zones.map((z2) => b2`<ion-segment-button value=${z2.id}><ion-label>${z2.name}</ion-label></ion-segment-button>`)}
-            </ion-segment>
-            <ion-button fill="clear" ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}>${t5("ui.editZone")}</ion-button>
-          </div>` : A}
-
-      <div class="legend">
-        ${STATUSES.map((s5) => b2`<span><i class="dot" style=${`background:${STATUS_COLOR[s5]}`}></i>${t5(STATUS_KEY[s5] ?? s5)}</span>`)}
+            </ion-segment>` : b2`<span class="flex"></span>`}
+        <ion-button data-add fill="clear" aria-label=${t5("ui.addAction")} title=${t5("ui.addAction")}
+          @click=${() => {
+      this.addOpen = true;
+    }}><ion-icon slot="icon-only" name="add-outline"></ion-icon></ion-button>
+        <ion-button fill="clear" aria-label=${t5("ui.editZone")} title=${t5("ui.editZone")}
+          ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}><ion-icon slot="icon-only" name="create-outline"></ion-icon></ion-button>
       </div>
+
+      ${this.error ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : A}
 
       <div class="canvas"
         @pointermove=${(e5) => this.onPointerMove(e5)}
         @pointerup=${() => this.onPointerUp()}
         @pointercancel=${() => this.onPointerUp()}>
-        ${this.tablesInZone.map((tb) => b2`
+        ${this.tablesInZone.map((tb) => {
+      const statusLabel = STATUS_KEY[tb.status] ? t5(STATUS_KEY[tb.status]) : tb.status;
+      const live = this.liveLine(tb, t5, true);
+      const waiter = this.waiterName(tb);
+      return b2`
           <div class=${`mesa ${tb.shape === "round" ? "round" : ""} ${tb.id === this.dragId && this.dragMoved ? "dragging" : ""}`}
             role="button" tabindex="0"
             aria-label=${this.tableName(tb, t5)}
             @keydown=${(e5) => this.onTableKey(tb, e5)}
             style=${`left:${tb.position_x}px; top:${tb.position_y}px; width:${boxOf(tb).w}px; height:${boxOf(tb).h}px; border-color:${STATUS_COLOR[tb.status] ?? "#d9d6cf"}`}
             title=${[
-      t5("ui.tableTooltip", { status: STATUS_KEY[tb.status] ? t5(STATUS_KEY[tb.status]) : tb.status, count: tb.capacity }),
-      tb.reserved_for ? `${t5("ui.reservedFor", { name: tb.reserved_for })} ${[hhmm(tb.reserved_from), hhmm(tb.reserved_until)].filter(Boolean).join("\u2013")}`.trim() : ""
-    ].filter(Boolean).join(" \xB7 ")}
+        t5("ui.tableTooltip", { status: statusLabel, count: tb.capacity }),
+        live,
+        waiter ? t5("ui.servedBy", { name: waiter }) : "",
+        tb.reserved_for ? `${t5("ui.reservedFor", { name: tb.reserved_for })} ${[hhmm(tb.reserved_from), hhmm(tb.reserved_until)].filter(Boolean).join("\u2013")}`.trim() : ""
+      ].filter(Boolean).join(" \xB7 ")}
             @pointerdown=${(e5) => this.onPointerDown(tb, e5)}>
             <div class="n">${tb.number}</div>
-            <div class="c">${t5("ui.paxCount", { count: tb.capacity })}</div>
+            <div class="c">${live || t5("ui.paxCount", { count: tb.capacity })}</div>
+            ${waiter ? b2`<div class="w">${waiter}</div>` : A}
             ${tb.reserved_for ? b2`<div class="hold">${tb.reserved_for}${tb.reserved_from ? ` \xB7 ${hhmm(tb.reserved_from)}` : ""}</div>` : A}
-          </div>`)}
+            <div class="s" style=${`color:${STATUS_COLOR[tb.status] ?? "#868e96"}`}>
+              <ion-icon name=${STATUS_ICON[tb.status]?.icon ?? "help-circle-outline"} aria-hidden="true"></ion-icon>${statusLabel}
+            </div>
+          </div>`;
+    })}
         ${!this.loading && !this.zones.length ? b2`<ok-empty-state icon="grid-outline" message=${t5("ui.createZoneToStart")}></ok-empty-state>` : A}
         ${!this.loading && this.zones.length && !this.tablesInZone.length ? b2`<ok-empty-state icon="square-outline" message=${t5("ui.noTablesInZonePrompt")}></ok-empty-state>` : A}
         ${this.loading ? b2`<div class="empty">${t5("ui.loading")}</div>` : A}
       </div>
       <p class="hint">${t5("ui.canvasHint")}</p>
 
+      ${this.addOpen ? this.renderAddSheet() : A}
       ${this.edit ? this.renderTableSheet(this.edit) : A}
       ${this.zoneEdit ? this.renderZoneSheet(this.zoneEdit) : A}
     `;
+  }
+  /** tables#64 — the two configuration actions, out of the service header and behind the «+». */
+  renderAddSheet() {
+    const t5 = (k2, params) => erplora().t(CATALOG, k2, params);
+    return b2`<div class="scrim" @click=${(e5) => {
+      if (e5.target.classList.contains("scrim")) this.addOpen = false;
+    }}>
+      <div class="sheet">
+        <div class="sheet-h">
+          <span class="t">${t5("ui.addTitle")}</span>
+          <ion-button class="x" fill="clear" aria-label=${t5("ui.close")} @click=${() => {
+      this.addOpen = false;
+    }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
+        </div>
+        <div class="field">
+          <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.colZone")} placeholder=${t5("ui.newZonePlaceholder")} .value=${this.newZoneName}
+            @ionInput=${(e5) => {
+      this.newZoneName = e5.target.value || "";
+    }}></ion-input>
+        </div>
+        <div class="sheet-foot">
+          <ion-button fill="outline" ?disabled=${this.saving || !this.newZoneName.trim()} @click=${() => this.addZone()}>${t5("ui.addZone")}</ion-button>
+          <ion-button ?disabled=${this.saving || !this.zones.length} @click=${() => this.addTable()}>${t5("ui.addTable")}</ion-button>
+        </div>
+      </div>
+    </div>`;
   }
   renderTableSheet(table) {
     const t5 = (k2, params) => erplora().t(CATALOG, k2, params);
@@ -2732,9 +2876,15 @@ __decorateClass([
 __decorateClass([
   r5()
 ], ErpTablesCanvas.prototype, "saving", 2);
+__decorateClass([
+  r5()
+], ErpTablesCanvas.prototype, "addOpen", 2);
+__decorateClass([
+  r5()
+], ErpTablesCanvas.prototype, "waitersById", 2);
 define("erp-tables-canvas", ErpTablesCanvas);
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive.js
+// lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t5) => (...e5) => ({ _$litDirective$: t5, values: e5 });
 var i4 = class {
@@ -2754,7 +2904,7 @@ var i4 = class {
   }
 };
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directive-helpers.js
+// lit-html/directive-helpers.js
 var { I: t4 } = j;
 var i5 = (o7) => o7;
 var s4 = () => document.createComment("");
@@ -2787,7 +2937,7 @@ var h3 = (o7) => {
   o7._$AR(), o7._$AA.remove();
 };
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/repeat.js
+// lit-html/directives/repeat.js
 var u4 = (e5, s5, t5) => {
   const r6 = /* @__PURE__ */ new Map();
   for (let l3 = s5; l3 <= t5; l3++) r6.set(e5[l3], l3);
@@ -2840,7 +2990,7 @@ var c4 = e4(class extends i4 {
   }
 });
 
-// ../../node_modules/.pnpm/lit-html@3.3.3/node_modules/lit-html/directives/style-map.js
+// lit-html/directives/style-map.js
 var n5 = "important";
 var i6 = " !" + n5;
 var o6 = e4(class extends i4 {
@@ -2869,7 +3019,7 @@ var o6 = e4(class extends i4 {
   }
 });
 
-// ../../../outfitkit/dist/ok-data-table.js
+// @erplora/outfitkit/dist/ok-data-table.js
 var CSV_BOM = "\uFEFF";
 var WINDOWS_1252_C1 = [
   8364,
@@ -2964,7 +3114,8 @@ var DEFAULT_LABELS2 = {
   select: "Select",
   showing: "Showing {from}\u2013{to} of",
   recordSingular: "record",
-  recordPlural: "records"
+  recordPlural: "records",
+  loadMore: "Load more"
 };
 var ES_LABELS = {
   search: "Buscar\u2026",
@@ -3000,7 +3151,8 @@ var ES_LABELS = {
   select: "Seleccionar",
   showing: "Mostrando {from}\u2013{to} de",
   recordSingular: "registro",
-  recordPlural: "registros"
+  recordPlural: "registros",
+  loadMore: "Cargar m\xE1s"
 };
 var _OkDataTable = class _OkDataTable2 extends i3 {
   constructor() {
@@ -3035,6 +3187,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
     this.q = "";
     this.clientPage = 0;
     this.clientPageSize = 0;
+    this.mobileShown = 0;
     this.clientSort = "";
     this.clientSortDir = "asc";
     this.clientFilters = {};
@@ -3056,6 +3209,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
       } else {
         this.q = value;
         this.clientPage = 0;
+        this.mobileShown = 0;
       }
     };
   }
@@ -3303,8 +3457,12 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
       .gh.sortable:hover, .gh.sortable:active,
       .grow-data:hover, .grow-data:active { transform: none; }
     }
-    /* Cabecera: ion-card-header en fila (icono + título + checkbox); se conserva su padding Ionic. */
-    ion-card-header.rcard-head { display: flex; align-items: center; gap: 0.5rem; }
+    /* Header: ion-card-header as a single row (icon + title + checkbox), keeping Ionic's padding.
+       #79 — flex-direction/flex-wrap are SPELLED OUT on purpose: in ios mode (the mode the Hub
+       shell pins, ADR-0143) Ionic's own host CSS gives ion-card-header a column direction, so a
+       rule that only sets display:flex inherits it and the three children stack on three lines.
+       Under md the same rule looked right, which is why it shipped. */
+    ion-card-header.rcard-head { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 0.5rem; }
     .rcard-head .rc-icon { display: inline-flex; color: var(--primary); }
     .rcard-head .rc-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
     /* Cuerpo: ion-card-content (padding Ionic por defecto) con las filas clave-valor apiladas. */
@@ -3338,9 +3496,16 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
     .pager .strong { font-weight: 600; color: var(--color); }
     .psize { font: inherit; font-size: 12.5px; padding: 0.2rem 0.35rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--background); color: var(--color); }
     .pager .nav { display: flex; align-items: center; gap: 0.2rem; }
+    /* #78 — Pie en MÓVIL: un solo control «Cargar más» en lugar del pager numerado (Shopify
+       IndexTable, Fresha, Square y Material hacen lo mismo: nadie pinta botones de página en un
+       teléfono). Sin atributo fill: el sólido por defecto de Ionic es el único que pinta caja en
+       modo ios (outfitkit#82 / ADR-0143). Los 44px son el área táctil mínima. */
+    .pager .load-more { min-height: 44px; margin: 0; --padding-start: 1rem; --padding-end: 1rem; font-size: 13px; }
     .pager .nav .pp { font-weight: 600; color: var(--color); padding: 0 0.25rem; }
     /* Pager numerado: botón por página + «…» en los saltos (look del Hub). */
-    .pnum { min-width: 1.75rem; height: 1.75rem; padding: 0 0.4rem; border: 1px solid transparent; border-radius: 8px; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--color); cursor: pointer; transition: background 0.12s, border-color 0.12s; }
+    /* #92 — min-width/height at 44px so a numbered page button matches the prev/next ion-button's
+       own 44px tap target (line above): before this they were visibly smaller than their neighbors. */
+    .pnum { min-width: var(--ok-tap-min, 44px); height: var(--ok-tap-min, 44px); padding: 0 0.4rem; border: 1px solid transparent; border-radius: 8px; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--color); cursor: pointer; transition: background 0.12s, border-color 0.12s; }
     .pnum:hover { background: var(--row-hover); }
     .pnum.on { background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
     .pgap { padding: 0 0.15rem; color: var(--color-muted); }
@@ -3602,6 +3767,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
     }
     this.clientFilters = clean;
     this.clientPage = 0;
+    this.mobileShown = 0;
     this.panel = "none";
     this.emit("filterChange", { filters: this.serializeFilters(clean) });
   }
@@ -3722,6 +3888,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
       this.emit("sortChange", { sort: col.key, dir });
       return;
     }
+    this.mobileShown = 0;
     if (this.clientSort === col.key) {
       this.clientSortDir = this.clientSortDir === "asc" ? "desc" : "asc";
     } else {
@@ -3753,6 +3920,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
     else next[key] = merged;
     this.clientFilters = next;
     this.clientPage = 0;
+    this.mobileShown = 0;
   }
   // ion-select (select/multiselect) del panel de filtros (renderFilterControl). En servidor emite
   // `filterChange`; en cliente escribe `clientFilters` (multiselect ⇒ filtra por inclusión).
@@ -3800,8 +3968,9 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
    *   `views` antes de insertar  → tarjetas
    *   `views` después de insertar → tabla   ← lo que hace la página
    */
-  willUpdate() {
+  willUpdate(changed) {
     this.applyInitialView();
+    if (!this.serverSide && changed.has("rows") && this.mobileShown !== 0) this.mobileShown = 0;
   }
   applyInitialView() {
     if (this.viewChosenByUser) return;
@@ -3830,7 +3999,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
         <ion-select
           label=${col.header}
           label-placement="stacked"
-          fill="outline"
+          fill="outline" mode="md"
           ?multiple=${multi}
           interface="modal"
           .interfaceOptions=${{ cssClass: "ok-overlay" }}
@@ -3849,9 +4018,9 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
         <div class="fblock">
           <span class="flabel">${col.header}</span>
           <div class="frange">
-            <ion-input type=${t5} fill="outline" placeholder=${type === "daterange" ? this.t.from : this.t.gte}
+            <ion-input type=${t5} fill="outline" mode="md" placeholder=${type === "daterange" ? this.t.from : this.t.gte}
               @ionInput=${(e5) => onEdge(col, "from", e5)}></ion-input>
-            <ion-input type=${t5} fill="outline" placeholder=${type === "daterange" ? this.t.to : this.t.lte}
+            <ion-input type=${t5} fill="outline" mode="md" placeholder=${type === "daterange" ? this.t.to : this.t.lte}
               @ionInput=${(e5) => onEdge(col, "to", e5)}></ion-input>
           </div>
         </div>
@@ -3861,7 +4030,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
     return b2`
       <ion-input
         type=${inputType}
-        fill="outline"
+        fill="outline" mode="md"
         label=${col.header}
         label-placement="stacked"
         placeholder=${this.t.filterPlaceholder}
@@ -4022,8 +4191,14 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
       count = filtered.length;
       pages = Math.max(1, Math.ceil(filtered.length / ps));
       current = Math.min(this.clientPage, pages - 1);
-      visible = filtered.slice(current * ps, current * ps + ps);
+      visible = this.isMobile ? filtered.slice(0, Math.min(this.mobileShown || ps, count)) : filtered.slice(current * ps, current * ps + ps);
     }
+    const served = this.serverSide ? (current + 1) * ps : Math.min(this.mobileShown || ps, count);
+    const canLoadMore = this.isMobile && served < count;
+    const loadMore = () => {
+      if (this.serverSide) this.emit("pageChange", current + 1);
+      else this.mobileShown = Math.min((this.mobileShown || ps) + ps, count);
+    };
     const goTo = (p4) => {
       if (this.serverSide) this.emit("pageChange", p4);
       else this.clientPage = p4;
@@ -4033,6 +4208,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
       else {
         this.clientPageSize = n6;
         this.clientPage = 0;
+        this.mobileShown = 0;
       }
     };
     const searchbar = this.serverSide ? b2`<ion-searchbar class="ion-no-border" placeholder=${this.effSearchPlaceholder} debounce="250" @ionInput=${this.onSearch}></ion-searchbar>` : b2`<ion-searchbar class="ion-no-border" .value=${this.q} placeholder=${this.effSearchPlaceholder} debounce="250" @ionInput=${this.onSearch}></ion-searchbar>`;
@@ -4122,7 +4298,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
               <div class="pager">
                 <div class="left">
                   <span>
-                    ${pages > 1 ? b2`${this.t.showing.replace("{from}", String(current * ps + 1)).replace("{to}", String(Math.min((current + 1) * ps, count)))} ` : A}
+                    ${pages > 1 ? b2`${this.t.showing.replace("{from}", String(this.isMobile && !this.serverSide ? 1 : current * ps + 1)).replace("{to}", String(Math.min(served, count)))} ` : A}
                     <span class="strong">${count}</span> ${count === 1 ? this.t.recordSingular : this.t.recordPlural}
                   </span>
                   ${!showTopbar && this.effPageSizes.length ? b2`
@@ -4131,7 +4307,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
                         </select>
                       ` : A}
                 </div>
-                ${pages > 1 ? b2`
+                ${this.isMobile ? canLoadMore ? b2`<ion-button class="load-more" size="small" @click=${loadMore}>${this.t.loadMore}</ion-button>` : A : pages > 1 ? b2`
                       <div class="nav">
                         <ion-button size="small" fill="clear" ?disabled=${current === 0} @click=${() => goTo(current - 1)}><ion-icon slot="icon-only" .icon=${iconChevronBack}></ion-icon></ion-button>
                         ${this.pageList(current + 1, pages).map(
@@ -4179,8 +4355,8 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
         <div class="fblock">
           <span class="flabel">${label}</span>
           <div class="daterange">
-            <ion-input type="date" label=${this.t.from} label-placement="stacked" fill="outline" .value=${f3.from ?? ""} @ionChange=${(e5) => this.setFilterRange(col.key, "from", e5.detail.value ?? "")}></ion-input>
-            <ion-input type="date" label=${this.t.to} label-placement="stacked" fill="outline" .value=${f3.to ?? ""} @ionChange=${(e5) => this.setFilterRange(col.key, "to", e5.detail.value ?? "")}></ion-input>
+            <ion-input type="date" label=${this.t.from} label-placement="stacked" fill="outline" mode="md" .value=${f3.from ?? ""} @ionChange=${(e5) => this.setFilterRange(col.key, "from", e5.detail.value ?? "")}></ion-input>
+            <ion-input type="date" label=${this.t.to} label-placement="stacked" fill="outline" mode="md" .value=${f3.to ?? ""} @ionChange=${(e5) => this.setFilterRange(col.key, "to", e5.detail.value ?? "")}></ion-input>
           </div>
         </div>
       `;
@@ -4192,7 +4368,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
         <ion-select
           label=${label}
           label-placement="stacked"
-          fill="outline"
+          fill="outline" mode="md"
           multiple
           interface="modal"
           .interfaceOptions=${{ cssClass: "ok-overlay" }}
@@ -4240,7 +4416,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
       const caretIcon = !active ? iconSwapVerticalOutline : dir === "asc" ? iconChevronUpOutline : iconChevronDownOutline;
       return b2`
                 <div
-                  class=${`gcell gh ${alignCls(c5.align)}${sortable ? " sortable" : ""}`}
+                  class=${`gcell gh ${alignCls(c5.align)}${sortable ? " sortable" : ""}${c5.pinned === "end" ? " actions-col" : ""}`}
                   role="columnheader"
                   @click=${() => this.onHeaderClick(c5)}
                 >
@@ -4270,7 +4446,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
                 >
                   ${this.selectable ? b2`<span class="selcb" @click=${(e5) => e5.stopPropagation()}><ion-checkbox .checked=${selected} aria-label=${this.t.selectRow} @ionChange=${() => this.toggleRow(key)}></ion-checkbox></span>` : A}
                   ${cols.map(
-          (c5) => b2`<div class=${`gcell ${alignCls(c5.align)}`} role="cell">${c5.render ? c5.render(row) : b2`<span>${this.cell(c5, row)}</span>`}</div>`
+          (c5) => b2`<div class=${`gcell ${alignCls(c5.align)}${c5.pinned === "end" ? " actions-col" : ""}`} role="cell">${c5.render ? c5.render(row) : b2`<span>${this.cell(c5, row)}</span>`}</div>`
         )}
                   ${this.actions.length ? b2`<div class="gcell right actions-col" role="cell" @click=${(e5) => e5.stopPropagation()}>${this.actionButtons(row)}</div>` : A}
                 </div>
@@ -4447,6 +4623,9 @@ __decorateClass4([
 ], _OkDataTable.prototype, "clientPageSize");
 __decorateClass4([
   r5()
+], _OkDataTable.prototype, "mobileShown");
+__decorateClass4([
+  r5()
 ], _OkDataTable.prototype, "clientSort");
 __decorateClass4([
   r5()
@@ -4481,7 +4660,7 @@ __decorateClass4([
 var OkDataTable = _OkDataTable;
 define("ok-data-table", OkDataTable);
 
-// ../../../hub/packages/module-sdk/src/index.ts
+// @erplora/module-sdk/src/index.ts
 var DATA_TABLE_LABELS_ES = {
   search: "Buscar\u2026",
   empty: "Sin resultados",
@@ -5610,7 +5789,7 @@ var SEGMENTS = [
   { id: "closed", status: "closed", key: "ui.segmentClosed" },
   { id: "all", status: "", key: "ui.segmentAll" }
 ];
-var REFRESH_MS = 3e4;
+var REFRESH_MS2 = 3e4;
 var DEFAULT_SETTINGS = { timer_warning_minutes: 60, timer_critical_minutes: 90 };
 function erplora4() {
   const c5 = globalThis.erplora;
@@ -5640,6 +5819,7 @@ var ErpTablesSessions = class extends i3 {
     this.now = () => /* @__PURE__ */ new Date();
     this.segment = "open";
     this.zones = [];
+    this.waiters = [];
     this.settings = { ...DEFAULT_SETTINGS };
     this.detail = null;
     this.closeTarget = null;
@@ -5675,6 +5855,20 @@ var ErpTablesSessions = class extends i3 {
         filterType: "select",
         options: this.zones.map((z2) => ({ value: z2.id, label: z2.name })),
         format: (r6) => r6.zone || "\u2014"
+      },
+      {
+        // tables#74: whose check this is. `waiter_id` has travelled on the session since tables#70
+        // and the screen threw it away, so with several checks open nobody could tell them apart.
+        key: "waiter_id",
+        header: t5("ui.colWaiter"),
+        // Sorting by an opaque id would order the list by nothing a human can read.
+        sortable: false,
+        filterable: true,
+        // Closed domain: the people of the hub. The column shows the name, the select sends the id
+        // — the `waiter_id(eq)` filter the manifest already declares («show me my checks»).
+        filterType: "select",
+        options: this.waiters.map((u5) => ({ value: u5.id, label: u5.name })),
+        format: (r6) => this.waiterName(r6.waiter_id) || "\u2014"
       },
       { key: "guests_count", header: t5("ui.colGuests"), align: "right", sortable: true, format: (r6) => t5("ui.paxCount", { count: r6.guests_count ?? 0 }) },
       { key: "opened_at", header: t5("ui.colOpenedAt"), sortable: true, format: (r6) => hhmm3(r6.opened_at) },
@@ -5717,7 +5911,7 @@ var ErpTablesSessions = class extends i3 {
       // Open checks first: that is what the room asks for.
       filters: { status: "active" }
     });
-    await Promise.all([this.ctrl.load(), this.loadZones(), this.loadSettings()]);
+    await Promise.all([this.ctrl.load(), this.loadZones(), this.loadSettings(), this.loadWaiters()]);
     try {
       const offs = [
         erplora4().on("tables.session.opened", () => this.ctrl.load()),
@@ -5734,7 +5928,7 @@ var ErpTablesSessions = class extends i3 {
       this.unsub = () => offs.forEach((o7) => o7());
     } catch {
     }
-    this.timer = setInterval(() => this.requestUpdate(), REFRESH_MS);
+    this.timer = setInterval(() => this.requestUpdate(), REFRESH_MS2);
   }
   disconnectedCallback() {
     window.removeEventListener("erplora:locale-changed", this.onLocaleChange);
@@ -5749,6 +5943,30 @@ var ErpTablesSessions = class extends i3 {
     } catch {
       this.zones = [];
     }
+  }
+  /** tables#74 — the people behind `waiter_id`, through the CORE namespace (ADR-0192): the module
+   *  never joins `hub_user`. Best-effort, exactly like kitchen's KDS card and the printed chit: no
+   *  permission, no SDK or a failing call leaves the column blank and the list working. */
+  async loadWaiters() {
+    try {
+      const rows3 = await erplora4().query("hub.users.list");
+      this.waiters = (Array.isArray(rows3) ? rows3 : []).filter((u5) => u5 && u5.id && String(u5.name ?? "").trim());
+    } catch {
+      this.waiters = [];
+    }
+  }
+  /**
+   * The NAME of a `waiter_id`, or '' when there is none to show.
+   *
+   * '' covers three cases on purpose and all of them read the same «—»: the check carries no waiter
+   * (opened before tables#70), the hub does not list that id any more (someone who left the shift),
+   * or the list could not be loaded. A raw UUID in a list of checks is worse than an empty cell —
+   * nobody can act on it, and it makes the column look broken.
+   */
+  waiterName(waiterId) {
+    const id = waiterId == null ? "" : String(waiterId);
+    if (!id) return "";
+    return this.waiters.find((u5) => String(u5.id) === id)?.name ?? "";
   }
   async loadSettings() {
     try {
@@ -5875,6 +6093,7 @@ var ErpTablesSessions = class extends i3 {
       <ion-content class="ion-padding">
         <ion-list lines="none">
           ${row(t5("ui.colZone"), s5.zone || "\u2014")}
+          ${row(t5("ui.colWaiter"), this.waiterName(s5.waiter_id) || "\u2014")}
           ${row(t5("ui.colStatus"), STATUS_KEY4[s5.status] ? t5(STATUS_KEY4[s5.status]) : s5.status)}
           ${row(t5("ui.colGuests"), t5("ui.paxCount", { count: s5.guests_count ?? 0 }))}
           ${row(t5("ui.colOpenedAt"), hhmm3(s5.opened_at))}
@@ -5896,6 +6115,9 @@ __decorateClass([
 __decorateClass([
   r5()
 ], ErpTablesSessions.prototype, "zones", 2);
+__decorateClass([
+  r5()
+], ErpTablesSessions.prototype, "waiters", 2);
 __decorateClass([
   r5()
 ], ErpTablesSessions.prototype, "settings", 2);

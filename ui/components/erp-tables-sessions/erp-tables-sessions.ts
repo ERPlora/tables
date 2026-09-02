@@ -54,6 +54,14 @@ interface Zone {
   name: string;
 }
 
+/** One row of `hub.users.list` — the hub's people (ADR-0192, the core's reserved namespace).
+ *  Personnel belongs to the CORE, not to the `staff` module: the same door the KDS card
+ *  (kitchen#63) and the printed chit already use to put a name on a `waiter_id`. */
+interface HubUser {
+  id: string;
+  name: string;
+}
+
 // Session states written by the command chains (`_session_*.sql`). The `value` is the enum, the
 // label is translated.
 const STATUSES = ['active', 'closed', 'transferred', 'merged', 'parked'];
@@ -131,6 +139,9 @@ export class ErpTablesSessions extends LitElement {
 
   @state() private zones: Zone[] = [];
 
+  /** tables#74 · id → name of the hub's people, to turn `waiter_id` into a person. */
+  @state() private waiters: HubUser[] = [];
+
   @state() private settings: RoomSettings = { ...DEFAULT_SETTINGS };
 
   @state() detail: Session | null = null;
@@ -163,6 +174,20 @@ export class ErpTablesSessions extends LitElement {
         filterType: 'select',
         options: this.zones.map((z) => ({ value: z.id, label: z.name })),
         format: (r) => (r.zone as string) || '—',
+      },
+      {
+        // tables#74: whose check this is. `waiter_id` has travelled on the session since tables#70
+        // and the screen threw it away, so with several checks open nobody could tell them apart.
+        key: 'waiter_id',
+        header: t('ui.colWaiter'),
+        // Sorting by an opaque id would order the list by nothing a human can read.
+        sortable: false,
+        filterable: true,
+        // Closed domain: the people of the hub. The column shows the name, the select sends the id
+        // — the `waiter_id(eq)` filter the manifest already declares («show me my checks»).
+        filterType: 'select',
+        options: this.waiters.map((u) => ({ value: u.id, label: u.name })),
+        format: (r) => this.waiterName(r.waiter_id) || '—',
       },
       { key: 'guests_count', header: t('ui.colGuests'), align: 'right', sortable: true, format: (r) => t('ui.paxCount', { count: r.guests_count ?? 0 }) },
       { key: 'opened_at', header: t('ui.colOpenedAt'), sortable: true, format: (r) => hhmm(r.opened_at as string) },
@@ -210,7 +235,7 @@ export class ErpTablesSessions extends LitElement {
       // Open checks first: that is what the room asks for.
       filters: { status: 'active' },
     });
-    await Promise.all([this.ctrl.load(), this.loadZones(), this.loadSettings()]);
+    await Promise.all([this.ctrl.load(), this.loadZones(), this.loadSettings(), this.loadWaiters()]);
     try {
       const offs = [
         erplora().on('tables.session.opened', () => this.ctrl.load()),
@@ -246,6 +271,32 @@ export class ErpTablesSessions extends LitElement {
     } catch {
       this.zones = [];
     }
+  }
+
+  /** tables#74 — the people behind `waiter_id`, through the CORE namespace (ADR-0192): the module
+   *  never joins `hub_user`. Best-effort, exactly like kitchen's KDS card and the printed chit: no
+   *  permission, no SDK or a failing call leaves the column blank and the list working. */
+  private async loadWaiters(): Promise<void> {
+    try {
+      const rows = await erplora().query<HubUser[]>('hub.users.list');
+      this.waiters = (Array.isArray(rows) ? rows : []).filter((u) => u && u.id && String(u.name ?? '').trim());
+    } catch {
+      this.waiters = [];
+    }
+  }
+
+  /**
+   * The NAME of a `waiter_id`, or '' when there is none to show.
+   *
+   * '' covers three cases on purpose and all of them read the same «—»: the check carries no waiter
+   * (opened before tables#70), the hub does not list that id any more (someone who left the shift),
+   * or the list could not be loaded. A raw UUID in a list of checks is worse than an empty cell —
+   * nobody can act on it, and it makes the column look broken.
+   */
+  waiterName(waiterId: unknown): string {
+    const id = waiterId == null ? '' : String(waiterId);
+    if (!id) return '';
+    return this.waiters.find((u) => String(u.id) === id)?.name ?? '';
   }
 
   private async loadSettings(): Promise<void> {
@@ -381,6 +432,7 @@ export class ErpTablesSessions extends LitElement {
       <ion-content class="ion-padding">
         <ion-list lines="none">
           ${row(t('ui.colZone'), s.zone || '—')}
+          ${row(t('ui.colWaiter'), this.waiterName(s.waiter_id) || '—')}
           ${row(t('ui.colStatus'), STATUS_KEY[s.status] ? t(STATUS_KEY[s.status]) : s.status)}
           ${row(t('ui.colGuests'), t('ui.paxCount', { count: s.guests_count ?? 0 }))}
           ${row(t('ui.colOpenedAt'), hhmm(s.opened_at))}

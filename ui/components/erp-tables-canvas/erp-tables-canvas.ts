@@ -32,6 +32,21 @@ interface Table {
   reserved_from?: string | null;
   reserved_until?: string | null;
   reserved_party_size?: number | null;
+  // tables#32 / tables#64 / tables#74: the LIVE check of the table, served by `tables.tables.list`.
+  // Covers seated, when it sat down, and WHO is serving it — the three things a floor manager reads
+  // off an occupied table. `live_waiter_id` is an opaque id (ADR-0192): the name is resolved here
+  // against `hub.users.list`, never joined in SQL.
+  live_guests?: number | null;
+  live_waiter_id?: string | null;
+  live_since?: string | null;
+}
+
+/** One row of `hub.users.list` — the hub's people (ADR-0192, the core's reserved namespace).
+ *  Personnel belongs to the CORE, not to the `staff` module: the same door the KDS card
+ *  (kitchen#63) and the printed chit already use to put a name on a `waiter_id`. */
+interface HubUser {
+  id: string;
+  name: string;
 }
 
 /** `2026-08-07T21:00:00+00:00` → `21:00`, en la hora del dispositivo: la sala mira el reloj de
@@ -41,6 +56,14 @@ function hhmm(iso?: string | null): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Whole minutes from `iso` to `now`, or `null` when there is no usable timestamp. */
+export function minutesSince(iso: string | null | undefined, now: Date): number | null {
+  if (!iso) return null;
+  const from = new Date(iso).getTime();
+  if (Number.isNaN(from)) return null;
+  return Math.max(0, Math.floor((now.getTime() - from) / 60_000));
 }
 
 interface ErploraLike {
@@ -68,6 +91,23 @@ const SHAPE_KEY: Record<string, string> = { square: 'ui.shapeSquare', round: 'ui
 const STATUS_COLOR: Record<string, string> = {
   available: '#2f9e44', occupied: '#d9480f', reserved: '#f08c00', blocked: '#868e96',
 };
+// tables#64 — the status may NOT live in the colour alone. Roughly 8 % of men are colour-blind and
+// a 2 px border says nothing across a room, so every tile carries the three encodings the market
+// uses (Square and Toast both label the state, and our own POS «choose table» modal already writes
+// DISPONIBLE): the colour, the written label, and an icon that is different for each state.
+// Shape: the icon travels under an `icon` property, which is how the toolkit bakes an icon passed
+// as DATA into `dist/icons.json` (the same convention `ok-data-table` actions use). Written as a
+// bare `Record<string, string>` the baker only sees the fallback literal of the binding, and the
+// four status icons ship BLANK — which is the whole defect this fixes, arriving through the back
+// door. `erplora build` prints the icon count, and `dist/icons.json` is committed: both show it.
+const STATUS_ICON: Record<string, { icon: string }> = {
+  available: { icon: 'checkmark-circle-outline' },
+  occupied: { icon: 'people-outline' },
+  reserved: { icon: 'time-outline' },
+  blocked: { icon: 'ban-outline' },
+};
+/** How often the «seated for N min» of an occupied table is refreshed while the plan is open. */
+const REFRESH_MS = 30_000;
 
 function erplora(): ErploraLike {
   const c = (globalThis as { erplora?: ErploraLike }).erplora;
@@ -91,13 +131,15 @@ function rows<T>(r: unknown): T[] {
 // el propio módulo: `bulk_create` repartía en una rejilla de paso 20 con cajas de 10 y el lienzo
 // pintaba cajas fijas de 72 px en esas coordenadas crudas — 56 px de solape, el 74 % del ancho, y
 // de las 12 mesas del Salón se leían dos números. (20,0) y (40,0) le parecían «coordenadas
-// reales» a `sinCoordenadas`, así que se pintaban verbatim, una encima de otra.
+// reales» al centinela de entonces (`!position_x && !position_y`), así que se pintaban verbatim,
+// una encima de otra.
 //
-// Ahora la condición es la que de verdad importa: **¿esta mesa taparía a otra con su caja real?**
-// Eso cubre el (0,0) del seed, el paso-20 del lote y cualquier combinación futura, y arregla los
-// hubs que YA tienen esas coordenadas guardadas sin pedir una migración. El generador emite
-// píxeles reales desde tables#53 (`handler/src/lib.rs`), así que en un hub nuevo esta red no llega
-// a activarse: se comprueba en `erp-tables-canvas.test.ts`.
+// tables#57 — y la condición definitiva no es la coordenada ni el solape, sino **¿alguien colocó
+// esta mesa alguna vez?**, que responde su CAJA (ver `neverPlaced`). Eso cubre el (0,0) del seed y
+// el paso-20 del lote —ambos traen la unidad vieja de 10 px— sin reservar (0,0) como centinela, y
+// arregla los hubs que YA tienen esas coordenadas guardadas sin pedir una migración. El generador
+// emite píxeles reales desde tables#53 (`handler/src/lib.rs`), así que en un hub nuevo esta red no
+// llega a activarse: se comprueba en `erp-tables-canvas.test.ts`.
 const AUTO_GAP = 16;       // px de margen entre celdas
 const AUTO_CELL = BOX + AUTO_GAP; // paso del grid (una mesa por celda)
 const AUTO_COLS = 4;       // nº de columnas del grid de fallback
@@ -113,9 +155,30 @@ function boxOf(t: Pick<Table, 'width' | 'height'>): { w: number; h: number } {
   return { w: w >= MIN_BOX ? w : BOX, h: h >= MIN_BOX ? h : BOX };
 }
 
-/** `true` si la mesa no tiene una posición real (0,0 = default del Number(m)||0 en reload). */
-function sinCoordenadas(t: Table): boolean {
-  return !t.position_x && !t.position_y;
+/**
+ * tables#57 — `true` when NOBODY has ever placed this table, so the plan may lay it out itself.
+ *
+ * The old answer was the COORDINATE: `!position_x && !position_y`. That made (0,0) a sentinel, and
+ * (0,0) is also the corner of the canvas — a legitimate spot a floor plan must be able to use, and
+ * one Toast, Square and Lightspeed all allow. Dragging a table there saved fine
+ * (`tables.tables.move` → `ok`) and the plan moved it back on reload, which reads as «the floor
+ * plan does not save» and is expensive to diagnose.
+ *
+ * The answer is the BOX, not the coordinate. Every writer that positions a table persists a real
+ * box: `tables.tables.move` and the canvas «add table» send `BOX`, and `bulk_create` has done the
+ * same since tables#53. A row that never went through one of them still carries the old unit —
+ * `width`/`height` of 10, or 0 from a blueprint — which `MIN_BOX` already treats as «not a box
+ * anybody chose», here and in `handler/src/lib.rs`. So the box answers «has anybody placed this?»
+ * per row, for free, with no migration and with no coordinate reserved as a sentinel.
+ *
+ * What this drops on purpose: the previous rule ALSO re-laid a table that overlapped another one,
+ * even with real boxes. That net was there for the legacy step-20 data of tables#53 — which always
+ * carries the old 10 px box, so it is still caught — and it is what made (0,0) unreachable next to
+ * a neighbour at (16,16). Two tables the host deliberately dragged together now stay where he left
+ * them: arranging the room is his job, not the plan's.
+ */
+function neverPlaced(t: Pick<Table, 'width' | 'height'>): boolean {
+  return !(Number(t.width) >= MIN_BOX && Number(t.height) >= MIN_BOX);
 }
 
 /** ¿Se tapan estas dos mesas, con la caja que cada una pinta? */
@@ -143,11 +206,11 @@ function autoLayoutTables(tables: Table[]): Table[] {
   }
   const fixed = new Map<string, Table>();
   for (const zoneTables of byZone.values()) {
-    // Las que se quedan donde están: tienen coordenadas propias y no tapan a ninguna anterior.
+    // Las que se quedan donde están: alguien las colocó (tables#57 — su caja lo dice).
     const placed: Table[] = [];
     const pending: Table[] = [];
     for (const t of zoneTables) {
-      if (sinCoordenadas(t) || placed.some((p) => seTapan(p, t))) pending.push(t);
+      if (neverPlaced(t)) pending.push(t);
       else placed.push(t);
     }
     // Y las demás, a la primera celda libre del grid — con una caja legible, porque una posición
@@ -175,15 +238,11 @@ export class ErpTablesCanvas extends LitElement {
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
     /* tables#16: every own control is a touch target (44px), like the ok-data-table actions. */
     ion-button { min-height:44px; --min-height:44px; }
-    header { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:.6rem; }
-    h2 { margin:0; font-size:1.15rem; flex:1; }
-    .newzone { display:flex; gap:.75rem; align-items:end; }
-    .newzone ion-input { flex:1 1 11rem; min-width:9rem; }
-    .zonebar { display:flex; gap:.5rem; align-items:center; margin-bottom:.6rem; }
-    .zonebar ion-segment { flex:1; }
-    .legend { display:flex; gap:.8rem; flex-wrap:wrap; margin:.2rem 0 .6rem; font-size:.75rem; color:#8b897f; }
-    .legend span { display:inline-flex; align-items:center; gap:.3rem; }
-    .dot { width:.7rem; height:.7rem; border-radius: var(--ok-radius-pill, 50%); display:inline-block; }
+    /* tables#64: la ÚNICA fila de cabecera — navegación (zonas) + las dos acciones de
+       configuración, en iconos. A 390 px el plano empieza justo debajo. */
+    .zonebar { display:flex; gap:.25rem; align-items:center; margin-bottom:.4rem; }
+    .zonebar ion-segment { flex:1; min-width:0; }
+    .zonebar .flex { flex:1; }
     .canvas { position:relative; height:60vh; min-height:22rem; border:1px dashed var(--ion-border-color,#cfcabd); border-radius: var(--ok-radius, 14px); background:
         repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px),
         repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px);
@@ -198,8 +257,19 @@ export class ErpTablesCanvas extends LitElement {
     .mesa.dragging { cursor:grabbing; opacity:.85; box-shadow:0 6px 18px rgba(0,0,0,.28); z-index:5; }
     /* Keyboard focus is visible: the table is a button (tables#16). */
     .mesa:focus-visible { outline:3px solid var(--ion-color-primary,#0091ce); outline-offset:2px; }
-    .mesa .n { font-weight:700; font-size:1.05rem; }
-    .mesa .c { font-size:.7rem; color:#8b897f; }
+    /* La baldosa por defecto son 72 px: cada línea se acota al ancho o se corta a media palabra
+       (medido en navegador a 390 px). Nada de text-transform:uppercase en el estado — ensancha
+       ~15 % y «DISPONIBLE» dejaba de caber. */
+    .mesa { padding:.1rem .15rem; overflow:hidden; line-height:1.12; text-align:center; }
+    .mesa > * { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .mesa .n { font-weight:700; font-size:1rem; }
+    .mesa .c { font-size:.56rem; color:#8b897f; }
+    /* tables#74: quién atiende la mesa ocupada. Nombre, nunca el id. */
+    .mesa .w { font-size:.56rem; font-weight:600; }
+    /* tables#64: el estado ESCRITO + su icono. El color se conserva, pero ya no está solo. */
+    .mesa .s { display:inline-flex; align-items:center; justify-content:center; gap:.12rem;
+      font-size:.55rem; font-weight:700; }
+    .mesa .s ion-icon { font-size:.7rem; flex:none; }
     /* Nombre y hora de la reserva. Es lo que convierte el color ambar en informacion util:
        sin esto el encargado ve «reservada» y no sabe si le da tiempo a sentar a alguien. */
     .mesa .hold { font-size:.62rem; color:var(--ion-color-warning,#f08c00); font-weight:600;
@@ -229,8 +299,17 @@ export class ErpTablesCanvas extends LitElement {
   @state() private edit?: Table;
   @state() private zoneEdit?: Zone;
   @state() private saving = false;
+  // tables#64: «Añadir zona» y «Añadir mesa» son configuración, no servicio — viven detrás de un
+  // solo «+», como Square esconde la edición del plano tras «Edit».
+  @state() private addOpen = false;
+  /** id → nombre de las personas del hub (`hub.users.list`, ADR-0192). */
+  @state() private waitersById = new Map<string, string>();
+
+  /** Reloj inyectable (los tests lo clavan): lo lee el «lleva N min sentada». */
+  now: () => Date = () => new Date();
 
   private unsub?: () => void;
+  private timer?: ReturnType<typeof setInterval>;
   private dragId?: string;
   private dragDX = 0;
   private dragDY = 0;
@@ -259,22 +338,34 @@ export class ErpTablesCanvas extends LitElement {
       ].filter(Boolean) as Array<() => void>;
       this.unsub = () => offs.forEach((o) => o());
     } catch { /* preview sin SDK */ }
+    // El «lleva N min sentada» de una mesa ocupada envejece mientras el plano está abierto.
+    this.timer = setInterval(() => this.requestUpdate(), REFRESH_MS);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener('erplora:locale-changed', this.onLocaleChange);
     this.unsub?.();
+    if (this.timer) clearInterval(this.timer);
   }
 
   private async reload() {
     this.loading = true;
     try {
-      const [z, t] = await Promise.all([
+      const [z, t, people] = await Promise.all([
         erplora().queryAll('tables.zones.list', { sort: 'sort_order', dir: 'asc' }).catch(() => []),
         erplora().queryAll('tables.tables.list', { sort: 'number_sort', dir: 'asc' }).catch(() => []),
+        // tables#74: the people behind `live_waiter_id`. Same door the KDS card and the printed
+        // chit use (`hub.users.list`, ADR-0192) and the same policy on failure — no permission, no
+        // SDK, an id the hub no longer lists: the plan paints, the tile just says nothing.
+        erplora().query<HubUser[]>('hub.users.list').catch(() => [] as HubUser[]),
       ]);
       this.zones = rows<Zone>(z);
+      this.waitersById = new Map(
+        rows<HubUser>(people)
+          .filter((u) => u && u.id && String(u.name ?? '').trim())
+          .map((u) => [String(u.id), String(u.name).trim()]),
+      );
       // tables#182: a room the host already arranged goes by its own (x, y), but one seeded by a
       // blueprint has NO coordinates, and then `autoLayoutTables` fills the grid in the order the
       // rows arrive. Ordering naturally here is what makes that grid read S1, S2, S3 … S10 instead
@@ -285,8 +376,11 @@ export class ErpTablesCanvas extends LitElement {
         is_active: Number(m.is_active),
         position_x: Number(m.position_x) || 0,
         position_y: Number(m.position_y) || 0,
-        width: Number(m.width) || BOX,
-        height: Number(m.height) || BOX,
+        // tables#57: the box is kept AS THE ROW HAS IT. Defaulting it to `BOX` here erased the only
+        // thing that tells a placed table from a seeded one, and every table looked placed — the
+        // fallback for painting is `boxOf()`, which already substitutes `BOX` at the last moment.
+        width: Number(m.width) || 0,
+        height: Number(m.height) || 0,
       })));
       if (!this.activeZone || !this.zones.some((zo) => zo.id === this.activeZone)) {
         this.activeZone = this.zones[0]?.id ?? '';
@@ -397,14 +491,51 @@ export class ErpTablesCanvas extends LitElement {
     }
   }
 
-  /** Accessible name of a table tile: «nº · zone · capacity · status» (+ reservation). */
+  /**
+   * tables#74 — the NAME of whoever is serving this table, or '' when there is none to show.
+   *
+   * '' covers four cases on purpose and all of them paint the same nothing: the table is free, the
+   * check carries no waiter (opened before tables#70), the hub does not list that id any more
+   * (someone who left the shift), or the list could not be loaded. A raw UUID on a floor plan read
+   * from across the room would be worse than a blank — nobody can act on it.
+   */
+  private waiterName(tb: Table): string {
+    if (tb.status !== 'occupied' || !tb.live_waiter_id) return '';
+    return this.waitersById.get(String(tb.live_waiter_id)) ?? '';
+  }
+
+  /**
+   * tables#64 — what an OCCUPIED table says instead of its capacity: the party seated and how long
+   * it has been sitting (Square paints the very same two on its floor plan). '' when the table is
+   * not serving.
+   *
+   * Two wordings on purpose. The tile is 72 px wide, and «3 comensales · 35 min» does not fit — it
+   * came out clipped mid-word in a real browser at 390 px, which is worse than not painting it. So
+   * the TILE says «3 pax · 35 min», the same unit the capacity already uses right there, and the
+   * accessible name (and the tooltip) keeps the unambiguous «3 comensales», where there is room.
+   */
+  private liveLine(tb: Table, t: (k: string, p?: Record<string, unknown>) => string, compact = false): string {
+    if (tb.status !== 'occupied') return '';
+    const seated = Number(tb.live_guests) || 0;
+    if (!seated) return '';
+    const minutes = minutesSince(tb.live_since, this.now());
+    return [
+      t(compact ? 'ui.paxCount' : 'ui.liveGuests', { count: seated }),
+      minutes == null ? '' : t('ui.durationMinutes', { minutes }),
+    ].filter(Boolean).join(' · ');
+  }
+
+  /** Accessible name of a table tile: «nº · zone · capacity · status» (+ party, waiter, hold). */
   private tableName(tb: Table, t: (k: string, p?: Record<string, unknown>) => string): string {
     const zone = this.zones.find((z) => z.id === tb.zone_id)?.name;
+    const waiter = this.waiterName(tb);
     return [
       t('ui.tableLabel', { number: tb.number }),
       zone,
       t('ui.paxCount', { count: tb.capacity }),
       STATUS_KEY[tb.status] ? t(STATUS_KEY[tb.status]) : tb.status,
+      this.liveLine(tb, t),
+      waiter ? t('ui.servedBy', { name: waiter }) : '',
       tb.reserved_for ? t('ui.reservedFor', { name: tb.reserved_for }) : '',
     ].filter(Boolean).join(' · ');
   }
@@ -445,6 +576,7 @@ export class ErpTablesCanvas extends LitElement {
         height: BOX,
         shape: 'square',
       });
+      this.addOpen = false;
       await this.reload();
     } catch (e) {
       this.error = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errCreateTable'));
@@ -460,6 +592,7 @@ export class ErpTablesCanvas extends LitElement {
         name, description: '', color: 'primary', sort_order: this.zones.length,
       });
       this.newZoneName = '';
+      this.addOpen = false;
       await this.reload();
       const created = this.zones.find((z) => z.name === name);
       if (created) this.activeZone = created.id;
@@ -567,64 +700,92 @@ export class ErpTablesCanvas extends LitElement {
   render() {
     const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
     return html`
-      <header>
-        <h2>${t('ui.floorPlan')}</h2>
-        <div class="newzone">
-          <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.colZone')} placeholder=${t('ui.newZonePlaceholder')} .value=${this.newZoneName}
-            @ionInput=${(e: CustomEvent) => { this.newZoneName = (e.target as HTMLInputElement).value || ''; }}></ion-input>
-          <ion-button fill="outline" ?disabled=${!this.newZoneName.trim()} @click=${() => this.addZone()}>${t('ui.addZone')}</ion-button>
-        </div>
-        <ion-button ?disabled=${!this.zones.length} @click=${() => this.addTable()}>${t('ui.addTable')}</ion-button>
-      </header>
-
-      ${this.error ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : nothing}
-
-      ${this.zones.length
-        ? html`<div class="zonebar">
-            <ion-segment scrollable value=${this.activeZone}
+      <!-- tables#64 — at 390 px there used to be ~340 px of chrome before the first table: the view
+           title (the shell topbar already paints it), a stray «Zone» input with «Add zone», «Add
+           table», the zone segment and the colour legend, each on its own row. What is left is
+           navigation: the zone segment, and behind two icon buttons everything that is
+           configuration — the same shape Square gives its mobile floor plan. The legend is gone
+           because the status is now written on every tile. -->
+      <div class="zonebar">
+        ${this.zones.length
+          ? html`<ion-segment scrollable value=${this.activeZone}
               @ionChange=${(e: CustomEvent) => { this.activeZone = (e.detail as { value: string }).value; }}>
               ${this.zones.map((z) => html`<ion-segment-button value=${z.id}><ion-label>${z.name}</ion-label></ion-segment-button>`)}
-            </ion-segment>
-            <ion-button fill="clear" ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}>${t('ui.editZone')}</ion-button>
-          </div>`
-        : nothing}
-
-      <div class="legend">
-        ${STATUSES.map((s) => html`<span><i class="dot" style=${`background:${STATUS_COLOR[s]}`}></i>${t(STATUS_KEY[s] ?? s)}</span>`)}
+            </ion-segment>`
+          : html`<span class="flex"></span>`}
+        <ion-button data-add fill="clear" aria-label=${t('ui.addAction')} title=${t('ui.addAction')}
+          @click=${() => { this.addOpen = true; }}><ion-icon slot="icon-only" name="add-outline"></ion-icon></ion-button>
+        <ion-button fill="clear" aria-label=${t('ui.editZone')} title=${t('ui.editZone')}
+          ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}><ion-icon slot="icon-only" name="create-outline"></ion-icon></ion-button>
       </div>
+
+      ${this.error ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : nothing}
 
       <div class="canvas"
         @pointermove=${(e: PointerEvent) => this.onPointerMove(e)}
         @pointerup=${() => this.onPointerUp()}
         @pointercancel=${() => this.onPointerUp()}>
-        ${this.tablesInZone.map((tb) => html`
+        ${this.tablesInZone.map((tb) => {
+          const statusLabel = STATUS_KEY[tb.status] ? t(STATUS_KEY[tb.status]) : tb.status;
+          const live = this.liveLine(tb, t, true);
+          const waiter = this.waiterName(tb);
+          return html`
           <div class=${`mesa ${tb.shape === 'round' ? 'round' : ''} ${tb.id === this.dragId && this.dragMoved ? 'dragging' : ''}`}
             role="button" tabindex="0"
             aria-label=${this.tableName(tb, t)}
             @keydown=${(e: KeyboardEvent) => this.onTableKey(tb, e)}
             style=${`left:${tb.position_x}px; top:${tb.position_y}px; width:${boxOf(tb).w}px; height:${boxOf(tb).h}px; border-color:${STATUS_COLOR[tb.status] ?? '#d9d6cf'}`}
             title=${[
-              t('ui.tableTooltip', { status: STATUS_KEY[tb.status] ? t(STATUS_KEY[tb.status]) : tb.status, count: tb.capacity }),
+              t('ui.tableTooltip', { status: statusLabel, count: tb.capacity }),
+              live,
+              waiter ? t('ui.servedBy', { name: waiter }) : '',
               tb.reserved_for
                 ? `${t('ui.reservedFor', { name: tb.reserved_for })} ${[hhmm(tb.reserved_from), hhmm(tb.reserved_until)].filter(Boolean).join('–')}`.trim()
                 : '',
             ].filter(Boolean).join(' · ')}
             @pointerdown=${(e: PointerEvent) => this.onPointerDown(tb, e)}>
             <div class="n">${tb.number}</div>
-            <div class="c">${t('ui.paxCount', { count: tb.capacity })}</div>
+            <div class="c">${live || t('ui.paxCount', { count: tb.capacity })}</div>
+            ${waiter ? html`<div class="w">${waiter}</div>` : nothing}
             ${tb.reserved_for
               ? html`<div class="hold">${tb.reserved_for}${tb.reserved_from ? ` · ${hhmm(tb.reserved_from)}` : ''}</div>`
               : nothing}
-          </div>`)}
+            <div class="s" style=${`color:${STATUS_COLOR[tb.status] ?? '#868e96'}`}>
+              <ion-icon name=${STATUS_ICON[tb.status]?.icon ?? 'help-circle-outline'} aria-hidden="true"></ion-icon>${statusLabel}
+            </div>
+          </div>`;
+        })}
         ${!this.loading && !this.zones.length ? html`<ok-empty-state icon="grid-outline" message=${t('ui.createZoneToStart')}></ok-empty-state>` : nothing}
         ${!this.loading && this.zones.length && !this.tablesInZone.length ? html`<ok-empty-state icon="square-outline" message=${t('ui.noTablesInZonePrompt')}></ok-empty-state>` : nothing}
         ${this.loading ? html`<div class="empty">${t('ui.loading')}</div>` : nothing}
       </div>
       <p class="hint">${t('ui.canvasHint')}</p>
 
+      ${this.addOpen ? this.renderAddSheet() : nothing}
       ${this.edit ? this.renderTableSheet(this.edit) : nothing}
       ${this.zoneEdit ? this.renderZoneSheet(this.zoneEdit) : nothing}
     `;
+  }
+
+  /** tables#64 — the two configuration actions, out of the service header and behind the «+». */
+  private renderAddSheet() {
+    const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
+    return html`<div class="scrim" @click=${(e: Event) => { if ((e.target as HTMLElement).classList.contains('scrim')) this.addOpen = false; }}>
+      <div class="sheet">
+        <div class="sheet-h">
+          <span class="t">${t('ui.addTitle')}</span>
+          <ion-button class="x" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.addOpen = false; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
+        </div>
+        <div class="field">
+          <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.colZone')} placeholder=${t('ui.newZonePlaceholder')} .value=${this.newZoneName}
+            @ionInput=${(e: CustomEvent) => { this.newZoneName = (e.target as HTMLInputElement).value || ''; }}></ion-input>
+        </div>
+        <div class="sheet-foot">
+          <ion-button fill="outline" ?disabled=${this.saving || !this.newZoneName.trim()} @click=${() => this.addZone()}>${t('ui.addZone')}</ion-button>
+          <ion-button ?disabled=${this.saving || !this.zones.length} @click=${() => this.addTable()}>${t('ui.addTable')}</ion-button>
+        </div>
+      </div>
+    </div>`;
   }
 
   private renderTableSheet(table: Table) {

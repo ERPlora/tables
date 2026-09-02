@@ -3,6 +3,7 @@
   "module": "tables",
   "consumes": {
     "queries": [
+      "hub.users.list",
       "tables.sessions.by_order",
       "tables.sessions.list",
       "tables.settings.get",
