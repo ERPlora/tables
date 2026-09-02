@@ -1,0 +1,36 @@
+{
+  "why": "tables#68 — ONE corpus, two runners. The natural order of a table label is computed in two places by necessity: the paginated Tables list is ordered by the SERVER (queries/tables_list.sql -> number_sort), because a browser sorting the visible page would order each page on its own and still cut the pages by the wrong key; the POS picker and the floor plan re-group rows in the browser. Two implementations of one rule drift, and they did: the SQL only padded the FINAL run of digits, so 'Barra 2 Bis' and 'Barra 10 Bis' came out in opposite orders on the two screens. This file is the rule. tests/floor.postgres.test.py reads it and asserts against real Postgres; ui/lib/natural-order.test.ts reads it and asserts against the comparator. Whichever side drifts turns red.",
+  "rule": "Every run of digits is compared as a NUMBER, wherever it sits in the label (start, middle or end); everything else is compared as text in the active locale. Implemented as: left-pad every digit run to 12 characters, then compare the padded labels.",
+  "cases": [
+    {
+      "name": "a numbered room reads 1, 2, 3 … 10, 11, 12",
+      "shuffled": ["S1", "S10", "S11", "S12", "S2", "S3", "S9"],
+      "expected": ["S1", "S2", "S3", "S9", "S10", "S11", "S12"]
+    },
+    {
+      "name": "bare numbers are numbers, not text",
+      "shuffled": ["10", "2", "1", "21", "3"],
+      "expected": ["1", "2", "3", "10", "21"]
+    },
+    {
+      "name": "digits in the MIDDLE and text at the end — the case tables#68 is about",
+      "shuffled": ["Barra 10 Bis", "Barra 2 Bis", "Barra 1 Bis"],
+      "expected": ["Barra 1 Bis", "Barra 2 Bis", "Barra 10 Bis"]
+    },
+    {
+      "name": "two runs of digits in one label, both compared as numbers",
+      "shuffled": ["Sala 10 Mesa 1", "Sala 2 Mesa 10", "Sala 2 Mesa 2"],
+      "expected": ["Sala 2 Mesa 2", "Sala 2 Mesa 10", "Sala 10 Mesa 1"]
+    },
+    {
+      "name": "a table with no digits at all stays alphabetical — the criterion is per row",
+      "shuffled": ["Terraza B", "Terraza A", "Barra"],
+      "expected": ["Barra", "Terraza A", "Terraza B"]
+    },
+    {
+      "name": "one room, both criteria at once",
+      "shuffled": ["Terraza A", "S10", "Barra 2 Bis", "S2", "Barra 10 Bis", "S1"],
+      "expected": ["Barra 2 Bis", "Barra 10 Bis", "S1", "S2", "S10", "Terraza A"]
+    }
+  ]
+}

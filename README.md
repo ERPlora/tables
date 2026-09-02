@@ -31,7 +31,8 @@ versión instalada y cita la de TU versión, no la de la última publicada. En i
 | command | `tables.zones.create` / `.update` / `.delete` (WASM) | `add_/change_/delete_zone` |
 | command | `tables.tables.create` / `.update` / `.move` / `.bulk_create` (WASM) / `.delete` (WASM) | `add_/change_/delete_table` |
 | command | `tables.sessions.open` (WASM) / `.link_order` | `add_tablesession` |
-| command | `tables.sessions.close` / `.transfer` / `.merge` / `.split` (WASM) · `.park` / `.restore` | `change_tablesession` |
+| command | `tables.sessions.close` / `.split` (WASM) · `.park` / `.restore` | `change_tablesession` |
+| command | `tables.sessions.transfer` / `.merge` (WASM) | `transfer_tablesession` (tables#66) |
 | command | `tables.tables.hold` / `.release_hold` / `.expire_holds` | `change_tablesession` |
 | escucha | `order.completed` · `sale.voided` → `_session_close_by_order` | — |
 | tarea | `expire_table_holds` — `*/15 * * * *` (un no-show no mata la mesa) | — |

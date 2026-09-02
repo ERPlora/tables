@@ -35,11 +35,16 @@ Only possible if it has **no active tables**. Move or delete the tables first. R
 ## Tables
 
 Every table with its current status and zone (`tables.tables.list`, 50 rows per page). Requires
-`tables.view_table`. Sorted in **natural order** by table number (tables#182): a number ending in
-digits compares that tail as a number (`S2` before `S10`), a named table (`Terraza A`) stays
-alphabetical, and the criterion is decided per row. The ordering key is the query's `number_sort`
-column, so the paging cuts by the same order the POS table picker paints; the list still shows —
-and marks as sorted — the plain `number` column.
+`tables.view_table`. Sorted in **natural order** by table number (tables#182, corregido en
+tables#68): **cada** tirada de dígitos del nombre compara como número, esté donde esté (`S2` antes
+que `S10`, `Barra 2 Bis` antes que `Barra 10 Bis`), y una mesa con nombre (`Terraza A`) se queda
+alfabética; el criterio se decide por fila. La clave de orden es la columna `number_sort` de la
+query, así que la paginación corta por el mismo orden que pinta el selector de mesa del TPV; la
+lista sigue mostrando —y marcando como ordenada— la columna `number` a secas.
+
+La regla vive en dos sitios por obligación (la lista pagina en el servidor; el selector reagrupa en
+el navegador) y **no puede divergir**: `tests/natural-order-corpus.json` es el corpus que leen a la
+vez `tests/floor.postgres.test.py` (contra Postgres real) y `ui/lib/natural-order.test.ts`.
 
 - **Search** by number or name.
 - **Sort and filter** by number, name, capacity, shape, status, active flag, position, size or zone.
@@ -106,7 +111,9 @@ Transfer it. The origin session closes as `transferred` and its table is freed, 
 opens on the destination carrying the guest count, waiter and notes. The order travels with it — the
 origin releases it, so no order is ever owned by two sessions.
 
-The destination must be `available` or `reserved`. Requires `tables.change_tablesession`.
+The destination must be `available` or `reserved`. Requires `tables.transfer_tablesession`
+(tables#66): moving a check to somebody else is its own key, so a room can gate it without
+taking away closing or correcting the covers. Sin la llave, el ⋮ no ofrece la acción.
 
 ### Merge two tables
 
@@ -116,7 +123,7 @@ Merging joins the source session into another occupied table and frees the sourc
 - If **both** have orders, Tables frees the room but **cannot join the lines** — `sales` does that,
   moving the rows across. The merge event carries both order references so it can.
 
-Requires `tables.change_tablesession`.
+Requires `tables.transfer_tablesession` (tables#66), the same key as transferring.
 
 ### Split a check
 

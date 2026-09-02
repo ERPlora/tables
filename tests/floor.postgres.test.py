@@ -138,7 +138,9 @@ class DomainError(Exception):
 
 def outbox_count(event: str) -> int:
     """Rows the miniature outbox holds for an event — 0 means the event never reached the bus."""
-    return int(q(f"SELECT count(*) FROM test_event_outbox WHERE event = '{event}'") or 0)
+    return int(
+        q(f"SELECT count(*) FROM test_event_outbox WHERE event = '{event}'") or 0
+    )
 
 
 _outbox_ready: set[str] = set()
@@ -266,7 +268,9 @@ def run_query(name: str, params: dict) -> list[dict]:
     return [json.loads(line) for line in out.splitlines() if line.strip()]
 
 
-def run_list_query(name: str, sort: str, where: str = "", direction: str = "ASC") -> list[dict]:
+def run_list_query(
+    name: str, sort: str, where: str = "", direction: str = "ASC"
+) -> list[dict]:
     """Execute a manifest query THROUGH the list wrapper, exactly as `queries.rs` builds it:
     the base SELECT becomes a derived table `sub` and the engine appends `ORDER BY sub.<col>`.
     `run_query` above skips that wrapper, so it can never see an ordering defect (tables#182)."""
@@ -274,7 +278,9 @@ def run_list_query(name: str, sort: str, where: str = "", direction: str = "ASC"
     base = (MODULE_DIR / qdef["sql"]).read_text().strip().rstrip(";")
     allowed = qdef.get("list", {}).get("sort", [])
     if sort not in allowed:
-        failures.append(f"`{name}` does not allow sorting by `{sort}` (manifest whitelist)")
+        failures.append(
+            f"`{name}` does not allow sorting by `{sort}` (manifest whitelist)"
+        )
         print(f"  FAIL: `{name}` does not allow sorting by `{sort}`")
         return []
     p = {"hub_id": HUB}
@@ -753,7 +759,9 @@ def test_guests_count_is_visible_and_correctable():
     """tables#32 — `guests_count` existed end to end but no UI asked for it, so every table sat
     "1 pax" in silence. The plan needs the LIVE party size per table (not just the capacity),
     and the waiter must be able to correct it while the check is open (a fifth guest arrives)."""
-    print("\n== 4. covers are read on the plan and correctable while the check is open ==")
+    print(
+        "\n== 4. covers are read on the plan and correctable while the check is open =="
+    )
 
     command_ok(
         "a party of 3 sits at table 1",
@@ -769,8 +777,14 @@ def test_guests_count_is_visible_and_correctable():
         "2026-08-07T20:00:00+00:00",
     )
     rows = {r["id"]: r for r in run_query("tables.tables.list", {})}
-    check("the plan projects the live covers of table 1", 3, rows.get("t1", {}).get("live_guests"))
-    check("a free table has no live covers", None, rows.get("t2", {}).get("live_guests"))
+    check(
+        "the plan projects the live covers of table 1",
+        3,
+        rows.get("t1", {}).get("live_guests"),
+    )
+    check(
+        "a free table has no live covers", None, rows.get("t2", {}).get("live_guests")
+    )
 
     command_ok(
         "a fifth guest arrives: covers corrected to 5 while the check is open",
@@ -781,7 +795,9 @@ def test_guests_count_is_visible_and_correctable():
     check(
         "the session carries the corrected covers",
         "5",
-        q(f"SELECT guests_count FROM tables_session WHERE id = 's1g' AND hub_id = '{HUB}'"),
+        q(
+            f"SELECT guests_count FROM tables_session WHERE id = 's1g' AND hub_id = '{HUB}'"
+        ),
     )
     rows = {r["id"]: r for r in run_query("tables.tables.list", {})}
     check("and the plan reflects it", 5, rows.get("t1", {}).get("live_guests"))
@@ -800,13 +816,23 @@ def test_guests_count_is_visible_and_correctable():
             {"session_id": "s1g", "guests_count": 2},
             "2026-08-07T21:05:00+00:00",
         )
-        check("correcting a CLOSED check is refused", "tables.session_not_active", "ok:true")
+        check(
+            "correcting a CLOSED check is refused",
+            "tables.session_not_active",
+            "ok:true",
+        )
     except DomainError as exc:
-        check("correcting a CLOSED check is refused", "tables.session_not_active", exc.code)
+        check(
+            "correcting a CLOSED check is refused",
+            "tables.session_not_active",
+            exc.code,
+        )
     check(
         "a closed check keeps its covers (the update touches ACTIVE sessions only)",
         "5",
-        q(f"SELECT guests_count FROM tables_session WHERE id = 's1g' AND hub_id = '{HUB}'"),
+        q(
+            f"SELECT guests_count FROM tables_session WHERE id = 's1g' AND hub_id = '{HUB}'"
+        ),
     )
 
 
@@ -824,7 +850,9 @@ def test_plan_projects_who_serves_and_since_when():
     The id stays OPAQUE on purpose (ADR-0192): the plan resolves the name against
     `hub.users.list`, never with a JOIN against the core's tables — which is exactly why this has
     to be asserted here, where a browser test cannot see it."""
-    print("\n== 4b. the plan projects who serves the table and since when (tables#74) ==")
+    print(
+        "\n== 4b. the plan projects who serves the table and since when (tables#74) =="
+    )
 
     command_ok(
         "a party sits at table 1, served by u-7",
@@ -840,7 +868,11 @@ def test_plan_projects_who_serves_and_since_when():
         "2026-08-07T22:00:00+00:00",
     )
     rows = {r["id"]: r for r in run_query("tables.tables.list", {})}
-    check("the plan projects WHO serves table 1", "u-7", rows.get("t1", {}).get("live_waiter_id"))
+    check(
+        "the plan projects WHO serves table 1",
+        "u-7",
+        rows.get("t1", {}).get("live_waiter_id"),
+    )
     check(
         "and since when it has been sitting",
         "2026-08-07T22:00:00+00:00",
@@ -887,7 +919,20 @@ def test_tables_list_orders_naturally():
         db=DB,
     )
     # Inserted in the very order the old text sort produced, so a no-op fix cannot look green.
-    numbered = ["S1", "S10", "S11", "S12", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9"]
+    numbered = [
+        "S1",
+        "S10",
+        "S11",
+        "S12",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6",
+        "S7",
+        "S8",
+        "S9",
+    ]
     for i, number in enumerate(numbered + ["Terraza B", "Terraza A"]):
         psql(
             [
@@ -902,7 +947,9 @@ def test_tables_list_orders_naturally():
             db=DB,
         )
 
-    rows = run_list_query("tables.tables.list", "number_sort", where="sub.zone_id = 'z2'")
+    rows = run_list_query(
+        "tables.tables.list", "number_sort", where="sub.zone_id = 'z2'"
+    )
     check(
         "the numbered room reads 1, 2, 3 … 10, 11, 12",
         ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12"],
@@ -915,10 +962,98 @@ def test_tables_list_orders_naturally():
     )
     check(
         "and the whole room is one list, numbers before names",
-        ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12",
-         "Terraza A", "Terraza B"],
+        [
+            "S1",
+            "S2",
+            "S3",
+            "S4",
+            "S5",
+            "S6",
+            "S7",
+            "S8",
+            "S9",
+            "S10",
+            "S11",
+            "S12",
+            "Terraza A",
+            "Terraza B",
+        ],
         [r["number"] for r in rows],
     )
+
+
+# ── 6. The SHARED corpus: SQL and the browser order a room the same way (tables#68) ──────
+
+
+CORPUS = json.loads((MODULE_DIR / "tests" / "natural-order-corpus.json").read_text())
+
+
+def test_natural_order_matches_the_shared_corpus():
+    """tables#68 — the rule had TWO implementations that did not cover the same ground.
+
+    `ui/lib/natural-order.ts` compares every run of digits as a number (that is what
+    `Intl.Collator(numeric)` does); `queries/tables_list.sql` only padded the run at the END of the
+    label. They agree on everything a room uses today (`S1…S12`, `1…40`, `Terraza A`) and disagree
+    the moment a label carries digits in the MIDDLE and ends in text:
+
+        Barra 2 Bis · Barra 10 Bis
+          POS picker  (Collator):  Barra 2 Bis  < Barra 10 Bis
+          Tables list (SQL):       Barra 10 Bis < Barra 2 Bis   ← the opposite
+
+    which is exactly the between-screens incoherence tables#67 set out to remove. The fix is one
+    rule — pad EVERY run of digits — and this is the guard that keeps it one: the corpus file is
+    read here and by `ui/lib/natural-order.test.ts`, so a change on either side that does not hold
+    on the other turns red.
+    """
+    print("\n== 6. SQL and the browser share ONE natural order (tables#68) ==")
+
+    psql(
+        [
+            "-c",
+            (
+                f"INSERT INTO tables_zone (id, hub_id, name, description, color, sort_order, "
+                f"is_active, is_deleted, created_at) VALUES "
+                f"('z3', '{HUB}', 'Corpus', '', 'primary', 3, 1, 0, '2026-08-07T09:00:00+00:00')"
+            ),
+        ],
+        db=DB,
+    )
+
+    for c, case in enumerate(CORPUS["cases"]):
+        zone = f"z3c{c}"
+        psql(
+            [
+                "-c",
+                (
+                    f"INSERT INTO tables_zone (id, hub_id, name, description, color, sort_order, "
+                    f"is_active, is_deleted, created_at) VALUES "
+                    f"('{zone}', '{HUB}', 'Corpus {c}', '', 'primary', 3, 1, 0, "
+                    f"'2026-08-07T09:00:00+00:00')"
+                ),
+            ],
+            db=DB,
+        )
+        # Inserted SHUFFLED, exactly as the corpus lists them: a no-op fix must not be able to look
+        # green because the rows happened to arrive in the right order.
+        for i, number in enumerate(case["shuffled"]):
+            escaped = number.replace("'", "''")
+            psql(
+                [
+                    "-c",
+                    (
+                        f"INSERT INTO tables_table (id, hub_id, zone_id, number, name, capacity, "
+                        f"shape, status, is_active, position_x, position_y, width, height, "
+                        f"is_deleted, created_at) VALUES ('c{c}_{i}', '{HUB}', '{zone}', "
+                        f"'{escaped}', '', 4, 'square', 'available', 1, 0, 0, 10, 10, 0, "
+                        f"'2026-08-07T09:00:00+00:00')"
+                    ),
+                ],
+                db=DB,
+            )
+        rows = run_list_query(
+            "tables.tables.list", "number_sort", where=f"sub.zone_id = '{zone}'"
+        )
+        check(case["name"], case["expected"], [r["number"] for r in rows])
 
 
 def main() -> int:
@@ -943,6 +1078,7 @@ def main() -> int:
         test_guests_count_is_visible_and_correctable()
         test_plan_projects_who_serves_and_since_when()
         test_tables_list_orders_naturally()
+        test_natural_order_matches_the_shared_corpus()
     finally:
         psql(["-c", f"DROP DATABASE IF EXISTS {DB} WITH (FORCE)"])
 

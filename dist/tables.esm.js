@@ -2135,6 +2135,10 @@ function domainMessage(e5, lang, fallback) {
 }
 
 // ui/lib/natural-order.ts
+var PAD_WIDTH = 12;
+function naturalKey(label) {
+  return (label ?? "").replace(/[0-9]+/g, (run) => run.padStart(PAD_WIDTH, "0"));
+}
 var COLLATORS = /* @__PURE__ */ new Map();
 function collator(locale) {
   const key = locale ?? "";
@@ -2150,7 +2154,7 @@ function collator(locale) {
   return made;
 }
 function compareNatural(a3, b3, locale) {
-  return collator(locale).compare(a3 ?? "", b3 ?? "");
+  return collator(locale).compare(naturalKey(a3), naturalKey(b3));
 }
 function sortNaturallyBy(rows3, pick, locale) {
   return [...rows3].sort((a3, b3) => compareNatural(pick(a3), pick(b3), locale));
@@ -5046,6 +5050,12 @@ __decorateClass([
 ], ErpTablesFloorPlan.prototype, "zones", 2);
 define("erp-tables-floor-plan", ErpTablesFloorPlan);
 
+// ui/lib/permissions.ts
+function can(permission) {
+  const shell = globalThis.erplora;
+  return typeof shell?.hasPermission === "function" ? shell.hasPermission(permission) : true;
+}
+
 // ui/components/erp-tables-pos-zones/erp-tables-pos-zones.ts
 var CATALOG3 = { es: es_default, en: en_default };
 var STATUS_COLOR2 = {
@@ -5635,12 +5645,12 @@ var ErpTablesPosZones = class extends i3 {
 
         ${this.actionSource && !inAction && !this.guestsPrompt ? b2`<div class="actions">
               <span class="lbl">${t5("ui.tableLabel", { number: srcNum })}</span>
-              <ion-button fill="outline" @click=${() => this.startTransfer()}>
+              ${can("tables.transfer_tablesession") ? b2`<ion-button fill="outline" @click=${() => this.startTransfer()}>
                 <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>${t5("ui.transfer")}
               </ion-button>
               <ion-button fill="outline" @click=${() => this.startMerge()}>
                 <ion-icon slot="start" name="git-merge-outline"></ion-icon>${t5("ui.merge")}
-              </ion-button>
+              </ion-button>` : A}
               <ion-button fill="outline" @click=${() => void this.doSplit()}>
                 <ion-icon slot="start" name="git-branch-outline"></ion-icon>${t5("ui.split")}
               </ion-button>
@@ -5795,10 +5805,6 @@ function erplora4() {
   const c5 = globalThis.erplora;
   if (!c5) throw new Error("erplora SDK not initialised by the shell");
   return c5;
-}
-function can(permission) {
-  const client = erplora4();
-  return typeof client.hasPermission === "function" ? client.hasPermission(permission) : true;
 }
 function hhmm3(iso) {
   if (!iso) return "\u2014";
@@ -6152,10 +6158,6 @@ function erplora5() {
   if (!c5) throw new Error("erplora SDK not initialised by the shell");
   return c5;
 }
-function can2(permission) {
-  const client = erplora5();
-  return typeof client.hasPermission === "function" ? client.hasPermission(permission) : true;
-}
 var EMPTY_FORM = { name: "", color: "primary", sortOrder: "0", isActive: true };
 var ErpTablesZones = class extends i3 {
   constructor() {
@@ -6217,8 +6219,8 @@ var ErpTablesZones = class extends i3 {
   get actions() {
     const t5 = (k2) => erplora5().t(CATALOG5, k2);
     return [
-      ...can2("tables.change_zone") ? [{ id: "edit", label: t5("ui.actionEdit"), icon: "create-outline" }] : [],
-      ...can2("tables.delete_zone") ? [{ id: "delete", label: t5("ui.actionDelete"), icon: "trash-outline", color: "danger" }] : []
+      ...can("tables.change_zone") ? [{ id: "edit", label: t5("ui.actionEdit"), icon: "create-outline" }] : [],
+      ...can("tables.delete_zone") ? [{ id: "delete", label: t5("ui.actionDelete"), icon: "trash-outline", color: "danger" }] : []
     ];
   }
   connectedCallback() {
@@ -6265,13 +6267,13 @@ var ErpTablesZones = class extends i3 {
   async onRowAction(ev) {
     const { actionId, row } = ev.detail;
     const z2 = row;
-    if (actionId === "edit" && can2("tables.change_zone")) {
+    if (actionId === "edit" && can("tables.change_zone")) {
       this.editingId = z2.id;
       this.editRow = z2;
       this.form = { name: z2.name, color: z2.color || "primary", sortOrder: String(z2.sort_order ?? 0), isActive: Number(z2.is_active) === 1 };
       this.formError = "";
       this.dataTable()?.open("create");
-    } else if (actionId === "delete" && can2("tables.delete_zone")) {
+    } else if (actionId === "delete" && can("tables.delete_zone")) {
       this.deleteTarget = z2;
     }
   }
@@ -6285,7 +6287,7 @@ var ErpTablesZones = class extends i3 {
     ev.preventDefault();
     const name = this.form.name.trim();
     if (!name) return;
-    if (!can2(this.editingId ? "tables.change_zone" : "tables.add_zone")) return;
+    if (!can(this.editingId ? "tables.change_zone" : "tables.add_zone")) return;
     this.saving = true;
     this.formError = "";
     try {
@@ -6317,7 +6319,7 @@ var ErpTablesZones = class extends i3 {
     }
   }
   async confirmDelete() {
-    if (!this.deleteTarget || !can2("tables.delete_zone")) return;
+    if (!this.deleteTarget || !can("tables.delete_zone")) return;
     const target = this.deleteTarget;
     this.saving = true;
     try {
@@ -6342,7 +6344,7 @@ var ErpTablesZones = class extends i3 {
         .labels=${dataTableLabels(erplora5().locale)}
         .columns=${this.columns}
         .actions=${this.actions} .rowClickable=${true}
-        .addable=${can2("tables.add_zone")}
+        .addable=${can("tables.add_zone")}
         .views=${true}
         .cardTitle=${(r6) => String(r6.name ?? "")}
         .cardIcon=${() => "layers-outline"}

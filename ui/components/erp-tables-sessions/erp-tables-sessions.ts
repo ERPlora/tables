@@ -10,6 +10,7 @@ import type { ListController, ListClient, ListParams, ListPage } from '@erplora/
 import esLocale from '../../../locales/es.json';
 import enLocale from '../../../locales/en.json';
 import { domainMessage } from '../../lib/domain-error';
+import { can } from '../../lib/permissions';
 const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
 
 // erp-tables-sessions — the SESSIONS view of the `tables` module (navigation entry `sessions`,
@@ -94,12 +95,6 @@ function erplora(): ErploraClientLike {
   const c = (globalThis as { erplora?: ErploraClientLike }).erplora;
   if (!c) throw new Error('erplora SDK not initialised by the shell');
   return c;
-}
-
-/** UI visibility only; the runtime re-validates the permission on every command. */
-function can(permission: string): boolean {
-  const client = erplora();
-  return typeof client.hasPermission === 'function' ? client.hasPermission(permission) : true;
 }
 
 /** `2026-08-18T20:15:00Z` → `20:15` in the device's clock (the room reads the wall clock). */
