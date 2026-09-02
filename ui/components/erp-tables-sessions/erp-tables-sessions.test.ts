@@ -194,3 +194,90 @@ describe('clicking the row opens the session (pm#155)', () => {
     expect(el.detail, 'the row was clicked and the detail did not open').toEqual(SESSIONS[0]);
   });
 });
+
+// ── tables#74 ─────────────────────────────────────────────────────────────────────────────────
+//
+// `waiter_id` has travelled on the session since tables#70 — the open command stamps it, transfer
+// and split copy it, `queries/sessions_list.sql` projects it and the type declares it — and the
+// screen threw it away. With several checks open there was no way to tell whose is whose, which is
+// exactly what tables#70 was for (sales#179: the server is stuck to the check and is transferable).
+//
+// The id is resolved to a person the way the KDS card and the printed chit already do it
+// (ADR-0192, kitchen#63): `hub.users.list`, the CORE namespace — never a JOIN against the core's
+// tables. Without a resolvable name the cell is blank: a UUID in a list of checks is worse than an
+// empty cell, because nobody can act on it.
+const WAITERS = [
+  { id: 'u-7', name: 'Marta' },
+  { id: 'u-9', name: 'Luis' },
+];
+
+/** Re-stubs `query` so `hub.users.list` answers `users`, keeping the settings answer intact. */
+function withWaiters(users: unknown) {
+  const sdk = (globalThis as Record<string, unknown>).erplora as Record<string, unknown>;
+  sdk.query = async (name: string) => {
+    if (name === 'hub.users.list') {
+      if (users instanceof Error) throw users;
+      return users;
+    }
+    return name === 'tables.settings.get' ? SETTINGS : [];
+  };
+}
+
+const SERVED = [
+  { ...SESSIONS[0], waiter_id: 'u-7' },
+  { ...SESSIONS[1], waiter_id: 'u-nobody' },
+];
+
+describe('the sessions list says WHO owns each check (tables#74)', () => {
+  it('has a waiter column', async () => {
+    withWaiters(WAITERS);
+    const el = await mount();
+    expect(el.columns.map((c) => c.key), 'the check does not say whose it is').toContain('waiter_id');
+  });
+
+  it('renders the NAME, never the id', async () => {
+    withWaiters(WAITERS);
+    const el = await mount();
+    const col = el.columns.find((c) => c.key === 'waiter_id')!;
+    expect(col.format!(SERVED[0])).toBe('Marta');
+  });
+
+  it('an id the hub does not list, or a check with no waiter, reads «—»', async () => {
+    withWaiters(WAITERS);
+    const el = await mount();
+    const col = el.columns.find((c) => c.key === 'waiter_id')!;
+    expect(col.format!(SERVED[1]), 'a uuid in a list of checks helps nobody').toBe('—');
+    expect(col.format!(SESSIONS[0]), 'a check opened before tables#70 has no waiter').toBe('—');
+  });
+
+  it('can be narrowed to one waiter: a select over the hub people, filtering by `waiter_id`', async () => {
+    withWaiters(WAITERS);
+    const el = await mount();
+    const col = el.columns.find((c) => c.key === 'waiter_id')!;
+    expect(col.filterType).toBe('select');
+    expect(col.options?.map((o) => o.value)).toEqual(['u-7', 'u-9']);
+
+    pages.length = 0;
+    table(el)!.dispatchEvent(new CustomEvent('filterChange', { detail: { col: 'waiter_id', value: 'u-7' } }));
+    await new Promise((r) => setTimeout(r, 0));
+    const asked = pages.at(-1) as { filters?: Record<string, unknown> } | undefined;
+    expect(asked?.filters?.waiter_id, 'the manifest already declares waiter_id(eq)').toBe('u-7');
+  });
+
+  it('the detail of a session names the waiter', async () => {
+    withWaiters(WAITERS);
+    const el = await mount();
+    await el.onRowAction(new CustomEvent('rowAction', { detail: { actionId: 'detail', row: SERVED[0] } }));
+    await el.updateComplete;
+    const modal = el.shadowRoot.querySelector('ion-modal');
+    expect((modal?.textContent ?? ''), 'the detail does not say who is serving').toContain('Marta');
+  });
+
+  it('if hub.users.list fails the list still works — degraded, never broken', async () => {
+    withWaiters(new Error('no permission'));
+    const el = await mount();
+    expect(table(el)!.rows.length, 'the list died because the people could not be listed').toBe(2);
+    const col = el.columns.find((c) => c.key === 'waiter_id')!;
+    expect(col.format!(SERVED[0])).toBe('—');
+  });
+});

@@ -34,7 +34,13 @@ SELECT t.id, t.number, t.name, t.capacity, t.shape, t.status, t.is_active,
        -- tables#32: covers of the LIVE party (the oldest open check of the table — the one that
        -- opened the service; a split table shows the original party). NULL on a free table. The
        -- POS paints it on the table cell next to the capacity and pre-fills the correction.
-       g.guests_count AS live_guests
+       g.guests_count AS live_guests,
+       -- tables#74 / tables#64: the same live check answers the two questions a floor manager asks
+       -- of an occupied table — WHO is serving it and HOW LONG it has been sitting. `live_waiter_id`
+       -- stays OPAQUE on purpose (ADR-0192): the name is presentation and belongs to the core, so
+       -- the plan resolves it through `hub.users.list`, never with a JOIN against `hub_user`.
+       g.waiter_id     AS live_waiter_id,
+       g.opened_at     AS live_since
 FROM tables_table t
 LEFT JOIN tables_zone z ON z.id = t.zone_id AND z.is_deleted = 0 AND z.hub_id = :hub_id
 LEFT JOIN LATERAL (
@@ -46,7 +52,7 @@ LEFT JOIN LATERAL (
     LIMIT 1
 ) h ON TRUE
 LEFT JOIN LATERAL (
-    SELECT s.guests_count
+    SELECT s.guests_count, s.waiter_id, s.opened_at
     FROM tables_session s
     WHERE s.hub_id = t.hub_id AND s.table_id = t.id
       AND s.status = 'active' AND s.is_deleted = 0

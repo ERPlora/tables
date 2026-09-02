@@ -61,13 +61,18 @@ describe('mesas sin coordenadas (blueprint/seed) → auto-layout, no apiladas (#
     expect(new Set(pos).size, 'hay posiciones repetidas → mesas apiladas').toBe(pos.length);
   });
 
+  // tables#57 — the fixture used to be `width: 0, height: 0`, a shape a real row cannot have: the
+  // payload of `tables.tables.move` REQUIRES `width`/`height` ≥ 1 (`schemas/table_move.json`) and
+  // the canvas has sent `BOX` since the module's first version, so a table with a saved position
+  // always has a saved box. That is exactly what now tells a placed table from a seeded one, so
+  // the fixture is the box a placed table really carries.
   it('las mesas con coords reales se respetan (no se reordenan)', async () => {
     const sdk = (globalThis as Record<string, unknown>).erplora as Record<string, unknown>;
     sdk.queryAll = async (name: string) => (name === 'tables.zones.list'
       ? ZONAS
       : [
-          { id: 'a', number: '1', name: '', capacity: 4, shape: 'square', status: 'available', is_active: 1, zone_id: 'z1', position_x: 100, position_y: 50, width: 0, height: 0 },
-          { id: 'b', number: '2', name: '', capacity: 4, shape: 'square', status: 'available', is_active: 1, zone_id: 'z1', position_x: 300, position_y: 50, width: 0, height: 0 },
+          { id: 'a', number: '1', name: '', capacity: 4, shape: 'square', status: 'available', is_active: 1, zone_id: 'z1', position_x: 100, position_y: 50, width: 72, height: 72 },
+          { id: 'b', number: '2', name: '', capacity: 4, shape: 'square', status: 'available', is_active: 1, zone_id: 'z1', position_x: 300, position_y: 50, width: 72, height: 72 },
         ]);
     const el = await montar();
     const a = el.tables.find((t) => t.id === 'a');
@@ -390,5 +395,264 @@ describe('auto-layout in natural order (tables#182)', () => {
     expect(reading(el)).toEqual(
       ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12'],
     );
+  });
+});
+
+// ── tables#57 · tables#64 · tables#74 ─────────────────────────────────────────────────────────
+//
+// Shared harness for the three: a canvas mounted over a controllable table list, a controllable
+// `hub.users.list` and a pinned clock.
+const ZONE1 = [{ id: 'z1', name: 'Salón', color: '#00f', sort_order: 1, is_active: 1 }];
+const CLOCK = new Date('2026-09-02T21:00:00Z');
+
+/** A table row as `tables.tables.list` serves it, with the defaults of a placed table. */
+function tableRow(over: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 'a', number: '1', name: '', capacity: 4, shape: 'square', status: 'available',
+    is_active: 1, zone_id: 'z1', position_x: 100, position_y: 100, width: 72, height: 72,
+    ...over,
+  };
+}
+
+function stubHub(tables: Record<string, unknown>[], users: unknown = []) {
+  (globalThis as Record<string, unknown>).erplora = {
+    // ADR-0192: the hub's people are a CORE query; the module consumes it like any other.
+    query: async (name: string) => (name === 'hub.users.list' ? users : []),
+    queryAll: async (name: string) => (name === 'tables.zones.list' ? ZONE1 : tables),
+    queryPage: async () => ({ rows: [], total: 0 }),
+    command: async () => ({}),
+    on: () => () => {},
+    locale: 'es',
+    t: (_c: unknown, key: string, params?: Record<string, unknown>) =>
+      (params ? `${key}:${Object.values(params).join(',')}` : key),
+  };
+}
+
+type Canvas = HTMLElement & {
+  shadowRoot: ShadowRoot;
+  updateComplete: Promise<unknown>;
+  tables: Array<{ id: string; position_x: number; position_y: number }>;
+  now: () => Date;
+};
+
+async function mountCanvasEl(): Promise<Canvas> {
+  await import('./erp-tables-canvas');
+  const el = document.createElement('erp-tables-canvas') as Canvas;
+  el.now = () => CLOCK;
+  document.body.appendChild(el);
+  await el.updateComplete;
+  await new Promise((r) => setTimeout(r, 0));
+  await el.updateComplete;
+  return el;
+}
+
+const tiles = (el: Canvas) => [...el.shadowRoot.querySelectorAll<HTMLElement>('.mesa')];
+const textOf = (root: ParentNode, sel: string) => (root.querySelector(sel)?.textContent ?? '').trim();
+
+// tables#57 — (0,0) was used as the sentinel for «never placed», so a table dragged to the corner
+// of the canvas jumped somewhere else on reload and the plan read as «it does not save».
+//
+// The sentinel that tells a placed table from a seeded one is NOT the coordinate: it is the BOX.
+// Every writer that positions a table persists a real box (`tables.tables.move` and the canvas
+// «add table» send 72; `bulk_create` has sent `BOX` since tables#53). A row that never went
+// through one of them still carries the old unit (10, or 0 from a blueprint) — which `MIN_BOX`
+// already treats as «not a box anybody chose», in the WC and in the Rust handler alike. So the
+// question the layout has to answer is «has anybody ever placed this table?», and the box answers
+// it per row, for free, without a migration and without (0,0) being special.
+describe('(0,0) is a REAL position once the table has been placed (tables#57)', () => {
+  it('a table placed at (0,0) is still at (0,0) after a reload', async () => {
+    stubHub([
+      tableRow({ id: 'corner', number: 'Q3', position_x: 0, position_y: 0, width: 72, height: 72 }),
+      tableRow({ id: 'far', number: 'Q4', position_x: 300, position_y: 200, width: 72, height: 72 }),
+    ]);
+    const el = await mountCanvasEl();
+    const corner = el.tables.find((t) => t.id === 'corner');
+    expect(corner?.position_x, 'the corner of the canvas is a legitimate coordinate').toBe(0);
+    expect(corner?.position_y).toBe(0);
+  });
+
+  it('and it is PAINTED there, not only kept in the model', async () => {
+    stubHub([tableRow({ id: 'corner', number: 'Q3', position_x: 0, position_y: 0, width: 72, height: 72 })]);
+    const el = await mountCanvasEl();
+    const [tile] = tiles(el);
+    expect(tile.style.getPropertyValue('left')).toBe('0px');
+    expect(tile.style.getPropertyValue('top')).toBe('0px');
+  });
+
+  it('a table that was NEVER placed (old-unit box) is still spread out — #271 does not regress', async () => {
+    stubHub(Array.from({ length: 5 }, (_, i) => tableRow({
+      id: `seed${i}`, number: String(i + 1), position_x: 0, position_y: 0, width: 10, height: 10,
+    })));
+    const el = await mountCanvasEl();
+    const atOrigin = el.tables.filter((t) => t.position_x === 0 && t.position_y === 0);
+    expect(atOrigin.length, 'seeded tables must not pile up in the corner').toBeLessThan(el.tables.length);
+  });
+
+  it('an unplaced table never lands on top of a placed one', async () => {
+    stubHub([
+      tableRow({ id: 'corner', number: 'Q3', position_x: 0, position_y: 0, width: 72, height: 72 }),
+      tableRow({ id: 'seed', number: 'Q9', position_x: 0, position_y: 0, width: 10, height: 10 }),
+    ]);
+    const el = await mountCanvasEl();
+    const seed = el.tables.find((t) => t.id === 'seed')!;
+    expect(seed.position_x === 0 && seed.position_y === 0, 'the seeded table sits on the placed one').toBe(false);
+    expect(el.tables.find((t) => t.id === 'corner')!.position_x, 'and the placed one did not move').toBe(0);
+  });
+});
+
+// tables#64 — «Available» was a 2 px green border and nothing else. A colour-blind waiter (≈8 % of
+// men) read the plan as four identical tiles, and at arm's length so did everybody else. The
+// product already solved it in the POS «choose table» modal, which writes DISPONIBLE under the
+// «4 pax»; Square and Toast do the same (colour AND text/icon). Here the tile carries the three:
+// colour, the written status, and an icon that differs per status.
+describe('the status of a table is WRITTEN, not only painted (tables#64)', () => {
+  it('every tile writes its status', async () => {
+    stubHub([
+      tableRow({ id: 'a', number: '1', status: 'available' }),
+      tableRow({ id: 'b', number: '2', status: 'blocked', position_x: 300 }),
+    ]);
+    const el = await mountCanvasEl();
+    expect(textOf(tiles(el)[0], '.s')).toBe('ui.statusAvailable');
+    expect(textOf(tiles(el)[1], '.s')).toBe('ui.statusBlocked');
+  });
+
+  it('and carries an icon of its own: the four statuses use four different icons', async () => {
+    const icons: string[] = [];
+    for (const [i, status] of ['available', 'occupied', 'reserved', 'blocked'].entries()) {
+      stubHub([tableRow({ id: `t${i}`, number: String(i), status })]);
+      const el = await mountCanvasEl();
+      const icon = tiles(el)[0].querySelector('.s ion-icon');
+      expect(icon, `«${status}» paints no icon: the status lives only in the colour`).toBeTruthy();
+      // Decorative: the status is already in the text and in the accessible name.
+      expect(icon!.getAttribute('aria-hidden')).toBe('true');
+      icons.push(icon!.getAttribute('name') ?? '');
+      el.remove();
+    }
+    expect(new Set(icons).size, `two statuses share an icon: ${icons.join(', ')}`).toBe(4);
+  });
+
+  it('an occupied table paints the seated party and how long it has been sitting, not the capacity', async () => {
+    stubHub([tableRow({
+      id: 'a', number: '12', capacity: 4, status: 'occupied',
+      live_guests: 3, live_since: '2026-09-02T20:25:00Z',
+    })]);
+    const el = await mountCanvasEl();
+    // The tile is 72 px wide, so it says «3 pax · 35 min» — the same unit the capacity uses right
+    // there. «3 comensales» came out clipped mid-word in a real browser at 390 px, so the
+    // unambiguous wording lives in the accessible name, where there is room.
+    const line = textOf(tiles(el)[0], '.c');
+    expect(line, 'the seated party is what the floor manager reads, not the capacity').toContain('ui.paxCount:3');
+    expect(line, '35 minutes seated').toContain('ui.durationMinutes:35');
+    const name = tiles(el)[0].getAttribute('aria-label') ?? '';
+    expect(name, 'the accessible name spells out that those 3 are SEATED').toContain('ui.liveGuests:3');
+    expect(name).toContain('ui.durationMinutes:35');
+  });
+
+  it('a free table keeps painting its capacity', async () => {
+    stubHub([tableRow({ id: 'a', number: '12', capacity: 6, status: 'available' })]);
+    const el = await mountCanvasEl();
+    expect(textOf(tiles(el)[0], '.c')).toBe('ui.paxCount:6');
+  });
+});
+
+// tables#64 (second half) — at 390 px there were ~340 px of chrome before the first table: the
+// view title (already painted by the shell topbar), a stray «Zone» input with «Add zone», «Add
+// table», the zone segment and the colour legend, each on its own row. The waiter opening the plan
+// on a phone saw two administration buttons and a legend; the tables, what he came for, sat in the
+// last 55 % of the screen. Square keeps the plan full-screen on mobile and puts editing behind
+// «Edit».
+describe('the plan fits on a phone: the header collapses (tables#64)', () => {
+  it('does not repeat the view title — the shell topbar already paints it', async () => {
+    stubHub([tableRow()]);
+    const el = await mountCanvasEl();
+    expect(el.shadowRoot.querySelector('h2'), 'the title is painted twice').toBeNull();
+  });
+
+  it('drops the colour legend: the status is written on every tile', async () => {
+    stubHub([tableRow()]);
+    const el = await mountCanvasEl();
+    expect(el.shadowRoot.querySelector('.legend'), 'a legend of colours next to written statuses').toBeNull();
+  });
+
+  it('«add zone» and «add table» are behind ONE control, not two rows of the header', async () => {
+    stubHub([tableRow()]);
+    const el = await mountCanvasEl();
+    const labels = [...el.shadowRoot.querySelectorAll('ion-button')].map((b) => (b.textContent ?? '').trim());
+    expect(labels, 'the admin buttons are still inline').not.toContain('ui.addZone');
+    expect(labels, 'the admin buttons are still inline').not.toContain('ui.addTable');
+    expect(el.shadowRoot.querySelector('ion-button[data-add]'), 'no single «add» control').toBeTruthy();
+  });
+
+  it('the «add» control opens a sheet with both actions and works with NO zones yet', async () => {
+    stubHub([]);
+    (globalThis as Record<string, unknown>).erplora = {
+      ...((globalThis as Record<string, unknown>).erplora as object),
+      queryAll: async () => [],
+    };
+    const el = await mountCanvasEl();
+    const add = el.shadowRoot.querySelector<HTMLElement>('ion-button[data-add]');
+    expect(add, 'with no zones there is no way to create the first one').toBeTruthy();
+    add!.click();
+    await el.updateComplete;
+    const sheet = el.shadowRoot.querySelector('.sheet');
+    expect(sheet, 'the «add» control opens nothing').toBeTruthy();
+    const labels = [...sheet!.querySelectorAll('ion-button')].map((b) => (b.textContent ?? '').trim());
+    expect(labels).toContain('ui.addZone');
+    expect(labels).toContain('ui.addTable');
+  });
+
+  it('nothing above the canvas but the zone segment and its two controls', async () => {
+    stubHub([tableRow()]);
+    const el = await mountCanvasEl();
+    const canvas = el.shadowRoot.querySelector('.canvas')!;
+    const before = [...el.shadowRoot.children]
+      .filter((n) => n.tagName !== 'STYLE')
+      .filter((n) => (n.compareDocumentPosition(canvas) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0);
+    expect(
+      before.length,
+      `too much chrome before the plan: ${before.map((n) => n.tagName + '.' + n.className).join(', ')}`,
+    ).toBeLessThanOrEqual(1);
+  });
+});
+
+// tables#74 — `waiter_id` travels on the session since tables#70 and the plan threw it away. The
+// name is resolved the way kitchen's KDS card and the printed chit already do it (ADR-0192,
+// kitchen#63): `hub.users.list`, the CORE namespace. Without a resolvable name the tile shows
+// nothing — a UUID on a table read from two metres away is worse than a blank.
+describe('the plan says WHO is serving the occupied table (tables#74)', () => {
+  const OCCUPIED = tableRow({
+    id: 'a', number: '12', status: 'occupied', live_guests: 3,
+    live_since: '2026-09-02T20:25:00Z', live_waiter_id: 'u-7',
+  });
+
+  it('paints the NAME of the waiter, never the id', async () => {
+    stubHub([OCCUPIED], [{ id: 'u-7', name: 'Marta' }, { id: 'u-9', name: 'Luis' }]);
+    const el = await mountCanvasEl();
+    const tile = tiles(el)[0];
+    expect(textOf(tile, '.w')).toBe('Marta');
+    expect(tile.textContent ?? '', 'a raw uuid on the plan').not.toContain('u-7');
+  });
+
+  it('an id the hub does not list leaves a blank, not a uuid', async () => {
+    stubHub([OCCUPIED], [{ id: 'u-9', name: 'Luis' }]);
+    const el = await mountCanvasEl();
+    expect(tiles(el)[0].querySelector('.w')).toBeNull();
+    expect(tiles(el)[0].textContent ?? '').not.toContain('u-7');
+  });
+
+  it('if hub.users.list fails the plan still paints — degraded, never broken', async () => {
+    stubHub([OCCUPIED]);
+    ((globalThis as Record<string, unknown>).erplora as { query: unknown }).query = async () => {
+      throw new Error('no permission');
+    };
+    const el = await mountCanvasEl();
+    expect(tiles(el).length, 'the plan died because the people could not be listed').toBe(1);
+    expect(tiles(el)[0].querySelector('.w')).toBeNull();
+  });
+
+  it('the waiter is in the accessible name of the tile too', async () => {
+    stubHub([OCCUPIED], [{ id: 'u-7', name: 'Marta' }]);
+    const el = await mountCanvasEl();
+    expect(tiles(el)[0].getAttribute('aria-label') ?? '').toContain('Marta');
   });
 });
