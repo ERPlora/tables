@@ -196,10 +196,11 @@ def check_identity(m: dict) -> None:
     field("", m, "description", str)
 
     # The marketplace resolves a module by its folder, so the two have to agree — but a git
-    # worktree is checked out as `<id>-wt-<something>`, and comparing against that made this
-    # battery red on every worktree of the fleet, on a repo nobody had touched. A red that fires
-    # on where the checkout lives, not on what the manifest says, is a red people learn to skip.
-    folder = re.sub(r"-wt-[\w.-]+$", "", MODULE_DIR.name)
+    # worktree is checked out as `<id>-wt-<something>` (a worker) or `<id>-rv-<pr>` (a reviewer),
+    # and comparing against that made this battery red on every worktree of the fleet, on a repo
+    # nobody had touched. A red that fires on where the checkout lives, not on what the manifest
+    # says, is a red people learn to skip.
+    folder = re.sub(r"-(?:wt|rv)-[\w.-]+$", "", MODULE_DIR.name)
     if m.get("id") != folder:
         failures.append(
             f"id: {m.get('id')!r} does not match the module folder {MODULE_DIR.name!r}"

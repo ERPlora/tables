@@ -74,11 +74,17 @@ WHY = {
     "daterange": "two bounds need the operator that takes two bounds",
 }
 
-#: `(query, painted column) -> the filters the screen really writes`. The sales history paints the
-#: full timestamp and filters the DAY (`onFilterChange`, sales#125): the range the user asks for is
-#: made of days, and sending it to `created_at` would cut «up to today» at 00:00 and answer empty.
-#: Declaring the remap here is what keeps it from becoming an undeclared funnel again — the target
-#: is checked exactly like a direct column would be.
+#: `(query, painted column) -> the filters the screen really writes`. The open checks paint the zone
+#: NAME (`zone`, for the eye) and filter by `zone_id` (`onFilterChange`, tables#3): a name typed or
+#: picked is not a key, and the query declares the key. Declaring the remap here is what keeps it
+#: from becoming an undeclared funnel again — the target is checked exactly like a direct column
+#: would be.
+#:
+#: And the entry is checked BOTH ways against the component (see `remaps`): the box is only excused
+#: from feeding its own key while the code really routes it elsewhere. The day the remap line is
+#: deleted, the box goes back to sending `f_zone`, which the query does not declare, and a gate that
+#: trusted this table alone would keep saying OK — measured in review (hub#1182, same hole as
+#: sales#261): removing both ternaries from `onFilterChange` left the first version of this gate green.
 REMAPPED: dict[tuple[str, str], tuple[str, ...]] = {
     ("tables.sessions.list", "zone"): ("zone_id",),
 }
@@ -181,7 +187,18 @@ def declared_columns(body: str):
     return out
 
 
-def check(screen: pathlib.Path, query: str, columns) -> None:
+def remaps(src: str) -> dict[str, str]:
+    """`painted column -> filter column` for every box the component reroutes before `setFilter`.
+
+    The shape is the one the screens use (`detail.col === 'zone' ? 'zone_id' : …` for one box,
+    `col === 'zone' ? 'zone_id' : col` for the whole drawer). A remap written any other way is not
+    seen here, and then `REMAPPED` reports it as gone — which is the right failure: the gate refuses
+    to excuse a box it cannot see being routed.
+    """
+    return dict(re.findall(r"\bcol\s*===\s*'(\w+)'\s*\?\s*'(\w+)'", src))
+
+
+def check(screen: pathlib.Path, query: str, columns, routed: dict[str, str]) -> None:
     spec = (MANIFEST.get("queries") or {}).get(query)
     if spec is None:
         fail(f"{screen} drives `{query}`, which the manifest does not declare")
@@ -195,8 +212,22 @@ def check(screen: pathlib.Path, query: str, columns) -> None:
 
     for column, kinds, filterable, sortable in columns:
         remap = REMAPPED.get((query, column))
+        if filterable and column in routed and not remap:
+            fail(
+                f"{screen} reroutes the `{column}` box to `{routed[column]}` but this gate does not know "
+                f"that remap: write it down in `REMAPPED` so the target is checked like a direct column"
+            )
         if remap:
-            # The box does not feed its own key: check the columns it really writes instead.
+            # The box does not feed its own key: check the columns it really writes instead —
+            # after checking that the code STILL writes them. An entry that outlives its remap
+            # would excuse a box that now sends its own, undeclared key (hub#1182 all over again).
+            if routed.get(column) not in remap:
+                fail(
+                    f"{screen} no longer routes the `{column}` box to {' / '.join(remap)}: the box now "
+                    f"sends `f_{column}` itself, which `{query}` does not declare, so the runtime drops it "
+                    f"and the choice does nothing — restore the remap, or declare `{column}` and delete "
+                    f"the `REMAPPED` entry"
+                )
             for target in remap:
                 if target not in filters:
                     fail(
@@ -267,7 +298,7 @@ def main() -> int:
                 )
                 continue
             seen.append((path.relative_to(MODULE_DIR), query, getter))
-            check(path.relative_to(MODULE_DIR), query, declared_columns(body))
+            check(path.relative_to(MODULE_DIR), query, declared_columns(body), remaps(src))
 
     if len(seen) < TABLES_TODAY:
         print(
