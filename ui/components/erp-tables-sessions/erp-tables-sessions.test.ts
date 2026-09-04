@@ -281,3 +281,31 @@ describe('the sessions list says WHO owns each check (tables#74)', () => {
     expect(col.format!(SERVED[0])).toBe('—');
   });
 });
+
+
+// hub#1182 — the «Zone» box paints the zone NAME, but the server filters `zone_id` (declared `eq`
+// in `tables.sessions.list`; `zone` is not declared at all). The remap is one line per path in
+// `onFilterChange`; without it the box sends `f_zone`, the runtime drops it, and the box does
+// nothing — no error, the same rows as before. Both paths the table can take are pinned here.
+describe('the zone box reaches the server as zone_id (hub#1182)', () => {
+  const lastAsked = () => pages.at(-1) as { filters?: Record<string, unknown> } | undefined;
+
+  it('one box at a time: choosing a zone asks the server for zone_id, never zone', async () => {
+    const el = await mount();
+    pages.length = 0;
+    table(el)!.dispatchEvent(new CustomEvent('filterChange', { detail: { col: 'zone', value: 'z1' } }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lastAsked()?.filters?.zone_id).toBe('z1');
+    expect(lastAsked()?.filters, '`f_zone` is not declared: the runtime would drop it').not.toHaveProperty('zone');
+  });
+
+  it('the whole drawer at once: the zone entry is rerouted too, the rest stays as painted', async () => {
+    const el = await mount();
+    pages.length = 0;
+    table(el)!.dispatchEvent(new CustomEvent('filterChange', { detail: { filters: { zone: 'z2', waiter_id: 'u-7' } } }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lastAsked()?.filters?.zone_id).toBe('z2');
+    expect(lastAsked()?.filters?.waiter_id).toBe('u-7');
+    expect(lastAsked()?.filters).not.toHaveProperty('zone');
+  });
+});

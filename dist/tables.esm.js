@@ -3179,6 +3179,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
     this.page = 0;
     this.searchable = false;
     this.sortDir = "asc";
+    this.filterValues = {};
     this.title = "";
     this.views = false;
     this.exportable = false;
@@ -3196,6 +3197,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
     this.clientSortDir = "asc";
     this.clientFilters = {};
     this.filterDraft = {};
+    this.serverFilters = {};
     this.panel = "none";
     this.viewMode = "table";
     this.viewChosenByUser = false;
@@ -3808,11 +3810,54 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
   get hasFilterRow() {
     return this.filterColumns.length > 0;
   }
-  /** Nº de filtros activos (modo cliente) → badge del botón Filtros. */
+  /** Nº de filtros activos → badge del botón Filtros. En servidor cuenta `filterValues` (#106): sin
+   *  esto el embudo no daba NINGUNA señal de que la lista venía acotada. */
   get activeFilterCount() {
+    if (this.serverSide) {
+      return Object.keys(this.serverFilters).filter((k2) => this.serverFilterState(k2) !== void 0).length;
+    }
     return Object.values(this.clientFilters).filter(
       (f3) => f3.values && f3.values.size > 0 || f3.from || f3.to
     ).length;
+  }
+  // ── Estado de filtro VISIBLE (#106) ──────────────────────────────────────────────────────────
+  /** Traduce un valor de `filterValues` (la forma que emite `filterChange`) a la forma interna que
+   *  usan los `render*Filter`. `undefined` = ese filtro no está puesto. */
+  serverFilterState(key) {
+    const raw = this.serverFilters[key];
+    if (raw === void 0 || raw === null || raw === "") return void 0;
+    if (Array.isArray(raw)) {
+      const values = raw.filter((v3) => v3 !== null && v3 !== void 0 && v3 !== "").map((v3) => String(v3));
+      return values.length ? { values: new Set(values) } : void 0;
+    }
+    if (typeof raw === "object") {
+      const range = raw;
+      const from = range.from === null || range.from === void 0 || range.from === "" ? void 0 : String(range.from);
+      const to = range.to === null || range.to === void 0 || range.to === "" ? void 0 : String(range.to);
+      return from !== void 0 || to !== void 0 ? { from, to } : void 0;
+    }
+    return { values: /* @__PURE__ */ new Set([String(raw)]) };
+  }
+  /** Estado de filtro efectivo de una columna: servidor → `filterValues`/espejo; cliente → memoria. */
+  filterStateOf(key) {
+    return this.serverSide ? this.serverFilterState(key) : this.clientFilters[key];
+  }
+  /** Fija (o borra) el valor visible de un filtro en el espejo de servidor. */
+  setServerFilter(key, value) {
+    const next = { ...this.serverFilters };
+    const empty = value === void 0 || value === null || value === "" || Array.isArray(value) && value.length === 0;
+    if (empty) delete next[key];
+    else next[key] = value;
+    this.serverFilters = next;
+  }
+  /** Fija UN extremo de un rango en el espejo. Los dos extremos viajan en eventos SEPARADOS
+   *  (`{from}` y luego `{to}`), así que aquí se MEZCLA: reemplazar borraría el otro extremo. */
+  setServerRangeEdge(key, edge, value) {
+    const prev = this.serverFilters[key];
+    const base = prev && typeof prev === "object" && !Array.isArray(prev) ? { ...prev } : {};
+    base[edge] = value;
+    const alive = (v3) => v3 !== void 0 && v3 !== null && v3 !== "";
+    this.setServerFilter(key, alive(base.from) || alive(base.to) ? base : void 0);
   }
   /** Valor crudo de una columna para ordenar/filtrar (usa format si lo hay, si no row[key]). */
   rawValue(col, row) {
@@ -3902,15 +3947,18 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
   }
   onFilterInput(col, ev) {
     const value = ev.target.value ?? "";
+    this.setServerFilter(col.key, value);
     this.emit("filterChange", { col: col.key, value });
   }
   onRangeInput(col, edge, ev) {
     const raw = ev.target.value ?? "";
     const v3 = raw === "" ? "" : Number(raw);
+    this.setServerRangeEdge(col.key, edge, v3);
     this.emit("filterChange", { col: col.key, value: { [edge]: v3 } });
   }
   onDateRangeInput(col, edge, ev) {
     const v3 = ev.target.value ?? "";
+    this.setServerRangeEdge(col.key, edge, v3);
     this.emit("filterChange", { col: col.key, value: { [edge]: v3 } });
   }
   // ── Filtros EN LÍNEA (toolbar) ────────────────────────────────────────────────────────────
@@ -3930,7 +3978,9 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
   // `filterChange`; en cliente escribe `clientFilters` (multiselect ⇒ filtra por inclusión).
   onFilterSelect(col, value, multi) {
     if (this.serverSide) {
-      this.emit("filterChange", { col: col.key, value: value ?? (multi ? [] : "") });
+      const next = value ?? (multi ? [] : "");
+      this.setServerFilter(col.key, next);
+      this.emit("filterChange", { col: col.key, value: next });
       return;
     }
     if (multi) {
@@ -3944,6 +3994,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
   onInlineRange(col, edge, ev) {
     const v3 = ev.target.value ?? "";
     if (this.serverSide) {
+      this.setServerRangeEdge(col.key, edge, v3);
       this.emit("filterChange", { col: col.key, value: { [edge]: v3 } });
       return;
     }
@@ -3974,6 +4025,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
    */
   willUpdate(changed) {
     this.applyInitialView();
+    if (changed.has("filterValues")) this.serverFilters = { ...this.filterValues ?? {} };
     if (!this.serverSide && changed.has("rows") && this.mobileShown !== 0) this.mobileShown = 0;
   }
   applyInitialView() {
@@ -3996,9 +4048,11 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
   renderFilterControl(col) {
     if (!col.filterable) return A;
     const type = col.filterType ?? "text";
+    const f3 = this.filterStateOf(col.key);
     if (type === "select" || type === "multiselect") {
       const multi = type === "multiselect";
       const opts = col.options ?? this.distinctValues(col).map((v3) => ({ value: v3, label: v3 }));
+      const current = this.selectValue(f3, multi);
       return b2`
         <ion-select
           label=${col.header}
@@ -4008,6 +4062,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
           interface="modal"
           .interfaceOptions=${{ cssClass: "ok-overlay" }}
           placeholder=${this.t.select}
+          .value=${current}
           @ionChange=${(e5) => this.onFilterSelect(col, e5.detail.value, multi)}
         >
           ${multi ? A : b2`<ion-select-option value="">${this.t.select}</ion-select-option>`}
@@ -4023,8 +4078,10 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
           <span class="flabel">${col.header}</span>
           <div class="frange">
             <ion-input type=${t5} fill="outline" mode="md" placeholder=${type === "daterange" ? this.t.from : this.t.gte}
+              .value=${f3?.from ?? ""}
               @ionInput=${(e5) => onEdge(col, "from", e5)}></ion-input>
             <ion-input type=${t5} fill="outline" mode="md" placeholder=${type === "daterange" ? this.t.to : this.t.lte}
+              .value=${f3?.to ?? ""}
               @ionInput=${(e5) => onEdge(col, "to", e5)}></ion-input>
           </div>
         </div>
@@ -4038,9 +4095,17 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
         label=${col.header}
         label-placement="stacked"
         placeholder=${this.t.filterPlaceholder}
+        .value=${this.selectValue(f3, false)}
         @ionInput=${(e5) => this.onFilterInput(col, e5)}
       ></ion-input>
     `;
+  }
+  /** Valor para un control de un solo valor (`ion-select`/`ion-input`) o multi (`ion-select
+   *  multiple`) a partir del estado de filtro interno. '' / [] = sin filtro. */
+  selectValue(f3, multi) {
+    const values = [...f3?.values ?? /* @__PURE__ */ new Set()];
+    if (multi) return values;
+    return values.length ? values[0] : "";
   }
   // Controles de filtro COMPACTOS para la toolbar (modo `inlineFilters`). Solo select y rango de
   // fechas (los del screenshot); el resto de tipos siguen disponibles vía el drawer si no se activa
@@ -4055,11 +4120,11 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
   }
   renderInlineFilter(col) {
     const type = col.filterType ?? "text";
-    const f3 = this.clientFilters[col.key];
+    const f3 = this.filterStateOf(col.key);
     if (type === "select" || type === "multiselect") {
       const multi = type === "multiselect";
       const opts = col.options ?? this.distinctValues(col).map((v3) => ({ value: v3, label: v3 }));
-      const current = multi ? [...f3?.values ?? /* @__PURE__ */ new Set()] : f3?.values && f3.values.size ? [...f3.values][0] : "";
+      const current = this.selectValue(f3, multi);
       return b2`
         <ion-select
           class="tk-filter"
@@ -4125,6 +4190,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
       (a3) => {
         const loading = a3.loading?.(row) === true;
         const disabled = loading || a3.disabled?.(row) === true;
+        const label = typeof a3.label === "function" ? a3.label(row) : a3.label;
         return b2`
             <ion-button
               size="small"
@@ -4132,11 +4198,11 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
               color=${a3.color ?? "medium"}
               ?disabled=${disabled}
               aria-disabled=${disabled ? "true" : A}
-              aria-label=${a3.label}
-              title=${a3.label}
+              aria-label=${label}
+              title=${label}
               @click=${() => this.emit("rowAction", { actionId: a3.id, row })}
             >
-              ${loading ? b2`<ion-spinner slot="icon-only" name="dots"></ion-spinner>` : a3.icon ? b2`<ion-icon slot="icon-only" .icon=${okIcon(a3.icon)}></ion-icon>` : a3.label}
+              ${loading ? b2`<ion-spinner slot="icon-only" name="dots"></ion-spinner>` : a3.icon ? b2`<ion-icon slot="icon-only" .icon=${okIcon(a3.icon)}></ion-icon>` : label}
             </ion-button>
           `;
       }
@@ -4257,7 +4323,7 @@ var _OkDataTable = class _OkDataTable2 extends i3 {
                             ${this.toolButton("grid-outline", this.viewMode === "cards", () => this.setViewMode("cards"), this.t.viewCards)}
                           </span>
                         ` : A}
-                    ${this.hasFilterRow && !this.inlineFilters ? this.toolButton("funnel-outline", this.panel === "filters" || this.activeFilterCount > 0, () => this.toggle("filters"), this.t.filters, this.serverSide ? void 0 : this.activeFilterCount) : A}
+                    ${this.hasFilterRow && !this.inlineFilters ? this.toolButton("funnel-outline", this.panel === "filters" || this.activeFilterCount > 0, () => this.toggle("filters"), this.t.filters, this.activeFilterCount) : A}
                     ${this.effImport ? b2`
                           ${this.toolButton("cloud-upload-outline", false, () => this.renderRoot.querySelector(".tk-file")?.click(), this.t.importCsv)}
                           <input class="tk-file" type="file" accept=".csv,text/csv" hidden @change=${(e5) => this.onImportFile(e5)} />
@@ -4569,6 +4635,9 @@ __decorateClass4([
   n4({ attribute: "sort-dir" })
 ], _OkDataTable.prototype, "sortDir");
 __decorateClass4([
+  n4({ attribute: false })
+], _OkDataTable.prototype, "filterValues");
+__decorateClass4([
   n4()
 ], _OkDataTable.prototype, "title");
 __decorateClass4([
@@ -4640,6 +4709,9 @@ __decorateClass4([
 __decorateClass4([
   r5()
 ], _OkDataTable.prototype, "filterDraft");
+__decorateClass4([
+  r5()
+], _OkDataTable.prototype, "serverFilters");
 __decorateClass4([
   r5()
 ], _OkDataTable.prototype, "panel");
@@ -4917,7 +4989,19 @@ var ErpTablesFloorPlan = class extends i3 {
         options: this.zones.map((z2) => ({ value: z2.name, label: z2.name })),
         format: (r6) => r6.zone || "\u2014"
       },
-      { key: "capacity", header: t5("ui.colCapacity"), align: "right", sortable: true, filterable: true, filterType: "text", format: (r6) => t5("ui.paxCount", { count: r6.capacity }) },
+      {
+        key: "capacity",
+        header: t5("ui.colCapacity"),
+        align: "right",
+        sortable: true,
+        filterable: true,
+        // Seats are a NUMBER, and what a floor manager looks for is «tables for 4 or more», not a
+        // table whose capacity is written `4`. A text box here would have to be filtered with
+        // `like`, and `like` casts (`CAST(sub.capacity AS TEXT) LIKE '%4%'`), so a 4 would drag in
+        // the 14s, the 24s and the 40s. Two bounds, and the operator that takes two bounds.
+        filterType: "range",
+        format: (r6) => t5("ui.paxCount", { count: r6.capacity })
+      },
       {
         key: "status",
         header: t5("ui.colStatus"),
