@@ -116,7 +116,19 @@ export class ErpTablesFloorPlan extends LitElement {
         options: this.zones.map((z) => ({ value: z.name, label: z.name })),
         format: (r) => (r.zone as string) || '—',
       },
-      { key: 'capacity', header: t('ui.colCapacity'), align: 'right', sortable: true, filterable: true, filterType: 'text', format: (r) => t('ui.paxCount', { count: r.capacity }) },
+      {
+        key: 'capacity',
+        header: t('ui.colCapacity'),
+        align: 'right',
+        sortable: true,
+        filterable: true,
+        // Seats are a NUMBER, and what a floor manager looks for is «tables for 4 or more», not a
+        // table whose capacity is written `4`. A text box here would have to be filtered with
+        // `like`, and `like` casts (`CAST(sub.capacity AS TEXT) LIKE '%4%'`), so a 4 would drag in
+        // the 14s, the 24s and the 40s. Two bounds, and the operator that takes two bounds.
+        filterType: 'range',
+        format: (r) => t('ui.paxCount', { count: r.capacity }),
+      },
       {
         key: 'status',
         header: t('ui.colStatus'),

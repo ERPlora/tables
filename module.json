@@ -199,13 +199,13 @@
         "default_dir": "asc",
         "filters": {
           "number": {
-            "op": "eq"
+            "op": "like"
           },
           "name": {
             "op": "like"
           },
           "capacity": {
-            "op": "eq"
+            "op": "range"
           },
           "shape": {
             "op": "eq"
@@ -276,7 +276,7 @@
             "op": "eq"
           },
           "table_number": {
-            "op": "eq"
+            "op": "like"
           },
           "guests_count": {
             "op": "range"
