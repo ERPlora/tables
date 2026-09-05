@@ -186,6 +186,48 @@ def string_array(path: str, value) -> None:
         expect(f"{path}[{i}]", item, str)
 
 
+# A migration entry admits TWO shapes (hub#542, `MigrationEntry` in the runtime and
+# `$defs.migrationEntry` in the canonical schema): the bare path, which reads `expand` and is what
+# the whole published catalogue uses, or `{ file, kind, since }` — the ONLY way to declare a
+# `contract`, and therefore the only legitimate way to ship a `DROP` (the runtime turns it into a
+# `RENAME … TO _deprecated_…` instead of destroying). `kind` and `since` are optional exactly like
+# in the runtime. This test used to accept the string form alone, which put a manifest the core
+# and the toolkit both accept in RED (tables#76, the migration that names the gate constraints).
+MIGRATION_KINDS = ("expand", "backfill", "contract")
+
+
+def migration_entry_array(path: str, value) -> None:
+    if not expect(path, value, list):
+        return
+    for i, item in enumerate(value):
+        where = f"{path}[{i}]"
+        if isinstance(item, dict):
+            field(where, item, "file", str, required=True)
+            field(where, item, "kind", str, enum=MIGRATION_KINDS)
+            field(where, item, "since", str)
+            # `additionalProperties: false` in the canonical schema: a key it does not know about
+            # is a typo that would be silently ignored, not an extension.
+            for key in item:
+                if key not in ("file", "kind", "since"):
+                    failures.append(
+                        f"{where}.{key}: not part of a migration entry — the canonical schema "
+                        "declares `additionalProperties: false` (`file`, `kind`, `since`)"
+                    )
+            continue
+        expect(where, item, str)
+
+
+def migration_files(entries) -> list[str]:
+    """The `.sql` paths an entry list points at, whichever shape each entry uses."""
+    out: list[str] = []
+    for item in entries if isinstance(entries, list) else []:
+        if isinstance(item, str):
+            out.append(item)
+        elif isinstance(item, dict) and isinstance(item.get("file"), str):
+            out.append(item["file"])
+    return out
+
+
 # ── Layer 1: the type contract, mirroring `struct Manifest` ──────────────────────────────
 
 
@@ -259,7 +301,7 @@ def check_sql_blocks(m: dict) -> None:
             if dialect not in SQL_DIALECTS:
                 failures.append(f"{block}.{dialect}: unknown SQL dialect {dialect!r}")
                 continue
-            string_array(f"{block}.{dialect}", files)
+            migration_entry_array(f"{block}.{dialect}", files)
 
     queries = m.get("queries", {})
     if expect("queries", queries, dict):
@@ -890,10 +932,11 @@ def check_declared_files_exist(m: dict) -> None:
 
     for block in ("migrations", "seed"):
         for dialect, files in (m.get(block) or {}).items():
-            if isinstance(files, list):
-                declared += [
-                    (f"{block}.{dialect}", f) for f in files if isinstance(f, str)
-                ]
+            # `migration_files` reads BOTH shapes. Filtering to `isinstance(f, str)` here, which is
+            # what this did before, meant a `{ file, kind: "contract" }` entry pointing at a file
+            # that is NOT in the package was never checked at all — the one entry shape that ships
+            # a DROP was also the one nobody verified existed.
+            declared += [(f"{block}.{dialect}", f) for f in migration_files(files)]
 
     for name, q in (m.get("queries") or {}).items():
         for key in ("sql", "schema"):
