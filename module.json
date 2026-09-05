@@ -121,7 +121,12 @@
       "migrations/postgres/007_session_history_fk.sql",
       "migrations/postgres/008_table_hold.sql",
       "migrations/postgres/009_session_split.sql",
-      "migrations/postgres/010_settings.sql"
+      "migrations/postgres/010_settings.sql",
+    {
+      "file": "migrations/postgres/011_named_gate_constraints.sql",
+      "kind": "contract",
+      "since": "2.2.39"
+    }
     ]
   },
   "queries": {
