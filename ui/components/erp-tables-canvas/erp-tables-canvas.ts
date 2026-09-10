@@ -283,6 +283,7 @@ export class ErpTablesCanvas extends LitElement {
     .sheet-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; }
     .sheet-h .t { font-size:1.2rem; font-weight:700; }
     .sheet-h ion-button.x { --color:#8b897f; margin:0; }
+    .sheet ok-inline-feedback { display:block; margin-bottom:.8rem; }
     .field { display:flex; flex-direction:column; gap:.25rem; margin-bottom:.7rem; min-width:0; }
     /* tables#84: NO vertical basis here. A .field is a COLUMN flex box, so a flex-basis on its
        control is its HEIGHT — the old "flex:1 1 11rem" (written for a row of fields that no longer
@@ -455,6 +456,7 @@ export class ErpTablesCanvas extends LitElement {
     if (!t) return;
     if (!this.dragMoved) {
       // Fue un clic (no arrastre): abrir el editor de la mesa.
+      this.error = '';
       this.edit = { ...t };
       return;
     }
@@ -478,6 +480,7 @@ export class ErpTablesCanvas extends LitElement {
   private async onTableKey(t: Table, e: KeyboardEvent) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
+      this.error = '';
       this.edit = { ...t };
       return;
     }
@@ -563,6 +566,18 @@ export class ErpTablesCanvas extends LitElement {
       } as Table;
       if (!taken.some((t) => seTapan(t, candidate))) return { x: candidate.position_x, y: candidate.position_y };
     }
+  }
+
+  /** tables#83 (review of tables#85) — the sheets are a fixed scrim over the whole view, so a
+   *  message painted underneath is a message nobody reads: the refusal of a taken number sat
+   *  dimmed behind the overlay while the sheet stayed open as if nothing had happened. The ONE
+   *  error slot follows the person: inside the open sheet, in the view when none is open. */
+  private get sheetOpen(): boolean { return this.addOpen || !!this.edit || !!this.zoneEdit; }
+
+  private renderError() {
+    return this.error
+      ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>`
+      : nothing;
   }
 
   // ── Altas ───────────────────────────────────────────────────────────────────────────────────
@@ -763,12 +778,12 @@ export class ErpTablesCanvas extends LitElement {
             </ion-segment>`
           : html`<span class="flex"></span>`}
         <ion-button data-add fill="clear" aria-label=${t('ui.addAction')} title=${t('ui.addAction')}
-          @click=${() => { this.addOpen = true; }}><ion-icon slot="icon-only" name="add-outline"></ion-icon></ion-button>
+          @click=${() => { this.error = ''; this.addOpen = true; }}><ion-icon slot="icon-only" name="add-outline"></ion-icon></ion-button>
         <ion-button fill="clear" aria-label=${t('ui.editZone')} title=${t('ui.editZone')}
           ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}><ion-icon slot="icon-only" name="create-outline"></ion-icon></ion-button>
       </div>
 
-      ${this.error ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : nothing}
+      ${this.sheetOpen ? nothing : this.renderError()}
 
       <div class="canvas"
         @pointermove=${(e: PointerEvent) => this.onPointerMove(e)}
@@ -825,6 +840,7 @@ export class ErpTablesCanvas extends LitElement {
           <span class="t">${t('ui.addTitle')}</span>
           <ion-button class="x" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.addOpen = false; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
+        ${this.renderError()}
         <div class="add-block">
           <div class="field">
             <ion-input data-zone-name mode="md" fill="outline" label-placement="floating" label=${t('ui.colZone')} placeholder=${t('ui.newZonePlaceholder')} .value=${this.newZoneName}
@@ -855,6 +871,7 @@ export class ErpTablesCanvas extends LitElement {
           <span class="t">${t('ui.editTable')}</span>
           <ion-button class="x" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.edit = undefined; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
+        ${this.renderError()}
         <div class="row2">
           <div class="field">
             <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldNumber')} .value=${table.number} @ionInput=${(e: CustomEvent) => this.patchEdit({ number: (e.target as HTMLInputElement).value || '' })}></ion-input></div>
@@ -894,6 +911,7 @@ export class ErpTablesCanvas extends LitElement {
           <span class="t">${t('ui.editZone')}</span>
           <ion-button class="x" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.zoneEdit = undefined; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
+        ${this.renderError()}
         <div class="field">
           <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.colName')} .value=${z.name} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, name: (e.target as HTMLInputElement).value || '' }; }}></ion-input></div>
         <div class="field">

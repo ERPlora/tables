@@ -921,3 +921,66 @@ describe('the floor plan refuses to hand out the same number twice (tables#83)',
     expect(saved!.payload.capacity).toBe(6);
   });
 });
+
+// tables#83 (review of tables#85) — a refusal that lands BEHIND the sheet is a refusal nobody reads.
+// The sheets are a fixed scrim over the whole view (`.scrim { position:fixed; inset:0;
+// background:rgba(0,0,0,.45) }`), and the ONE error slot of the component was painted in the view
+// underneath. So tapping «Add table» with a taken number did nothing the person could see: the sheet
+// stayed open, the field kept its value, and the message sat dimmed under the overlay. The message
+// has to live INSIDE the open sheet — `shadowRoot.textContent` containing it is not enough.
+describe('a refused number is explained INSIDE the open sheet, not behind it (tables#83)', () => {
+  const openSheet = (el: Canvas) => el.shadowRoot.querySelector<HTMLElement>('.sheet');
+
+  it('the «Add» sheet says why the table was not created', async () => {
+    stubHub([tableRow({ id: 't1', number: 'M1' })]);
+    const el = await mountCanvasEl();
+    recordCommands();
+    const sheet = await openAddSheet(el);
+    typeInto(sheet, TABLE_FIELD, 'M1');
+    buttonNamed(sheet, 'ui.addTable')!.click();
+    await settle(el);
+    const open = openSheet(el);
+    expect(open, 'the sheet closed on a refusal, taking the field away').toBeTruthy();
+    expect(open!.textContent ?? '', 'the refusal is painted behind the scrim, not in the sheet')
+      .toContain('ui.errTableNumberTaken');
+  });
+
+  it('the «Edit table» sheet says why the rename was refused', async () => {
+    stubHub([tableRow({ id: 't1', number: '1' }), tableRow({ id: 't2', number: '2', position_x: 300 })]);
+    const el = await mountCanvasEl();
+    recordCommands();
+    openTableEdit(el, '2');
+    await el.updateComplete;
+    typeInto(el.shadowRoot, 'ion-input[label="ui.fieldNumber"]', '1');
+    buttonNamed(el.shadowRoot, 'ui.save')!.click();
+    await settle(el);
+    const open = openSheet(el);
+    expect(open, 'the sheet closed on a refusal').toBeTruthy();
+    expect(open!.textContent ?? '', 'the refusal is painted behind the scrim, not in the sheet')
+      .toContain('ui.errTableNumberTaken');
+  });
+});
+
+// …and the slot is CLEARED when a sheet opens: a refusal earned by the «Add» sheet must not greet
+// the person at the top of «Edit table» as if that sheet had produced it.
+describe('a sheet opens without the error another sheet earned (tables#83)', () => {
+  it('after a refused add, opening «Edit table» shows no stale refusal', async () => {
+    stubHub([tableRow({ id: 't1', number: 'M1' })]);
+    const el = await mountCanvasEl();
+    recordCommands();
+    const sheet = await openAddSheet(el);
+    typeInto(sheet, TABLE_FIELD, 'M1');
+    buttonNamed(sheet, 'ui.addTable')!.click();
+    await settle(el);
+    expect(el.shadowRoot.textContent ?? '').toContain('ui.errTableNumberTaken');
+    (el as unknown as { addOpen: boolean }).addOpen = false;
+    await el.updateComplete;
+
+    openTableEdit(el, 'M1');
+    await el.updateComplete;
+    const open = el.shadowRoot.querySelector<HTMLElement>('.sheet');
+    expect(open, 'the edit sheet did not open').toBeTruthy();
+    expect(open!.textContent ?? '', 'the refusal of the «Add» sheet leaked into «Edit table»')
+      .not.toContain('ui.errTableNumberTaken');
+  });
+});

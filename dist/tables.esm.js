@@ -2344,6 +2344,7 @@ var ErpTablesCanvas = class extends i3 {
     .sheet-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; }
     .sheet-h .t { font-size:1.2rem; font-weight:700; }
     .sheet-h ion-button.x { --color:#8b897f; margin:0; }
+    .sheet ok-inline-feedback { display:block; margin-bottom:.8rem; }
     .field { display:flex; flex-direction:column; gap:.25rem; margin-bottom:.7rem; min-width:0; }
     /* tables#84: NO vertical basis here. A .field is a COLUMN flex box, so a flex-basis on its
        control is its HEIGHT — the old "flex:1 1 11rem" (written for a row of fields that no longer
@@ -2465,6 +2466,7 @@ var ErpTablesCanvas = class extends i3 {
     const t5 = this.tables.find((m4) => m4.id === id);
     if (!t5) return;
     if (!this.dragMoved) {
+      this.error = "";
       this.edit = { ...t5 };
       return;
     }
@@ -2484,6 +2486,7 @@ var ErpTablesCanvas = class extends i3 {
   async onTableKey(t5, e5) {
     if (e5.key === "Enter" || e5.key === " ") {
       e5.preventDefault();
+      this.error = "";
       this.edit = { ...t5 };
       return;
     }
@@ -2564,6 +2567,16 @@ var ErpTablesCanvas = class extends i3 {
       };
       if (!taken.some((t5) => seTapan(t5, candidate))) return { x: candidate.position_x, y: candidate.position_y };
     }
+  }
+  /** tables#83 (review of tables#85) — the sheets are a fixed scrim over the whole view, so a
+   *  message painted underneath is a message nobody reads: the refusal of a taken number sat
+   *  dimmed behind the overlay while the sheet stayed open as if nothing had happened. The ONE
+   *  error slot follows the person: inside the open sheet, in the view when none is open. */
+  get sheetOpen() {
+    return this.addOpen || !!this.edit || !!this.zoneEdit;
+  }
+  renderError() {
+    return this.error ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : A;
   }
   // ── Altas ───────────────────────────────────────────────────────────────────────────────────
   /** tables#83 — a number identifies a table to whoever carries the plates, so a zone cannot hand
@@ -2757,13 +2770,14 @@ var ErpTablesCanvas = class extends i3 {
             </ion-segment>` : b2`<span class="flex"></span>`}
         <ion-button data-add fill="clear" aria-label=${t5("ui.addAction")} title=${t5("ui.addAction")}
           @click=${() => {
+      this.error = "";
       this.addOpen = true;
     }}><ion-icon slot="icon-only" name="add-outline"></ion-icon></ion-button>
         <ion-button fill="clear" aria-label=${t5("ui.editZone")} title=${t5("ui.editZone")}
           ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}><ion-icon slot="icon-only" name="create-outline"></ion-icon></ion-button>
       </div>
 
-      ${this.error ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : A}
+      ${this.sheetOpen ? A : this.renderError()}
 
       <div class="canvas"
         @pointermove=${(e5) => this.onPointerMove(e5)}
@@ -2819,6 +2833,7 @@ var ErpTablesCanvas = class extends i3 {
       this.addOpen = false;
     }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
+        ${this.renderError()}
         <div class="add-block">
           <div class="field">
             <ion-input data-zone-name mode="md" fill="outline" label-placement="floating" label=${t5("ui.colZone")} placeholder=${t5("ui.newZonePlaceholder")} .value=${this.newZoneName}
@@ -2856,6 +2871,7 @@ var ErpTablesCanvas = class extends i3 {
       this.edit = void 0;
     }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
+        ${this.renderError()}
         <div class="row2">
           <div class="field">
             <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldNumber")} .value=${table.number} @ionInput=${(e5) => this.patchEdit({ number: e5.target.value || "" })}></ion-input></div>
@@ -2898,6 +2914,7 @@ var ErpTablesCanvas = class extends i3 {
       this.zoneEdit = void 0;
     }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
+        ${this.renderError()}
         <div class="field">
           <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.colName")} .value=${z2.name} @ionInput=${(e5) => {
       this.zoneEdit = { ...z2, name: e5.target.value || "" };
