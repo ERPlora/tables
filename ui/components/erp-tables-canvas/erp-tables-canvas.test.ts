@@ -718,6 +718,13 @@ function typeInto(root: ParentNode, selector: string, value: string) {
 const buttonNamed = (root: ParentNode, label: string) =>
   [...root.querySelectorAll<HTMLElement>('ion-button')].find((b) => (b.textContent ?? '').trim() === label);
 
+/** Opens the «Edit table» sheet of the tile that reads `number`, the way a person opens it. */
+function openTableEdit(el: Canvas, number: string) {
+  const tile = tiles(el).find((m) => (m.textContent ?? '').includes(number));
+  if (!tile) throw new Error(`no tile of the plan reads «${number}»`);
+  tile.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+}
+
 const ZONE_FIELD = 'ion-input[data-zone-name]';
 const TABLE_FIELD = 'ion-input[data-table-number]';
 
@@ -845,5 +852,72 @@ describe('the sheets read as a form, not as a broken screen (tables#84)', () => 
     // The check has to see the positive: if the sheets stopped opening, «no bad field» would be
     // true of an empty list.
     expect(seen, 'too few fields measured — the three sheets did not open').toBeGreaterThanOrEqual(7);
+  });
+});
+
+// tables#83 (second half) — letting the person type the number opens a door the old sheet did not
+// have: typing a number that is already on the plan. The running number was taught to skip what is
+// taken, so accepting a TYPED duplicate would contradict the guard we just shipped and put two
+// tiles reading the same thing in front of the waiter — with nothing in the database to stop it
+// (there is no UNIQUE on `tables_table.number`). Both doors that write a number close here: the
+// «Add» sheet and the rename of «Edit table», which never checked either.
+describe('the floor plan refuses to hand out the same number twice (tables#83)', () => {
+  it('typing a number another table of the zone already answers to is refused, not duplicated', async () => {
+    stubHub([tableRow({ id: 't1', number: 'M1' })]);
+    const el = await mountCanvasEl();
+    const sent = recordCommands();
+    const sheet = await openAddSheet(el);
+    typeInto(sheet, TABLE_FIELD, ' m1 '); // the same table, typed the way anybody types it
+    buttonNamed(sheet, 'ui.addTable')!.click();
+    await settle(el);
+    expect(
+      sent.find((c) => c.name === 'tables.tables.create'),
+      'a second table «M1» was created: the plan now shows two tiles reading the same number',
+    ).toBeFalsy();
+    expect(
+      el.shadowRoot.textContent ?? '',
+      'the sheet swallowed the refusal instead of telling the person why nothing happened',
+    ).toContain('ui.errTableNumberTaken');
+  });
+
+  it('a number taken in ANOTHER zone is free: zones number their own tables', async () => {
+    stubHub([tableRow({ id: 't1', number: '1', zone_id: 'z-other' })]);
+    const el = await mountCanvasEl();
+    const sent = recordCommands();
+    const sheet = await openAddSheet(el);
+    typeInto(sheet, TABLE_FIELD, '1');
+    buttonNamed(sheet, 'ui.addTable')!.click();
+    await settle(el);
+    expect(sent.find((c) => c.name === 'tables.tables.create')!.payload.number).toBe('1');
+  });
+
+  it('renaming a table onto another table’s number is refused too', async () => {
+    stubHub([tableRow({ id: 't1', number: '1' }), tableRow({ id: 't2', number: '2', position_x: 300 })]);
+    const el = await mountCanvasEl();
+    const sent = recordCommands();
+    openTableEdit(el, '2');
+    await el.updateComplete;
+    typeInto(el.shadowRoot, 'ion-input[label="ui.fieldNumber"]', '1');
+    buttonNamed(el.shadowRoot, 'ui.save')!.click();
+    await settle(el);
+    expect(
+      sent.find((c) => c.name === 'tables.tables.update'),
+      'the rename went through and two tables now answer to «1»',
+    ).toBeFalsy();
+    expect(el.shadowRoot.textContent ?? '').toContain('ui.errTableNumberTaken');
+  });
+
+  it('saving a table WITHOUT changing its number still goes through (it is not its own duplicate)', async () => {
+    stubHub([tableRow({ id: 't1', number: '1' }), tableRow({ id: 't2', number: '2', position_x: 300 })]);
+    const el = await mountCanvasEl();
+    const sent = recordCommands();
+    openTableEdit(el, '2');
+    await el.updateComplete;
+    typeInto(el.shadowRoot, 'ion-input[label="ui.fieldCapacity"]', '6');
+    buttonNamed(el.shadowRoot, 'ui.save')!.click();
+    await settle(el);
+    const saved = sent.find((c) => c.name === 'tables.tables.update');
+    expect(saved, 'a plain edit was refused as if the table collided with itself').toBeTruthy();
+    expect(saved!.payload.capacity).toBe(6);
   });
 });

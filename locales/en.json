@@ -116,6 +116,7 @@
     "errDeleteTable": "Could not delete the table",
     "errSaveZone": "Could not save the zone",
     "errDeleteZone": "Could not delete the zone (does it have tables?)",
+    "errTableNumberTaken": "A table with that number already exists in this zone",
     "errTableNumberRequired": "The table number is required",
     "errZoneNameRequired": "The zone name is required",
     "close": "Close",

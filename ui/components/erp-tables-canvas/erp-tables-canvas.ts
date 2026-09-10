@@ -567,6 +567,22 @@ export class ErpTablesCanvas extends LitElement {
 
   // ── Altas ───────────────────────────────────────────────────────────────────────────────────
 
+  /** tables#83 — a number identifies a table to whoever carries the plates, so a zone cannot hand
+   *  the same one out twice. Nothing in the database forbids it (there is no UNIQUE on
+   *  `tables_table.number`), so the doors that WRITE a number are the ones that have to refuse:
+   *  the «Add» sheet and the rename of «Edit table». Case- and space-insensitive, because «m1» and
+   *  «M1 » are the same table on the floor. `exceptId` lets a table keep its own number. */
+  private numberTaken(number: string, zoneId: string | null, exceptId?: string): boolean {
+    const norm = (v: unknown) => String(v ?? '').trim().toLocaleLowerCase();
+    const zone = (v: unknown) => (String(v ?? '').trim() || null);
+    // Both callers guarantee a non-empty number (the «Add» sheet falls back to the running one,
+    // the edit sheet refuses a blank before getting here), so there is no empty case to defend.
+    const wanted = norm(number);
+    return this.tables.some((t) => t.id !== exceptId
+      && zone(t.zone_id) === zone(zoneId)
+      && norm(t.number) === wanted);
+  }
+
   /** tables#83 — the running number is a DEFAULT, and it has to be FREE.
    *  Counting the tables and adding one lands on a number that is already on the plan as soon as
    *  one has been deleted (tables «1» and «3» → «3» again), and the floor shows two tiles reading
@@ -586,6 +602,10 @@ export class ErpTablesCanvas extends LitElement {
     // Table Names», Lightspeed, Clover); left blank, the running number still does the job
     // (TouchBistro, Odoo).
     const number = this.newTableNumber.trim() || this.nextTableNumber();
+    if (this.numberTaken(number, this.activeZone || null)) {
+      this.error = erplora().t(CATALOG, 'ui.errTableNumberTaken');
+      return;
+    }
     // tables#53: la cascada de antes (`20 + (n*16) % 200`) era la misma unidad mal usada que en el
     // lote — offsets de 16 px para cajas de 72 —, así que la mesa nueva nacía tapando a la
     // anterior. El lienzo la recolocaría al recargar, y el plano daría un salto delante del
@@ -636,6 +656,7 @@ export class ErpTablesCanvas extends LitElement {
     if (!this.edit) return;
     const t = this.edit;
     if (!String(t.number).trim()) { this.error = erplora().t(CATALOG, 'ui.errTableNumberRequired'); return; }
+    if (this.numberTaken(String(t.number), t.zone_id ?? null, t.id)) { this.error = erplora().t(CATALOG, 'ui.errTableNumberTaken'); return; }
     this.saving = true; this.error = '';
     try {
       await erplora().command('tables.tables.update', {

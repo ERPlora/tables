@@ -1856,6 +1856,7 @@ var es_default = {
     errDeleteTable: "No se pudo borrar la mesa",
     errSaveZone: "No se pudo guardar la zona",
     errDeleteZone: "No se pudo borrar la zona (\xBFtiene mesas?)",
+    errTableNumberTaken: "Ya hay una mesa con ese n\xFAmero en esta zona",
     errTableNumberRequired: "El n\xFAmero de mesa es obligatorio",
     errZoneNameRequired: "El nombre de la zona es obligatorio",
     close: "Cerrar",
@@ -2046,6 +2047,7 @@ var en_default = {
     errDeleteTable: "Could not delete the table",
     errSaveZone: "Could not save the zone",
     errDeleteZone: "Could not delete the zone (does it have tables?)",
+    errTableNumberTaken: "A table with that number already exists in this zone",
     errTableNumberRequired: "The table number is required",
     errZoneNameRequired: "The zone name is required",
     close: "Close",
@@ -2564,6 +2566,17 @@ var ErpTablesCanvas = class extends i3 {
     }
   }
   // ── Altas ───────────────────────────────────────────────────────────────────────────────────
+  /** tables#83 — a number identifies a table to whoever carries the plates, so a zone cannot hand
+   *  the same one out twice. Nothing in the database forbids it (there is no UNIQUE on
+   *  `tables_table.number`), so the doors that WRITE a number are the ones that have to refuse:
+   *  the «Add» sheet and the rename of «Edit table». Case- and space-insensitive, because «m1» and
+   *  «M1 » are the same table on the floor. `exceptId` lets a table keep its own number. */
+  numberTaken(number, zoneId, exceptId) {
+    const norm = (v3) => String(v3 ?? "").trim().toLocaleLowerCase();
+    const zone = (v3) => String(v3 ?? "").trim() || null;
+    const wanted = norm(number);
+    return this.tables.some((t5) => t5.id !== exceptId && zone(t5.zone_id) === zone(zoneId) && norm(t5.number) === wanted);
+  }
   /** tables#83 — the running number is a DEFAULT, and it has to be FREE.
    *  Counting the tables and adding one lands on a number that is already on the plan as soon as
    *  one has been deleted (tables «1» and «3» → «3» again), and the floor shows two tiles reading
@@ -2578,6 +2591,10 @@ var ErpTablesCanvas = class extends i3 {
   async addTable() {
     this.error = "";
     const number = this.newTableNumber.trim() || this.nextTableNumber();
+    if (this.numberTaken(number, this.activeZone || null)) {
+      this.error = erplora().t(CATALOG, "ui.errTableNumberTaken");
+      return;
+    }
     const spot = this.freeSpotInZone();
     try {
       await erplora().command("tables.tables.create", {
@@ -2627,6 +2644,10 @@ var ErpTablesCanvas = class extends i3 {
     const t5 = this.edit;
     if (!String(t5.number).trim()) {
       this.error = erplora().t(CATALOG, "ui.errTableNumberRequired");
+      return;
+    }
+    if (this.numberTaken(String(t5.number), t5.zone_id ?? null, t5.id)) {
+      this.error = erplora().t(CATALOG, "ui.errTableNumberTaken");
       return;
     }
     this.saving = true;
