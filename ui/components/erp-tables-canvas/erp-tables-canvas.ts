@@ -283,16 +283,27 @@ export class ErpTablesCanvas extends LitElement {
     .sheet-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; }
     .sheet-h .t { font-size:1.2rem; font-weight:700; }
     .sheet-h ion-button.x { --color:#8b897f; margin:0; }
-    .field { display:flex; flex-direction:column; gap:.25rem; margin-bottom:.7rem; }
-    .field ion-input, .field ion-select { flex:1 1 11rem; min-width:9rem; }
+    .sheet ok-inline-feedback { display:block; margin-bottom:.8rem; }
+    .field { display:flex; flex-direction:column; gap:.25rem; margin-bottom:.7rem; min-width:0; }
+    /* tables#84: NO vertical basis here. A .field is a COLUMN flex box, so a flex-basis on its
+       control is its HEIGHT — the old "flex:1 1 11rem" (written for a row of fields that no longer
+       exists) handed every field 176 px for a ~56 px control, and that is the 100+ px of blank the
+       floor manager read as a broken screen. A control is as tall as its content, no more. */
+    .field ion-input, .field ion-select { width:100%; }
     .row2 { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
     .sheet-foot { display:flex; justify-content:space-between; gap:.5rem; margin-top:1rem; }
+    /* tables#83: each action of the «Add» sheet owns its field, so no control can promise
+       something another button will discard. */
+    .add-block + .add-block { margin-top:.9rem; padding-top:.9rem; border-top:1px solid var(--ion-border-color,#cfcabd); }
+    .add-act { display:flex; justify-content:flex-end; }
   `;
 
   @state() private zones: Zone[] = [];
   @state() private tables: Table[] = [];
   @state() private activeZone = '';
   @state() private newZoneName = '';
+  /** tables#83 — what the «Add» sheet will call the new table. Empty = the running number. */
+  @state() private newTableNumber = '';
   @state() private error = '';
   @state() private loading = true;
   // Mesa en edición (copia editable; null = sheet cerrado). zoneEdit = sheet de zona.
@@ -445,6 +456,7 @@ export class ErpTablesCanvas extends LitElement {
     if (!t) return;
     if (!this.dragMoved) {
       // Fue un clic (no arrastre): abrir el editor de la mesa.
+      this.error = '';
       this.edit = { ...t };
       return;
     }
@@ -468,6 +480,7 @@ export class ErpTablesCanvas extends LitElement {
   private async onTableKey(t: Table, e: KeyboardEvent) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
+      this.error = '';
       this.edit = { ...t };
       return;
     }
@@ -555,10 +568,59 @@ export class ErpTablesCanvas extends LitElement {
     }
   }
 
+  /** tables#83 (review of tables#85) — the sheets are a fixed scrim over the whole view, so a
+   *  message painted underneath is a message nobody reads: the refusal of a taken number sat
+   *  dimmed behind the overlay while the sheet stayed open as if nothing had happened. The ONE
+   *  error slot follows the person: inside the open sheet, in the view when none is open. */
+  private get sheetOpen(): boolean { return this.addOpen || !!this.edit || !!this.zoneEdit; }
+
+  private renderError() {
+    return this.error
+      ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>`
+      : nothing;
+  }
+
   // ── Altas ───────────────────────────────────────────────────────────────────────────────────
+
+  /** tables#83 — a number identifies a table to whoever carries the plates, so a zone cannot hand
+   *  the same one out twice. Nothing in the database forbids it (there is no UNIQUE on
+   *  `tables_table.number`), so the doors that WRITE a number are the ones that have to refuse:
+   *  the «Add» sheet and the rename of «Edit table». Case- and space-insensitive, because «m1» and
+   *  «M1 » are the same table on the floor. `exceptId` lets a table keep its own number. */
+  private numberTaken(number: string, zoneId: string | null, exceptId?: string): boolean {
+    const norm = (v: unknown) => String(v ?? '').trim().toLocaleLowerCase();
+    const zone = (v: unknown) => (String(v ?? '').trim() || null);
+    // Both callers guarantee a non-empty number (the «Add» sheet falls back to the running one,
+    // the edit sheet refuses a blank before getting here), so there is no empty case to defend.
+    const wanted = norm(number);
+    return this.tables.some((t) => t.id !== exceptId
+      && zone(t.zone_id) === zone(zoneId)
+      && norm(t.number) === wanted);
+  }
+
+  /** tables#83 — the running number is a DEFAULT, and it has to be FREE.
+   *  Counting the tables and adding one lands on a number that is already on the plan as soon as
+   *  one has been deleted (tables «1» and «3» → «3» again), and the floor shows two tiles reading
+   *  the same thing. Nothing in the database forbids it, so the door that hands out the default
+   *  is the one that has to skip what is taken. */
+  private nextTableNumber(): string {
+    const taken = new Set(this.tablesInZone.map((t) => String(t.number).trim()));
+    let n = this.tablesInZone.length + 1;
+    while (taken.has(String(n))) n++;
+    return String(n);
+  }
+
   private async addTable() {
     this.error = '';
-    const next = this.tablesInZone.length + 1;
+    // tables#83: the sheet used to show a text field and create the table with the running number
+    // anyway, so «QA1» became «1» in silence. What you type names the table (Square's «Custom
+    // Table Names», Lightspeed, Clover); left blank, the running number still does the job
+    // (TouchBistro, Odoo).
+    const number = this.newTableNumber.trim() || this.nextTableNumber();
+    if (this.numberTaken(number, this.activeZone || null)) {
+      this.error = erplora().t(CATALOG, 'ui.errTableNumberTaken');
+      return;
+    }
     // tables#53: la cascada de antes (`20 + (n*16) % 200`) era la misma unidad mal usada que en el
     // lote — offsets de 16 px para cajas de 72 —, así que la mesa nueva nacía tapando a la
     // anterior. El lienzo la recolocaría al recargar, y el plano daría un salto delante del
@@ -567,7 +629,7 @@ export class ErpTablesCanvas extends LitElement {
     try {
       await erplora().command('tables.tables.create', {
         zone_id: this.activeZone || null,
-        number: String(next),
+        number,
         name: '',
         capacity: 4,
         position_x: spot.x,
@@ -576,6 +638,7 @@ export class ErpTablesCanvas extends LitElement {
         height: BOX,
         shape: 'square',
       });
+      this.newTableNumber = '';
       this.addOpen = false;
       await this.reload();
     } catch (e) {
@@ -608,6 +671,7 @@ export class ErpTablesCanvas extends LitElement {
     if (!this.edit) return;
     const t = this.edit;
     if (!String(t.number).trim()) { this.error = erplora().t(CATALOG, 'ui.errTableNumberRequired'); return; }
+    if (this.numberTaken(String(t.number), t.zone_id ?? null, t.id)) { this.error = erplora().t(CATALOG, 'ui.errTableNumberTaken'); return; }
     this.saving = true; this.error = '';
     try {
       await erplora().command('tables.tables.update', {
@@ -714,12 +778,12 @@ export class ErpTablesCanvas extends LitElement {
             </ion-segment>`
           : html`<span class="flex"></span>`}
         <ion-button data-add fill="clear" aria-label=${t('ui.addAction')} title=${t('ui.addAction')}
-          @click=${() => { this.addOpen = true; }}><ion-icon slot="icon-only" name="add-outline"></ion-icon></ion-button>
+          @click=${() => { this.error = ''; this.addOpen = true; }}><ion-icon slot="icon-only" name="add-outline"></ion-icon></ion-button>
         <ion-button fill="clear" aria-label=${t('ui.editZone')} title=${t('ui.editZone')}
           ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}><ion-icon slot="icon-only" name="create-outline"></ion-icon></ion-button>
       </div>
 
-      ${this.error ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : nothing}
+      ${this.sheetOpen ? nothing : this.renderError()}
 
       <div class="canvas"
         @pointermove=${(e: PointerEvent) => this.onPointerMove(e)}
@@ -776,13 +840,24 @@ export class ErpTablesCanvas extends LitElement {
           <span class="t">${t('ui.addTitle')}</span>
           <ion-button class="x" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.addOpen = false; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
-        <div class="field">
-          <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.colZone')} placeholder=${t('ui.newZonePlaceholder')} .value=${this.newZoneName}
-            @ionInput=${(e: CustomEvent) => { this.newZoneName = (e.target as HTMLInputElement).value || ''; }}></ion-input>
+        ${this.renderError()}
+        <div class="add-block">
+          <div class="field">
+            <ion-input data-zone-name mode="md" fill="outline" label-placement="floating" label=${t('ui.colZone')} placeholder=${t('ui.newZonePlaceholder')} .value=${this.newZoneName}
+              @ionInput=${(e: CustomEvent) => { this.newZoneName = (e.target as HTMLInputElement).value || ''; }}></ion-input>
+          </div>
+          <div class="add-act">
+            <ion-button fill="outline" ?disabled=${this.saving || !this.newZoneName.trim()} @click=${() => this.addZone()}>${t('ui.addZone')}</ion-button>
+          </div>
         </div>
-        <div class="sheet-foot">
-          <ion-button fill="outline" ?disabled=${this.saving || !this.newZoneName.trim()} @click=${() => this.addZone()}>${t('ui.addZone')}</ion-button>
-          <ion-button ?disabled=${this.saving || !this.zones.length} @click=${() => this.addTable()}>${t('ui.addTable')}</ion-button>
+        <div class="add-block">
+          <div class="field">
+            <ion-input data-table-number mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldTableNumber')} placeholder=${t('ui.autoNumberPlaceholder')} .value=${this.newTableNumber}
+              @ionInput=${(e: CustomEvent) => { this.newTableNumber = (e.target as HTMLInputElement).value || ''; }}></ion-input>
+          </div>
+          <div class="add-act">
+            <ion-button ?disabled=${this.saving || !this.zones.length} @click=${() => this.addTable()}>${t('ui.addTable')}</ion-button>
+          </div>
         </div>
       </div>
     </div>`;
@@ -796,6 +871,7 @@ export class ErpTablesCanvas extends LitElement {
           <span class="t">${t('ui.editTable')}</span>
           <ion-button class="x" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.edit = undefined; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
+        ${this.renderError()}
         <div class="row2">
           <div class="field">
             <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldNumber')} .value=${table.number} @ionInput=${(e: CustomEvent) => this.patchEdit({ number: (e.target as HTMLInputElement).value || '' })}></ion-input></div>
@@ -835,6 +911,7 @@ export class ErpTablesCanvas extends LitElement {
           <span class="t">${t('ui.editZone')}</span>
           <ion-button class="x" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.zoneEdit = undefined; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
+        ${this.renderError()}
         <div class="field">
           <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.colName')} .value=${z.name} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, name: (e.target as HTMLInputElement).value || '' }; }}></ion-input></div>
         <div class="field">
