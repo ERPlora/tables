@@ -656,3 +656,194 @@ describe('the plan says WHO is serving the occupied table (tables#74)', () => {
     expect(tiles(el)[0].getAttribute('aria-label') ?? '').toContain('Marta');
   });
 });
+
+// ── tables#83 · tables#84 ─────────────────────────────────────────────────────────────────────
+//
+// Two defects of the SAME two sheets of the floor plan («Add» and «Edit table»), so they share a
+// harness.
+//
+// tables#83 — the «Add» sheet showed ONE text field (labelled «Zone») and TWO actions. «Add zone»
+// used it; «Add table» IGNORED it and created the table with a running number. Typing «QA1» and
+// tapping «Add table» produced a table called «1», with no warning. A field that discards what you
+// type is worse than no field: it promises something it does not do, and whoever names their
+// tables (M1, Terraza-3, Barra-1…) only finds out afterwards, one rename at a time.
+//
+// The market splits in two and the winner serves both sides. Lightspeed K-Series, Clover Dining
+// and Square's «Custom Table Names» ask for the name when the table is created; TouchBistro, Odoo,
+// Toast and Revel drop the table with a running number and let you rename it — but NONE of them
+// shows a field it then throws away: the ones that do not ask simply have no field. Square names
+// the choice outright («Custom Table Names» or «Automatic Table Names»), and that is what is fixed
+// here: each action gets its OWN labelled field, what you type in the table one is the number of
+// the table, and left blank the running number still does the job. Full table in the issue.
+//
+// tables#84 — `.field` is a COLUMN flex box, and its child rule said `flex: 1 1 11rem`. In a
+// column container the basis is the HEIGHT, so every field claimed 176 px for a ~56 px control:
+// that is the 100+ px of blank the QA measured between «Number / Capacity» and «Name», and the
+// hole between the field and the buttons of «Add». happy-dom does no layout, but it does resolve
+// the cascade, so the contract that makes the layout possible is assertable right here.
+
+/** Records every command the sheets fire, so a test reads WHAT was sent, not what was typed. */
+function recordCommands(): Array<{ name: string; payload: Record<string, unknown> }> {
+  const sent: Array<{ name: string; payload: Record<string, unknown> }> = [];
+  const sdk = (globalThis as Record<string, unknown>).erplora as Record<string, unknown>;
+  sdk.command = async (name: string, payload: Record<string, unknown>) => {
+    sent.push({ name, payload });
+    return {};
+  };
+  return sent;
+}
+
+async function settle(el: Canvas) {
+  await el.updateComplete;
+  await new Promise((r) => setTimeout(r, 0));
+  await el.updateComplete;
+}
+
+async function openAddSheet(el: Canvas): Promise<HTMLElement> {
+  el.shadowRoot.querySelector<HTMLElement>('ion-button[data-add]')!.click();
+  await el.updateComplete;
+  const sheet = el.shadowRoot.querySelector<HTMLElement>('.sheet');
+  if (!sheet) throw new Error('the «add» control opened no sheet');
+  return sheet;
+}
+
+/** Types into an Ionic control the way the component listens to it (`ionInput` on the target). */
+function typeInto(root: ParentNode, selector: string, value: string) {
+  const input = root.querySelector<HTMLElement & { value: string }>(selector);
+  if (!input) throw new Error(`the sheet has no field matching ${selector}`);
+  input.value = value;
+  input.dispatchEvent(new CustomEvent('ionInput'));
+}
+
+const buttonNamed = (root: ParentNode, label: string) =>
+  [...root.querySelectorAll<HTMLElement>('ion-button')].find((b) => (b.textContent ?? '').trim() === label);
+
+const ZONE_FIELD = 'ion-input[data-zone-name]';
+const TABLE_FIELD = 'ion-input[data-table-number]';
+
+describe('the «Add» sheet of the floor plan honours what you type (tables#83)', () => {
+  it('what you type in the table field IS the number of the table it creates', async () => {
+    stubHub([tableRow({ id: 't1', number: '1' })]);
+    const el = await mountCanvasEl();
+    const sent = recordCommands();
+    const sheet = await openAddSheet(el);
+    typeInto(sheet, TABLE_FIELD, 'QA1');
+    buttonNamed(sheet, 'ui.addTable')!.click();
+    await settle(el);
+    const created = sent.find((c) => c.name === 'tables.tables.create');
+    expect(created, 'tapping «add table» created nothing').toBeTruthy();
+    expect(created!.payload.number, 'the name typed by the user was thrown away').toBe('QA1');
+  });
+
+  it('left blank, the table still gets the next running number', async () => {
+    stubHub([tableRow({ id: 't1', number: '1' })]);
+    const el = await mountCanvasEl();
+    const sent = recordCommands();
+    const sheet = await openAddSheet(el);
+    buttonNamed(sheet, 'ui.addTable')!.click();
+    await settle(el);
+    expect(sent.find((c) => c.name === 'tables.tables.create')!.payload.number).toBe('2');
+  });
+
+  it('the running number skips a number already used in the zone', async () => {
+    // Two tables, «1» and «3»: counting them and adding one lands on «3» again, and the plan ends
+    // up with two tiles reading the same number.
+    stubHub([tableRow({ id: 't1', number: '1' }), tableRow({ id: 't3', number: '3' })]);
+    const el = await mountCanvasEl();
+    const sent = recordCommands();
+    const sheet = await openAddSheet(el);
+    buttonNamed(sheet, 'ui.addTable')!.click();
+    await settle(el);
+    const created = sent.find((c) => c.name === 'tables.tables.create')!;
+    expect(created.payload.number, 'the new table repeats a number already on the plan').not.toBe('3');
+    expect(created.payload.number).toBe('4');
+  });
+
+  it('the zone field and the table field are separate: neither leaks into the other', async () => {
+    stubHub([tableRow({ id: 't1', number: '1' })]);
+    const el = await mountCanvasEl();
+    const sent = recordCommands();
+    const sheet = await openAddSheet(el);
+    typeInto(sheet, ZONE_FIELD, 'Terraza');
+    buttonNamed(sheet, 'ui.addTable')!.click();
+    await settle(el);
+    expect(sent.find((c) => c.name === 'tables.tables.create')!.payload.number)
+      .not.toBe('Terraza');
+
+    const sheet2 = await openAddSheet(el);
+    typeInto(sheet2, TABLE_FIELD, 'M7');
+    buttonNamed(sheet2, 'ui.addZone')!.click();
+    await settle(el);
+    const zone = sent.find((c) => c.name === 'tables.zones.create');
+    expect(zone, 'the zone was not created from its own field').toBeTruthy();
+    expect(zone!.payload.name, 'the table number became the name of the zone').not.toBe('M7');
+  });
+
+  it('the zone field still names the zone it creates', async () => {
+    stubHub([tableRow({ id: 't1', number: '1' })]);
+    const el = await mountCanvasEl();
+    const sent = recordCommands();
+    const sheet = await openAddSheet(el);
+    typeInto(sheet, ZONE_FIELD, 'Terraza');
+    buttonNamed(sheet, 'ui.addZone')!.click();
+    await settle(el);
+    expect(sent.find((c) => c.name === 'tables.zones.create')!.payload.name).toBe('Terraza');
+  });
+});
+
+describe('the sheets read as a form, not as a broken screen (tables#84)', () => {
+  /** Asserts the layout contract over the fields of the sheet that is open RIGHT NOW.
+   *  A closed sheet is detached from the DOM and `getComputedStyle` goes blank on it, so every
+   *  sheet is measured while it is on screen. */
+  function assertFieldsAreContiguous(el: Canvas, which: string): number {
+    const fields = [...el.shadowRoot.querySelectorAll<HTMLElement>('.sheet .field')];
+    expect(fields.length, `the «${which}» sheet painted no field — the check would be vacuous`).toBeGreaterThan(0);
+    for (const field of fields) {
+      expect(getComputedStyle(field).flexDirection, `a field of «${which}» is not a column`).toBe('column');
+      const controls = [...field.querySelectorAll<HTMLElement>('ion-input, ion-select')];
+      expect(controls.length, `a .field of «${which}» with no control in it`).toBeGreaterThan(0);
+      for (const control of controls) {
+        const cs = getComputedStyle(control);
+        const label = control.getAttribute('label') ?? control.tagName;
+        // happy-dom only reports what the cascade actually DECLARES, so «not declared» ('') is the
+        // healthy answer here and a length is the defect. `flex: 1 1 11rem` reports '11rem'.
+        expect(
+          ['', 'auto', 'content'],
+          `«${label}» (${which}) claims «${cs.flexBasis}» of HEIGHT inside a column field`,
+        ).toContain(cs.flexBasis);
+        expect(
+          ['', '0'],
+          `«${label}» (${which}) grows to «${cs.flexGrow}» and fills the height of its field`,
+        ).toContain(cs.flexGrow);
+      }
+    }
+    return fields.length;
+  }
+
+  it('no control of the three sheets claims a fixed slice of HEIGHT', async () => {
+    stubHub([tableRow()]);
+    const el = await mountCanvasEl();
+    let seen = 0;
+
+    await openAddSheet(el);
+    seen += assertFieldsAreContiguous(el, 'add');
+    (el as unknown as { addOpen: boolean }).addOpen = false;
+    await el.updateComplete;
+
+    el.shadowRoot.querySelector<HTMLElement>('.mesa')!
+      .dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await el.updateComplete;
+    seen += assertFieldsAreContiguous(el, 'edit table');
+    (el as unknown as { edit: unknown }).edit = undefined;
+    await el.updateComplete;
+
+    // Opening the zone sheet goes through `tables.zones.get`, so it needs the microtask flush.
+    el.shadowRoot.querySelector<HTMLElement>('ion-button[aria-label="ui.editZone"]')!.click();
+    await settle(el);
+    seen += assertFieldsAreContiguous(el, 'edit zone');
+
+    // The check has to see the positive: if the sheets stopped opening, «no bad field» would be
+    // true of an empty list.
+    expect(seen, 'too few fields measured — the three sheets did not open').toBeGreaterThanOrEqual(7);
+  });
+});
