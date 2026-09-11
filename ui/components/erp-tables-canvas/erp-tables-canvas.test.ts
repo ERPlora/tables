@@ -580,7 +580,7 @@ describe('the plan fits on a phone: the header collapses (tables#64)', () => {
     const labels = [...el.shadowRoot.querySelectorAll('ion-button')].map((b) => (b.textContent ?? '').trim());
     expect(labels, 'the admin buttons are still inline').not.toContain('ui.addZone');
     expect(labels, 'the admin buttons are still inline').not.toContain('ui.addTable');
-    expect(el.shadowRoot.querySelector('ion-button[data-add]'), 'no single «add» control').toBeTruthy();
+    expect(el.shadowRoot.querySelector('ion-button[data-testid="tables-floor-add"]'), 'no single «add» control').toBeTruthy();
   });
 
   it('the «add» control opens a sheet with both actions and works with NO zones yet', async () => {
@@ -590,7 +590,7 @@ describe('the plan fits on a phone: the header collapses (tables#64)', () => {
       queryAll: async () => [],
     };
     const el = await mountCanvasEl();
-    const add = el.shadowRoot.querySelector<HTMLElement>('ion-button[data-add]');
+    const add = el.shadowRoot.querySelector<HTMLElement>('ion-button[data-testid="tables-floor-add"]');
     expect(add, 'with no zones there is no way to create the first one').toBeTruthy();
     add!.click();
     await el.updateComplete;
@@ -700,7 +700,7 @@ async function settle(el: Canvas) {
 }
 
 async function openAddSheet(el: Canvas): Promise<HTMLElement> {
-  el.shadowRoot.querySelector<HTMLElement>('ion-button[data-add]')!.click();
+  el.shadowRoot.querySelector<HTMLElement>('ion-button[data-testid="tables-floor-add"]')!.click();
   await el.updateComplete;
   const sheet = el.shadowRoot.querySelector<HTMLElement>('.sheet');
   if (!sheet) throw new Error('the «add» control opened no sheet');
@@ -725,8 +725,8 @@ function openTableEdit(el: Canvas, number: string) {
   tile.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 }
 
-const ZONE_FIELD = 'ion-input[data-zone-name]';
-const TABLE_FIELD = 'ion-input[data-table-number]';
+const ZONE_FIELD = 'ion-input[data-testid="tables-floor-new-zone-name"]';
+const TABLE_FIELD = 'ion-input[data-testid="tables-floor-new-table-number"]';
 
 describe('the «Add» sheet of the floor plan honours what you type (tables#83)', () => {
   it('what you type in the table field IS the number of the table it creates', async () => {
