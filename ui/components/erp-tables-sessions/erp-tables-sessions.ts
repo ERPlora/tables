@@ -362,14 +362,15 @@ export class ErpTablesSessions extends LitElement {
   render() {
     const t = (k: string, p?: Record<string, unknown>): string => erplora().t(CATALOG, k, p);
     return html`<div class="page">
-      ${this.error ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : nothing}
-      ${this.ctrl?.error ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : nothing}
+      ${this.error ? html`<ok-inline-feedback data-testid="tables-sessions-error" tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : nothing}
+      ${this.ctrl?.error ? html`<ok-inline-feedback data-testid="tables-sessions-load-error" tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : nothing}
 
-      <ion-segment value=${this.segment} @ionChange=${(e: CustomEvent) => this.onSegment(String((e.detail as { value: string }).value))}>
-        ${SEGMENTS.map((s) => html`<ion-segment-button value=${s.id}><ion-label>${t(s.key)}</ion-label></ion-segment-button>`)}
+      <ion-segment data-testid="tables-sessions-tabs" value=${this.segment} @ionChange=${(e: CustomEvent) => this.onSegment(String((e.detail as { value: string }).value))}>
+        ${SEGMENTS.map((s) => html`<ion-segment-button data-testid=${`tables-sessions-tab-${s.id}`} value=${s.id}><ion-label>${t(s.key)}</ion-label></ion-segment-button>`)}
       </ion-segment>
 
       <ok-data-table
+        testid="tables-sessions-table"
         .serverSide=${true}
         .fill=${true}
         .labels=${dataTableLabels(erplora().locale)}
@@ -397,12 +398,12 @@ export class ErpTablesSessions extends LitElement {
       ></ok-data-table>
 
       <!-- Detail. ion-modal reparents to <body>: Ionic classes only, no shadow CSS. -->
-      <ion-modal .isOpen=${!!this.detail} @ionModalDidDismiss=${() => (this.detail = null)}>
+      <ion-modal data-testid="tables-sessions-detail" .isOpen=${!!this.detail} @ionModalDidDismiss=${() => (this.detail = null)}>
         ${this.detail ? this.renderDetail(this.detail, t) : nothing}
       </ion-modal>
 
       <!-- Close confirmation. -->
-      <ion-modal .isOpen=${!!this.closeTarget} @ionModalDidDismiss=${() => (this.closeTarget = null)}>
+      <ion-modal data-testid="tables-sessions-close-modal" .isOpen=${!!this.closeTarget} @ionModalDidDismiss=${() => (this.closeTarget = null)}>
         <ion-header class="ion-no-border"><ion-toolbar><ion-title>${t('ui.closeSessionTitle')}</ion-title></ion-toolbar></ion-header>
         <ion-content class="ion-padding">
           <ion-list lines="none">
@@ -410,8 +411,8 @@ export class ErpTablesSessions extends LitElement {
               ${t('ui.closeSessionImpact', { number: this.closeTarget?.table_number ?? '—', count: this.closeTarget?.guests_count ?? 0 })}
             </ion-label></ion-item>
           </ion-list>
-          <ion-button class="ion-margin-top" expand="block" color="danger" ?disabled=${this.saving} @click=${() => this.confirmClose()}>${t('ui.actionCloseSession')}</ion-button>
-          <ion-button expand="block" fill="outline" @click=${() => (this.closeTarget = null)}>${t('ui.cancel')}</ion-button>
+          <ion-button data-testid="tables-sessions-close-confirm" class="ion-margin-top" expand="block" color="danger" ?disabled=${this.saving} @click=${() => this.confirmClose()}>${t('ui.actionCloseSession')}</ion-button>
+          <ion-button data-testid="tables-sessions-close-cancel" expand="block" fill="outline" @click=${() => (this.closeTarget = null)}>${t('ui.cancel')}</ion-button>
         </ion-content>
       </ion-modal>
     </div>`;
@@ -422,7 +423,7 @@ export class ErpTablesSessions extends LitElement {
     return html`
       <ion-header class="ion-no-border"><ion-toolbar>
         <ion-title>${s.table_number ? t('ui.tableLabel', { number: s.table_number }) : t('ui.noTable')}</ion-title>
-        <ion-buttons slot="end"><ion-button @click=${() => (this.detail = null)}>${t('ui.close')}</ion-button></ion-buttons>
+        <ion-buttons slot="end"><ion-button data-testid="tables-sessions-detail-close" @click=${() => (this.detail = null)}>${t('ui.close')}</ion-button></ion-buttons>
       </ion-toolbar></ion-header>
       <ion-content class="ion-padding">
         <ion-list lines="none">
@@ -437,7 +438,7 @@ export class ErpTablesSessions extends LitElement {
           ${row(t('ui.colNotes'), s.notes || '—')}
         </ion-list>
         ${s.status === 'active' && can('tables.change_tablesession')
-          ? html`<ion-button class="ion-margin-top" expand="block" color="danger" @click=${() => { this.closeTarget = s; this.detail = null; }}>${t('ui.actionCloseSession')}</ion-button>`
+          ? html`<ion-button data-testid="tables-sessions-detail-close-session" class="ion-margin-top" expand="block" color="danger" @click=${() => { this.closeTarget = s; this.detail = null; }}>${t('ui.actionCloseSession')}</ion-button>`
           : nothing}
       </ion-content>`;
   }

@@ -683,24 +683,24 @@ export class ErpTablesPosZones extends LitElement {
     // La mesa elegida se muestra como contexto de la cuenta, igual que el cliente; dentro del
     // selector queda la acción de retirarla. Así elegir Mesa 6 no sustituye el botón por un chip.
     return html`
-      <ion-button class="trigger" fill="clear" ?data-assigned=${!!this.selectedId}
+      <ion-button data-testid="tables-pos-trigger" class="trigger" fill="clear" ?data-assigned=${!!this.selectedId}
         aria-label=${this.selectedId ? `${t('ui.assignTable')}: ${this.selectedLabel}` : t('ui.assignTable')}
         title=${this.selectedId ? `${t('ui.assignTable')}: ${this.selectedLabel}` : t('ui.assignTable')}
         @click=${() => this.openPicker()}>
         <ion-icon slot="icon-only" name=${this.selectedId ? 'grid' : 'grid-outline'}></ion-icon>
       </ion-button>
 
-      <dialog class="sheet" aria-label=${title}
+      <dialog data-testid="tables-pos-sheet" class="sheet" aria-label=${title}
         @close=${() => { this.open = false; }}
         @click=${(e: Event) => { if (e.target === e.currentTarget) this.open = false; }}>
         <div class="sheet-h">
           <span class="t">${title}</span>
-          <ion-button class="close" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.open = false; }}>
+          <ion-button data-testid="tables-pos-close" class="close" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.open = false; }}>
             <ion-icon slot="icon-only" name="close-outline"></ion-icon>
           </ion-button>
         </div>
 
-        ${this.error ? html`<p style="color:#d9480f">${this.error}</p>` : nothing}
+        ${this.error ? html`<p data-testid="tables-pos-error" style="color:#d9480f">${this.error}</p>` : nothing}
 
         ${this.guestsPrompt ? this.renderGuestsPrompt(t) : nothing}
 
@@ -708,29 +708,29 @@ export class ErpTablesPosZones extends LitElement {
           ? html`<div class="actions">
               <span class="lbl">${t('ui.tableLabel', { number: srcNum })}</span>
               ${can('tables.transfer_tablesession')
-                ? html`<ion-button fill="outline" @click=${() => this.startTransfer()}>
+                ? html`<ion-button data-testid="tables-pos-transfer" fill="outline" @click=${() => this.startTransfer()}>
                 <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>${t('ui.transfer')}
               </ion-button>
-              <ion-button fill="outline" @click=${() => this.startMerge()}>
+              <ion-button data-testid="tables-pos-merge" fill="outline" @click=${() => this.startMerge()}>
                 <ion-icon slot="start" name="git-merge-outline"></ion-icon>${t('ui.merge')}
               </ion-button>`
                 : nothing}
-              <ion-button fill="outline" @click=${() => void this.doSplit()}>
+              <ion-button data-testid="tables-pos-split" fill="outline" @click=${() => void this.doSplit()}>
                 <ion-icon slot="start" name="git-branch-outline"></ion-icon>${t('ui.split')}
               </ion-button>
-              <ion-button fill="outline" @click=${() => this.startEditGuests()}>
+              <ion-button data-testid="tables-pos-guests" fill="outline" @click=${() => this.startEditGuests()}>
                 <ion-icon slot="start" name="people-outline"></ion-icon>${t('ui.guests')}
               </ion-button>
             </div>`
           : nothing}
         ${inAction
-          ? html`<div class="hint">${this.mode === 'transfer' ? t('ui.pickFreeTable') : t('ui.pickOccupiedTable')}</div>`
+          ? html`<div class="hint" data-testid="tables-pos-hint">${this.mode === 'transfer' ? t('ui.pickFreeTable') : t('ui.pickOccupiedTable')}</div>`
           : nothing}
 
         ${this.zones.length && !this.guestsPrompt
-          ? html`<ion-segment scrollable value=${this.activeZone}
+          ? html`<ion-segment data-testid="tables-pos-zones" scrollable value=${this.activeZone}
               @ionChange=${(e: CustomEvent) => { this.activeZone = (e.detail as { value: string }).value; }}>
-              ${this.zones.map((z) => html`<ion-segment-button value=${z.id}><ion-label>${z.name}</ion-label></ion-segment-button>`)}
+              ${this.zones.map((z) => html`<ion-segment-button data-testid=${`tables-pos-zone-tab-${z.id}`} value=${z.id}><ion-label>${z.name}</ion-label></ion-segment-button>`)}
             </ion-segment>`
           : nothing}
 
@@ -747,11 +747,11 @@ export class ErpTablesPosZones extends LitElement {
             return html`
             <div class="mesa-wrap">
               ${showKebab
-                ? html`<ion-button class="kebab" fill="clear" aria-label=${t('ui.tableActions')} @click=${(e: Event) => this.openActions(tb, e)}>
+                ? html`<ion-button data-testid=${`tables-pos-actions-${tb.id}`} class="kebab" fill="clear" aria-label=${t('ui.tableActions')} @click=${(e: Event) => this.openActions(tb, e)}>
                     <ion-icon slot="icon-only" name="ellipsis-vertical"></ion-icon>
                   </ion-button>`
                 : nothing}
-              <button class="mesa ${validTarget ? 'target' : ''}" aria-pressed=${this.selectedId === tb.id}
+              <button data-testid=${`tables-pos-table-${tb.id}`} class="mesa ${validTarget ? 'target' : ''}" aria-pressed=${this.selectedId === tb.id}
                 ?disabled=${outOfService || (inAction && !validTarget)}
                 title=${(outOfService ? t('ui.blockedHint') : holdTitle(tb)) || nothing}
                 style=${`border-color:${STATUS_COLOR[tb.status] ?? '#d9d6cf'}`} @click=${() => this.pick(tb)}>
@@ -768,22 +768,22 @@ export class ErpTablesPosZones extends LitElement {
             </div>`;
           })}
           ${!this.loading && !this.tablesInZone.length ? html`
-            <div class="empty">
+            <div class="empty" data-testid="tables-pos-empty">
               <ion-icon name="grid-outline"></ion-icon>
               <p>${t('ui.noTablesInZone')}</p>
               <p class="empty-hint">${t('ui.noTablesInZoneHint')}</p>
             </div>` : nothing}
-          ${this.loading ? html`<div class="empty">${t('ui.loading')}</div>` : nothing}
+          ${this.loading ? html`<div class="empty" data-testid="tables-pos-loading">${t('ui.loading')}</div>` : nothing}
         </div>`}
 
         <div class="foot">
           ${!inAction && this.selectedId
-            ? html`<ion-button color="danger" fill="clear" @click=${() => void this.clear()}>
+            ? html`<ion-button data-testid="tables-pos-remove" color="danger" fill="clear" @click=${() => void this.clear()}>
                 ${t('ui.removeTable')}
               </ion-button>`
             : nothing}
           ${inAction
-            ? html`<ion-button fill="clear" @click=${() => this.cancelAction()}>${t('ui.cancel')}</ion-button>`
+            ? html`<ion-button data-testid="tables-pos-cancel" fill="clear" @click=${() => this.cancelAction()}>${t('ui.cancel')}</ion-button>`
             : nothing}
         </div>
       </dialog>
@@ -796,21 +796,21 @@ export class ErpTablesPosZones extends LitElement {
     const over = p.value > p.table.capacity;
     const cta = p.kind === 'seat' ? t('ui.seatGuests', { count: p.value }) : t('ui.saveGuests');
     return html`
-      <div class="guests" role="group" aria-label=${t('ui.guestsTitle', { number: p.table.number })}>
+      <div class="guests" data-testid="tables-pos-guests-prompt" role="group" aria-label=${t('ui.guestsTitle', { number: p.table.number })}>
         <div class="hint">${t('ui.guestsTitle', { number: p.table.number })} · ${t('ui.paxCount', { count: p.table.capacity })}</div>
         <div class="stepper">
-          <button class="minus" aria-label="−" ?disabled=${p.value <= 1} @click=${() => this.bumpGuests(-1)}>−</button>
-          <span class="value" aria-live="polite">${p.value}</span>
-          <button class="plus" aria-label="+" @click=${() => this.bumpGuests(1)}>+</button>
+          <button data-testid="tables-pos-guests-minus" class="minus" aria-label="−" ?disabled=${p.value <= 1} @click=${() => this.bumpGuests(-1)}>−</button>
+          <span data-testid="tables-pos-guests-value" class="value" aria-live="polite">${p.value}</span>
+          <button data-testid="tables-pos-guests-plus" class="plus" aria-label="+" @click=${() => this.bumpGuests(1)}>+</button>
         </div>
         <div class="quick">
           ${[1, 2, 3, 4, 5, 6, 7, 8].map((n) => html`
-            <button aria-pressed=${p.value === n} @click=${() => void this.confirmGuests(n)}>${n}</button>`)}
+            <button data-testid=${`tables-pos-guests-quick-${n}`} aria-pressed=${p.value === n} @click=${() => void this.confirmGuests(n)}>${n}</button>`)}
         </div>
-        ${over ? html`<div class="over">${t('ui.overCapacity', { capacity: p.table.capacity })}</div>` : nothing}
+        ${over ? html`<div class="over" data-testid="tables-pos-guests-over">${t('ui.overCapacity', { capacity: p.table.capacity })}</div>` : nothing}
         <div class="cta">
-          <ion-button class="back" fill="clear" @click=${() => this.cancelGuests()}>${t('ui.back')}</ion-button>
-          <ion-button class="seat" size="default" @click=${() => void this.confirmGuests()}>${cta}</ion-button>
+          <ion-button data-testid="tables-pos-guests-back" class="back" fill="clear" @click=${() => this.cancelGuests()}>${t('ui.back')}</ion-button>
+          <ion-button data-testid="tables-pos-guests-confirm" class="seat" size="default" @click=${() => void this.confirmGuests()}>${cta}</ion-button>
         </div>
       </div>`;
   }

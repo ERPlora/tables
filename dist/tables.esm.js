@@ -2576,7 +2576,7 @@ var ErpTablesCanvas = class extends i3 {
     return this.addOpen || !!this.edit || !!this.zoneEdit;
   }
   renderError() {
-    return this.error ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : A;
+    return this.error ? b2`<ok-inline-feedback data-testid="tables-floor-error" tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : A;
   }
   // ── Altas ───────────────────────────────────────────────────────────────────────────────────
   /** tables#83 — a number identifies a table to whoever carries the plates, so a zone cannot hand
@@ -2762,18 +2762,18 @@ var ErpTablesCanvas = class extends i3 {
            configuration — the same shape Square gives its mobile floor plan. The legend is gone
            because the status is now written on every tile. -->
       <div class="zonebar">
-        ${this.zones.length ? b2`<ion-segment scrollable value=${this.activeZone}
+        ${this.zones.length ? b2`<ion-segment data-testid="tables-floor-zones" scrollable value=${this.activeZone}
               @ionChange=${(e5) => {
       this.activeZone = e5.detail.value;
     }}>
-              ${this.zones.map((z2) => b2`<ion-segment-button value=${z2.id}><ion-label>${z2.name}</ion-label></ion-segment-button>`)}
+              ${this.zones.map((z2) => b2`<ion-segment-button data-testid=${`tables-floor-zone-tab-${z2.id}`} value=${z2.id}><ion-label>${z2.name}</ion-label></ion-segment-button>`)}
             </ion-segment>` : b2`<span class="flex"></span>`}
-        <ion-button data-add fill="clear" aria-label=${t5("ui.addAction")} title=${t5("ui.addAction")}
+        <ion-button data-testid="tables-floor-add" fill="clear" aria-label=${t5("ui.addAction")} title=${t5("ui.addAction")}
           @click=${() => {
       this.error = "";
       this.addOpen = true;
     }}><ion-icon slot="icon-only" name="add-outline"></ion-icon></ion-button>
-        <ion-button fill="clear" aria-label=${t5("ui.editZone")} title=${t5("ui.editZone")}
+        <ion-button data-testid="tables-floor-zone-edit" fill="clear" aria-label=${t5("ui.editZone")} title=${t5("ui.editZone")}
           ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}><ion-icon slot="icon-only" name="create-outline"></ion-icon></ion-button>
       </div>
 
@@ -2789,6 +2789,7 @@ var ErpTablesCanvas = class extends i3 {
       const waiter = this.waiterName(tb);
       return b2`
           <div class=${`mesa ${tb.shape === "round" ? "round" : ""} ${tb.id === this.dragId && this.dragMoved ? "dragging" : ""}`}
+            data-testid=${`tables-floor-tile-${tb.id}`}
             role="button" tabindex="0"
             aria-label=${this.tableName(tb, t5)}
             @keydown=${(e5) => this.onTableKey(tb, e5)}
@@ -2809,9 +2810,9 @@ var ErpTablesCanvas = class extends i3 {
             </div>
           </div>`;
     })}
-        ${!this.loading && !this.zones.length ? b2`<ok-empty-state icon="grid-outline" message=${t5("ui.createZoneToStart")}></ok-empty-state>` : A}
-        ${!this.loading && this.zones.length && !this.tablesInZone.length ? b2`<ok-empty-state icon="square-outline" message=${t5("ui.noTablesInZonePrompt")}></ok-empty-state>` : A}
-        ${this.loading ? b2`<div class="empty">${t5("ui.loading")}</div>` : A}
+        ${!this.loading && !this.zones.length ? b2`<ok-empty-state data-testid="tables-floor-empty-zones" icon="grid-outline" message=${t5("ui.createZoneToStart")}></ok-empty-state>` : A}
+        ${!this.loading && this.zones.length && !this.tablesInZone.length ? b2`<ok-empty-state data-testid="tables-floor-empty-tables" icon="square-outline" message=${t5("ui.noTablesInZonePrompt")}></ok-empty-state>` : A}
+        ${this.loading ? b2`<div class="empty" data-testid="tables-floor-loading">${t5("ui.loading")}</div>` : A}
       </div>
       <p class="hint">${t5("ui.canvasHint")}</p>
 
@@ -2826,34 +2827,34 @@ var ErpTablesCanvas = class extends i3 {
     return b2`<div class="scrim" @click=${(e5) => {
       if (e5.target.classList.contains("scrim")) this.addOpen = false;
     }}>
-      <div class="sheet">
+      <div class="sheet" data-testid="tables-floor-add-sheet">
         <div class="sheet-h">
           <span class="t">${t5("ui.addTitle")}</span>
-          <ion-button class="x" fill="clear" aria-label=${t5("ui.close")} @click=${() => {
+          <ion-button data-testid="tables-floor-add-close" class="x" fill="clear" aria-label=${t5("ui.close")} @click=${() => {
       this.addOpen = false;
     }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
         ${this.renderError()}
         <div class="add-block">
           <div class="field">
-            <ion-input data-zone-name mode="md" fill="outline" label-placement="floating" label=${t5("ui.colZone")} placeholder=${t5("ui.newZonePlaceholder")} .value=${this.newZoneName}
+            <ion-input data-testid="tables-floor-new-zone-name" mode="md" fill="outline" label-placement="floating" label=${t5("ui.colZone")} placeholder=${t5("ui.newZonePlaceholder")} .value=${this.newZoneName}
               @ionInput=${(e5) => {
       this.newZoneName = e5.target.value || "";
     }}></ion-input>
           </div>
           <div class="add-act">
-            <ion-button fill="outline" ?disabled=${this.saving || !this.newZoneName.trim()} @click=${() => this.addZone()}>${t5("ui.addZone")}</ion-button>
+            <ion-button data-testid="tables-floor-new-zone-submit" fill="outline" ?disabled=${this.saving || !this.newZoneName.trim()} @click=${() => this.addZone()}>${t5("ui.addZone")}</ion-button>
           </div>
         </div>
         <div class="add-block">
           <div class="field">
-            <ion-input data-table-number mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldTableNumber")} placeholder=${t5("ui.autoNumberPlaceholder")} .value=${this.newTableNumber}
+            <ion-input data-testid="tables-floor-new-table-number" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldTableNumber")} placeholder=${t5("ui.autoNumberPlaceholder")} .value=${this.newTableNumber}
               @ionInput=${(e5) => {
       this.newTableNumber = e5.target.value || "";
     }}></ion-input>
           </div>
           <div class="add-act">
-            <ion-button ?disabled=${this.saving || !this.zones.length} @click=${() => this.addTable()}>${t5("ui.addTable")}</ion-button>
+            <ion-button data-testid="tables-floor-new-table-submit" ?disabled=${this.saving || !this.zones.length} @click=${() => this.addTable()}>${t5("ui.addTable")}</ion-button>
           </div>
         </div>
       </div>
@@ -2864,40 +2865,40 @@ var ErpTablesCanvas = class extends i3 {
     return b2`<div class="scrim" @click=${(e5) => {
       if (e5.target.classList.contains("scrim")) this.edit = void 0;
     }}>
-      <div class="sheet">
+      <div class="sheet" data-testid="tables-floor-table-sheet">
         <div class="sheet-h">
           <span class="t">${t5("ui.editTable")}</span>
-          <ion-button class="x" fill="clear" aria-label=${t5("ui.close")} @click=${() => {
+          <ion-button data-testid="tables-floor-table-close" class="x" fill="clear" aria-label=${t5("ui.close")} @click=${() => {
       this.edit = void 0;
     }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
         ${this.renderError()}
         <div class="row2">
           <div class="field">
-            <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldNumber")} .value=${table.number} @ionInput=${(e5) => this.patchEdit({ number: e5.target.value || "" })}></ion-input></div>
+            <ion-input data-testid="tables-floor-table-number" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldNumber")} .value=${table.number} @ionInput=${(e5) => this.patchEdit({ number: e5.target.value || "" })}></ion-input></div>
           <div class="field">
-            <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldCapacity")} type="number" min="1" .value=${String(table.capacity)} @ionInput=${(e5) => this.patchEdit({ capacity: Number(e5.target.value) || 1 })}></ion-input></div>
+            <ion-input data-testid="tables-floor-table-capacity" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldCapacity")} type="number" min="1" .value=${String(table.capacity)} @ionInput=${(e5) => this.patchEdit({ capacity: Number(e5.target.value) || 1 })}></ion-input></div>
         </div>
         <div class="field">
-          <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldNameOptional")} .value=${table.name} @ionInput=${(e5) => this.patchEdit({ name: e5.target.value || "" })}></ion-input></div>
+          <ion-input data-testid="tables-floor-table-name" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldNameOptional")} .value=${table.name} @ionInput=${(e5) => this.patchEdit({ name: e5.target.value || "" })}></ion-input></div>
         <div class="row2">
           <div class="field">
-            <ion-select mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldShape")} .value=${table.shape} interface="popover" @ionChange=${(e5) => this.patchEdit({ shape: e5.detail.value })}>
+            <ion-select data-testid="tables-floor-table-shape" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldShape")} .value=${table.shape} interface="popover" @ionChange=${(e5) => this.patchEdit({ shape: e5.detail.value })}>
               ${SHAPES.map((s5) => b2`<ion-select-option value=${s5}>${t5(SHAPE_KEY[s5] ?? s5)}</ion-select-option>`)}
             </ion-select></div>
           <div class="field">
-            <ion-select mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldStatus")} .value=${table.status} interface="popover" @ionChange=${(e5) => this.patchEdit({ status: e5.detail.value })}>
+            <ion-select data-testid="tables-floor-table-status" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldStatus")} .value=${table.status} interface="popover" @ionChange=${(e5) => this.patchEdit({ status: e5.detail.value })}>
               ${STATUSES.map((s5) => b2`<ion-select-option value=${s5}>${t5(STATUS_KEY[s5] ?? s5)}</ion-select-option>`)}
             </ion-select></div>
         </div>
         <div class="field">
-          <ion-select mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldZone")} .value=${table.zone_id ?? ""} interface="popover" @ionChange=${(e5) => this.patchEdit({ zone_id: e5.detail.value || null })}>
+          <ion-select data-testid="tables-floor-table-zone" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldZone")} .value=${table.zone_id ?? ""} interface="popover" @ionChange=${(e5) => this.patchEdit({ zone_id: e5.detail.value || null })}>
             <ion-select-option value="">${t5("ui.noZone")}</ion-select-option>
             ${this.zones.map((z2) => b2`<ion-select-option value=${z2.id}>${z2.name}</ion-select-option>`)}
           </ion-select></div>
         <div class="sheet-foot">
-          <ion-button color="danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteTable()}>${t5("ui.delete")}</ion-button>
-          <ion-button ?disabled=${this.saving} @click=${() => this.saveTable()}>${this.saving ? t5("ui.saving") : t5("ui.save")}</ion-button>
+          <ion-button data-testid="tables-floor-table-delete" color="danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteTable()}>${t5("ui.delete")}</ion-button>
+          <ion-button data-testid="tables-floor-table-save" ?disabled=${this.saving} @click=${() => this.saveTable()}>${this.saving ? t5("ui.saving") : t5("ui.save")}</ion-button>
         </div>
       </div>
     </div>`;
@@ -2907,25 +2908,25 @@ var ErpTablesCanvas = class extends i3 {
     return b2`<div class="scrim" @click=${(e5) => {
       if (e5.target.classList.contains("scrim")) this.zoneEdit = void 0;
     }}>
-      <div class="sheet">
+      <div class="sheet" data-testid="tables-floor-zone-sheet">
         <div class="sheet-h">
           <span class="t">${t5("ui.editZone")}</span>
-          <ion-button class="x" fill="clear" aria-label=${t5("ui.close")} @click=${() => {
+          <ion-button data-testid="tables-floor-zone-close" class="x" fill="clear" aria-label=${t5("ui.close")} @click=${() => {
       this.zoneEdit = void 0;
     }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
         ${this.renderError()}
         <div class="field">
-          <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.colName")} .value=${z2.name} @ionInput=${(e5) => {
+          <ion-input data-testid="tables-floor-zone-name" mode="md" fill="outline" label-placement="floating" label=${t5("ui.colName")} .value=${z2.name} @ionInput=${(e5) => {
       this.zoneEdit = { ...z2, name: e5.target.value || "" };
     }}></ion-input></div>
         <div class="field">
-          <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldDescriptionOptional")} .value=${z2.description ?? ""} @ionInput=${(e5) => {
+          <ion-input data-testid="tables-floor-zone-description" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldDescriptionOptional")} .value=${z2.description ?? ""} @ionInput=${(e5) => {
       this.zoneEdit = { ...z2, description: e5.target.value || "" };
     }}></ion-input></div>
         <div class="sheet-foot">
-          <ion-button color="danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t5("ui.deleteZone")}</ion-button>
-          <ion-button ?disabled=${this.saving} @click=${() => this.saveZone()}>${this.saving ? t5("ui.saving") : t5("ui.save")}</ion-button>
+          <ion-button data-testid="tables-floor-zone-delete" color="danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t5("ui.deleteZone")}</ion-button>
+          <ion-button data-testid="tables-floor-zone-save" ?disabled=${this.saving} @click=${() => this.saveZone()}>${this.saving ? t5("ui.saving") : t5("ui.save")}</ion-button>
         </div>
       </div>
     </div>`;
@@ -5359,19 +5360,19 @@ var ErpTablesFloorPlan = class extends i3 {
   render() {
     const t5 = (k2, params) => erplora2().t(CATALOG2, k2, params);
     return b2`<div class="page">
-        ${this.formError ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.formError}</ok-inline-feedback>` : A}
-        ${this.ctrl?.error ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : A}
-        <ok-data-table .serverSide=${true} .fill=${true} .addable=${true} .columns=${this.columns} .views=${true} .cardTitle=${(r6) => String(r6.name || r6.number || "\u2014")} .cardIcon=${() => "grid-outline"} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${toColumnSort(this.ctrl?.state.sort)} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyTables")} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(toServerSort(e5.detail.sort), e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
+        ${this.formError ? b2`<ok-inline-feedback data-testid="tables-list-error" tone="danger" icon="alert-circle-outline">${this.formError}</ok-inline-feedback>` : A}
+        ${this.ctrl?.error ? b2`<ok-inline-feedback data-testid="tables-list-load-error" tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : A}
+        <ok-data-table testid="tables-list-table" .serverSide=${true} .fill=${true} .addable=${true} .columns=${this.columns} .views=${true} .cardTitle=${(r6) => String(r6.name || r6.number || "\u2014")} .cardIcon=${() => "grid-outline"} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${toColumnSort(this.ctrl?.state.sort)} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyTables")} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(toServerSort(e5.detail.sort), e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
           <!-- Alta de mesa: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
                solo con el panel abierto, el «+» de la barra abriría un panel vacío. -->
-          <form slot="create" class="form" @submit=${(e5) => this.createTable(e5)}>
-            <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.colNumber")} .value=${this.newNumber} @ionInput=${(e5) => this.newNumber = e5.target.value}></ion-input>
-            <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.colCapacity")} type="number" min="1" .value=${this.newCapacity} @ionInput=${(e5) => this.newCapacity = e5.target.value}></ion-input>
-            <ion-select mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldZone")} interface="popover" .value=${this.newZoneId} @ionChange=${(e5) => this.newZoneId = e5.detail.value || ""}>
+          <form slot="create" class="form" data-testid="tables-list-form" @submit=${(e5) => this.createTable(e5)}>
+            <ion-input data-testid="tables-list-number" mode="md" fill="outline" label-placement="floating" label=${t5("ui.colNumber")} .value=${this.newNumber} @ionInput=${(e5) => this.newNumber = e5.target.value}></ion-input>
+            <ion-input data-testid="tables-list-capacity" mode="md" fill="outline" label-placement="floating" label=${t5("ui.colCapacity")} type="number" min="1" .value=${this.newCapacity} @ionInput=${(e5) => this.newCapacity = e5.target.value}></ion-input>
+            <ion-select data-testid="tables-list-zone" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldZone")} interface="popover" .value=${this.newZoneId} @ionChange=${(e5) => this.newZoneId = e5.detail.value || ""}>
               <ion-select-option value="">${t5("ui.noZone")}</ion-select-option>
               ${this.zones.map((z2) => b2`<ion-select-option value=${z2.id}>${z2.name}</ion-select-option>`)}
             </ion-select>
-            <ion-button type="submit" ?disabled=${this.saving || !this.newNumber}>${this.saving ? t5("ui.saving") : t5("ui.addTable")}</ion-button>
+            <ion-button data-testid="tables-list-submit" type="submit" ?disabled=${this.saving || !this.newNumber}>${this.saving ? t5("ui.saving") : t5("ui.addTable")}</ion-button>
           </form>
         </ok-data-table>
       </div>`;
@@ -5966,14 +5967,14 @@ var ErpTablesPosZones = class extends i3 {
     const srcNum = this.actionSource?.number ?? "";
     const title = this.mode === "transfer" ? t5("ui.transferTitle", { number: srcNum }) : this.mode === "merge" ? t5("ui.mergeTitle", { number: srcNum }) : t5("ui.chooseTable");
     return b2`
-      <ion-button class="trigger" fill="clear" ?data-assigned=${!!this.selectedId}
+      <ion-button data-testid="tables-pos-trigger" class="trigger" fill="clear" ?data-assigned=${!!this.selectedId}
         aria-label=${this.selectedId ? `${t5("ui.assignTable")}: ${this.selectedLabel}` : t5("ui.assignTable")}
         title=${this.selectedId ? `${t5("ui.assignTable")}: ${this.selectedLabel}` : t5("ui.assignTable")}
         @click=${() => this.openPicker()}>
         <ion-icon slot="icon-only" name=${this.selectedId ? "grid" : "grid-outline"}></ion-icon>
       </ion-button>
 
-      <dialog class="sheet" aria-label=${title}
+      <dialog data-testid="tables-pos-sheet" class="sheet" aria-label=${title}
         @close=${() => {
       this.open = false;
     }}
@@ -5982,39 +5983,39 @@ var ErpTablesPosZones = class extends i3 {
     }}>
         <div class="sheet-h">
           <span class="t">${title}</span>
-          <ion-button class="close" fill="clear" aria-label=${t5("ui.close")} @click=${() => {
+          <ion-button data-testid="tables-pos-close" class="close" fill="clear" aria-label=${t5("ui.close")} @click=${() => {
       this.open = false;
     }}>
             <ion-icon slot="icon-only" name="close-outline"></ion-icon>
           </ion-button>
         </div>
 
-        ${this.error ? b2`<p style="color:#d9480f">${this.error}</p>` : A}
+        ${this.error ? b2`<p data-testid="tables-pos-error" style="color:#d9480f">${this.error}</p>` : A}
 
         ${this.guestsPrompt ? this.renderGuestsPrompt(t5) : A}
 
         ${this.actionSource && !inAction && !this.guestsPrompt ? b2`<div class="actions">
               <span class="lbl">${t5("ui.tableLabel", { number: srcNum })}</span>
-              ${can("tables.transfer_tablesession") ? b2`<ion-button fill="outline" @click=${() => this.startTransfer()}>
+              ${can("tables.transfer_tablesession") ? b2`<ion-button data-testid="tables-pos-transfer" fill="outline" @click=${() => this.startTransfer()}>
                 <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>${t5("ui.transfer")}
               </ion-button>
-              <ion-button fill="outline" @click=${() => this.startMerge()}>
+              <ion-button data-testid="tables-pos-merge" fill="outline" @click=${() => this.startMerge()}>
                 <ion-icon slot="start" name="git-merge-outline"></ion-icon>${t5("ui.merge")}
               </ion-button>` : A}
-              <ion-button fill="outline" @click=${() => void this.doSplit()}>
+              <ion-button data-testid="tables-pos-split" fill="outline" @click=${() => void this.doSplit()}>
                 <ion-icon slot="start" name="git-branch-outline"></ion-icon>${t5("ui.split")}
               </ion-button>
-              <ion-button fill="outline" @click=${() => this.startEditGuests()}>
+              <ion-button data-testid="tables-pos-guests" fill="outline" @click=${() => this.startEditGuests()}>
                 <ion-icon slot="start" name="people-outline"></ion-icon>${t5("ui.guests")}
               </ion-button>
             </div>` : A}
-        ${inAction ? b2`<div class="hint">${this.mode === "transfer" ? t5("ui.pickFreeTable") : t5("ui.pickOccupiedTable")}</div>` : A}
+        ${inAction ? b2`<div class="hint" data-testid="tables-pos-hint">${this.mode === "transfer" ? t5("ui.pickFreeTable") : t5("ui.pickOccupiedTable")}</div>` : A}
 
-        ${this.zones.length && !this.guestsPrompt ? b2`<ion-segment scrollable value=${this.activeZone}
+        ${this.zones.length && !this.guestsPrompt ? b2`<ion-segment data-testid="tables-pos-zones" scrollable value=${this.activeZone}
               @ionChange=${(e5) => {
       this.activeZone = e5.detail.value;
     }}>
-              ${this.zones.map((z2) => b2`<ion-segment-button value=${z2.id}><ion-label>${z2.name}</ion-label></ion-segment-button>`)}
+              ${this.zones.map((z2) => b2`<ion-segment-button data-testid=${`tables-pos-zone-tab-${z2.id}`} value=${z2.id}><ion-label>${z2.name}</ion-label></ion-segment-button>`)}
             </ion-segment>` : A}
 
         ${this.guestsPrompt ? A : b2`<div class="grid">
@@ -6024,10 +6025,10 @@ var ErpTablesPosZones = class extends i3 {
       const outOfService = tb.status === "blocked";
       return b2`
             <div class="mesa-wrap">
-              ${showKebab ? b2`<ion-button class="kebab" fill="clear" aria-label=${t5("ui.tableActions")} @click=${(e5) => this.openActions(tb, e5)}>
+              ${showKebab ? b2`<ion-button data-testid=${`tables-pos-actions-${tb.id}`} class="kebab" fill="clear" aria-label=${t5("ui.tableActions")} @click=${(e5) => this.openActions(tb, e5)}>
                     <ion-icon slot="icon-only" name="ellipsis-vertical"></ion-icon>
                   </ion-button>` : A}
-              <button class="mesa ${validTarget ? "target" : ""}" aria-pressed=${this.selectedId === tb.id}
+              <button data-testid=${`tables-pos-table-${tb.id}`} class="mesa ${validTarget ? "target" : ""}" aria-pressed=${this.selectedId === tb.id}
                 ?disabled=${outOfService || inAction && !validTarget}
                 title=${(outOfService ? t5("ui.blockedHint") : holdTitle(tb)) || A}
                 style=${`border-color:${STATUS_COLOR2[tb.status] ?? "#d9d6cf"}`} @click=${() => this.pick(tb)}>
@@ -6040,19 +6041,19 @@ var ErpTablesPosZones = class extends i3 {
             </div>`;
     })}
           ${!this.loading && !this.tablesInZone.length ? b2`
-            <div class="empty">
+            <div class="empty" data-testid="tables-pos-empty">
               <ion-icon name="grid-outline"></ion-icon>
               <p>${t5("ui.noTablesInZone")}</p>
               <p class="empty-hint">${t5("ui.noTablesInZoneHint")}</p>
             </div>` : A}
-          ${this.loading ? b2`<div class="empty">${t5("ui.loading")}</div>` : A}
+          ${this.loading ? b2`<div class="empty" data-testid="tables-pos-loading">${t5("ui.loading")}</div>` : A}
         </div>`}
 
         <div class="foot">
-          ${!inAction && this.selectedId ? b2`<ion-button color="danger" fill="clear" @click=${() => void this.clear()}>
+          ${!inAction && this.selectedId ? b2`<ion-button data-testid="tables-pos-remove" color="danger" fill="clear" @click=${() => void this.clear()}>
                 ${t5("ui.removeTable")}
               </ion-button>` : A}
-          ${inAction ? b2`<ion-button fill="clear" @click=${() => this.cancelAction()}>${t5("ui.cancel")}</ion-button>` : A}
+          ${inAction ? b2`<ion-button data-testid="tables-pos-cancel" fill="clear" @click=${() => this.cancelAction()}>${t5("ui.cancel")}</ion-button>` : A}
         </div>
       </dialog>
     `;
@@ -6063,21 +6064,21 @@ var ErpTablesPosZones = class extends i3 {
     const over = p4.value > p4.table.capacity;
     const cta = p4.kind === "seat" ? t5("ui.seatGuests", { count: p4.value }) : t5("ui.saveGuests");
     return b2`
-      <div class="guests" role="group" aria-label=${t5("ui.guestsTitle", { number: p4.table.number })}>
+      <div class="guests" data-testid="tables-pos-guests-prompt" role="group" aria-label=${t5("ui.guestsTitle", { number: p4.table.number })}>
         <div class="hint">${t5("ui.guestsTitle", { number: p4.table.number })} · ${t5("ui.paxCount", { count: p4.table.capacity })}</div>
         <div class="stepper">
-          <button class="minus" aria-label="−" ?disabled=${p4.value <= 1} @click=${() => this.bumpGuests(-1)}>−</button>
-          <span class="value" aria-live="polite">${p4.value}</span>
-          <button class="plus" aria-label="+" @click=${() => this.bumpGuests(1)}>+</button>
+          <button data-testid="tables-pos-guests-minus" class="minus" aria-label="−" ?disabled=${p4.value <= 1} @click=${() => this.bumpGuests(-1)}>−</button>
+          <span data-testid="tables-pos-guests-value" class="value" aria-live="polite">${p4.value}</span>
+          <button data-testid="tables-pos-guests-plus" class="plus" aria-label="+" @click=${() => this.bumpGuests(1)}>+</button>
         </div>
         <div class="quick">
           ${[1, 2, 3, 4, 5, 6, 7, 8].map((n6) => b2`
-            <button aria-pressed=${p4.value === n6} @click=${() => void this.confirmGuests(n6)}>${n6}</button>`)}
+            <button data-testid=${`tables-pos-guests-quick-${n6}`} aria-pressed=${p4.value === n6} @click=${() => void this.confirmGuests(n6)}>${n6}</button>`)}
         </div>
-        ${over ? b2`<div class="over">${t5("ui.overCapacity", { capacity: p4.table.capacity })}</div>` : A}
+        ${over ? b2`<div class="over" data-testid="tables-pos-guests-over">${t5("ui.overCapacity", { capacity: p4.table.capacity })}</div>` : A}
         <div class="cta">
-          <ion-button class="back" fill="clear" @click=${() => this.cancelGuests()}>${t5("ui.back")}</ion-button>
-          <ion-button class="seat" size="default" @click=${() => void this.confirmGuests()}>${cta}</ion-button>
+          <ion-button data-testid="tables-pos-guests-back" class="back" fill="clear" @click=${() => this.cancelGuests()}>${t5("ui.back")}</ion-button>
+          <ion-button data-testid="tables-pos-guests-confirm" class="seat" size="default" @click=${() => void this.confirmGuests()}>${cta}</ion-button>
         </div>
       </div>`;
   }
@@ -6385,14 +6386,15 @@ var ErpTablesSessions = class extends i3 {
   render() {
     const t5 = (k2, p4) => erplora4().t(CATALOG4, k2, p4);
     return b2`<div class="page">
-      ${this.error ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : A}
-      ${this.ctrl?.error ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : A}
+      ${this.error ? b2`<ok-inline-feedback data-testid="tables-sessions-error" tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : A}
+      ${this.ctrl?.error ? b2`<ok-inline-feedback data-testid="tables-sessions-load-error" tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : A}
 
-      <ion-segment value=${this.segment} @ionChange=${(e5) => this.onSegment(String(e5.detail.value))}>
-        ${SEGMENTS.map((s5) => b2`<ion-segment-button value=${s5.id}><ion-label>${t5(s5.key)}</ion-label></ion-segment-button>`)}
+      <ion-segment data-testid="tables-sessions-tabs" value=${this.segment} @ionChange=${(e5) => this.onSegment(String(e5.detail.value))}>
+        ${SEGMENTS.map((s5) => b2`<ion-segment-button data-testid=${`tables-sessions-tab-${s5.id}`} value=${s5.id}><ion-label>${t5(s5.key)}</ion-label></ion-segment-button>`)}
       </ion-segment>
 
       <ok-data-table
+        testid="tables-sessions-table"
         .serverSide=${true}
         .fill=${true}
         .labels=${dataTableLabels(erplora4().locale)}
@@ -6420,12 +6422,12 @@ var ErpTablesSessions = class extends i3 {
       ></ok-data-table>
 
       <!-- Detail. ion-modal reparents to <body>: Ionic classes only, no shadow CSS. -->
-      <ion-modal .isOpen=${!!this.detail} @ionModalDidDismiss=${() => this.detail = null}>
+      <ion-modal data-testid="tables-sessions-detail" .isOpen=${!!this.detail} @ionModalDidDismiss=${() => this.detail = null}>
         ${this.detail ? this.renderDetail(this.detail, t5) : A}
       </ion-modal>
 
       <!-- Close confirmation. -->
-      <ion-modal .isOpen=${!!this.closeTarget} @ionModalDidDismiss=${() => this.closeTarget = null}>
+      <ion-modal data-testid="tables-sessions-close-modal" .isOpen=${!!this.closeTarget} @ionModalDidDismiss=${() => this.closeTarget = null}>
         <ion-header class="ion-no-border"><ion-toolbar><ion-title>${t5("ui.closeSessionTitle")}</ion-title></ion-toolbar></ion-header>
         <ion-content class="ion-padding">
           <ion-list lines="none">
@@ -6433,8 +6435,8 @@ var ErpTablesSessions = class extends i3 {
               ${t5("ui.closeSessionImpact", { number: this.closeTarget?.table_number ?? "\u2014", count: this.closeTarget?.guests_count ?? 0 })}
             </ion-label></ion-item>
           </ion-list>
-          <ion-button class="ion-margin-top" expand="block" color="danger" ?disabled=${this.saving} @click=${() => this.confirmClose()}>${t5("ui.actionCloseSession")}</ion-button>
-          <ion-button expand="block" fill="outline" @click=${() => this.closeTarget = null}>${t5("ui.cancel")}</ion-button>
+          <ion-button data-testid="tables-sessions-close-confirm" class="ion-margin-top" expand="block" color="danger" ?disabled=${this.saving} @click=${() => this.confirmClose()}>${t5("ui.actionCloseSession")}</ion-button>
+          <ion-button data-testid="tables-sessions-close-cancel" expand="block" fill="outline" @click=${() => this.closeTarget = null}>${t5("ui.cancel")}</ion-button>
         </ion-content>
       </ion-modal>
     </div>`;
@@ -6444,7 +6446,7 @@ var ErpTablesSessions = class extends i3 {
     return b2`
       <ion-header class="ion-no-border"><ion-toolbar>
         <ion-title>${s5.table_number ? t5("ui.tableLabel", { number: s5.table_number }) : t5("ui.noTable")}</ion-title>
-        <ion-buttons slot="end"><ion-button @click=${() => this.detail = null}>${t5("ui.close")}</ion-button></ion-buttons>
+        <ion-buttons slot="end"><ion-button data-testid="tables-sessions-detail-close" @click=${() => this.detail = null}>${t5("ui.close")}</ion-button></ion-buttons>
       </ion-toolbar></ion-header>
       <ion-content class="ion-padding">
         <ion-list lines="none">
@@ -6458,7 +6460,7 @@ var ErpTablesSessions = class extends i3 {
           ${row(t5("ui.colCheck"), s5.order_id ?? "\u2014")}
           ${row(t5("ui.colNotes"), s5.notes || "\u2014")}
         </ion-list>
-        ${s5.status === "active" && can("tables.change_tablesession") ? b2`<ion-button class="ion-margin-top" expand="block" color="danger" @click=${() => {
+        ${s5.status === "active" && can("tables.change_tablesession") ? b2`<ion-button data-testid="tables-sessions-detail-close-session" class="ion-margin-top" expand="block" color="danger" @click=${() => {
       this.closeTarget = s5;
       this.detail = null;
     }}>${t5("ui.actionCloseSession")}</ion-button>` : A}
@@ -6685,10 +6687,11 @@ var ErpTablesZones = class extends i3 {
   render() {
     const t5 = (k2, p4) => erplora5().t(CATALOG5, k2, p4);
     return b2`<div class="page">
-      ${this.formError ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.formError}</ok-inline-feedback>` : A}
-      ${this.ctrl?.error ? b2`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : A}
+      ${this.formError ? b2`<ok-inline-feedback data-testid="tables-zones-error" tone="danger" icon="alert-circle-outline">${this.formError}</ok-inline-feedback>` : A}
+      ${this.ctrl?.error ? b2`<ok-inline-feedback data-testid="tables-zones-load-error" tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : A}
 
       <ok-data-table
+        testid="tables-zones-table"
         .serverSide=${true}
         .fill=${true}
         .labels=${dataTableLabels(erplora5().locale)}
@@ -6715,19 +6718,19 @@ var ErpTablesZones = class extends i3 {
         @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}
       >
         <!-- Create / edit: always projected (the «+» must never open an empty panel). -->
-        <form slot="create" class="form" @submit=${(e5) => this.submit(e5)}>
-          <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.colName")} .value=${this.form.name}
+        <form slot="create" class="form" data-testid="tables-zones-form" @submit=${(e5) => this.submit(e5)}>
+          <ion-input data-testid="tables-zones-name" mode="md" fill="outline" label-placement="floating" label=${t5("ui.colName")} .value=${this.form.name}
             @ionInput=${(e5) => this.form = { ...this.form, name: e5.target.value || "" }}></ion-input>
-          <ion-select mode="md" fill="outline" label-placement="floating" label=${t5("ui.colColor")} interface="popover" .value=${this.form.color}
+          <ion-select data-testid="tables-zones-color" mode="md" fill="outline" label-placement="floating" label=${t5("ui.colColor")} interface="popover" .value=${this.form.color}
             @ionChange=${(e5) => this.form = { ...this.form, color: e5.detail.value || "primary" }}>
             ${COLORS.map((c5) => b2`<ion-select-option value=${c5}>${t5(COLOR_KEY[c5])}</ion-select-option>`)}
           </ion-select>
-          <ion-input mode="md" fill="outline" label-placement="floating" label=${t5("ui.colOrder")} type="number" min="0" .value=${this.form.sortOrder}
+          <ion-input data-testid="tables-zones-order" mode="md" fill="outline" label-placement="floating" label=${t5("ui.colOrder")} type="number" min="0" .value=${this.form.sortOrder}
             @ionInput=${(e5) => this.form = { ...this.form, sortOrder: e5.target.value || "0" }}></ion-input>
-          ${this.editingId ? b2`<ion-toggle .checked=${this.form.isActive} @ionChange=${(e5) => this.form = { ...this.form, isActive: !!e5.detail.checked }}>${t5("ui.zoneActive")}</ion-toggle>` : A}
+          ${this.editingId ? b2`<ion-toggle data-testid="tables-zones-active" .checked=${this.form.isActive} @ionChange=${(e5) => this.form = { ...this.form, isActive: !!e5.detail.checked }}>${t5("ui.zoneActive")}</ion-toggle>` : A}
           <div class="foot">
-            ${this.editingId ? b2`<ion-button fill="clear" @click=${() => this.cancelEdit()}>${t5("ui.cancel")}</ion-button>` : A}
-            <ion-button type="submit" ?disabled=${this.saving || !this.form.name.trim()}>
+            ${this.editingId ? b2`<ion-button data-testid="tables-zones-cancel" fill="clear" @click=${() => this.cancelEdit()}>${t5("ui.cancel")}</ion-button>` : A}
+            <ion-button data-testid="tables-zones-submit" type="submit" ?disabled=${this.saving || !this.form.name.trim()}>
               ${this.saving ? t5("ui.saving") : this.editingId ? t5("ui.saveChanges") : t5("ui.addZone")}
             </ion-button>
           </div>
@@ -6735,7 +6738,7 @@ var ErpTablesZones = class extends i3 {
       </ok-data-table>
 
       <!-- Delete confirmation. ion-modal reparents to <body>: Ionic classes only, no shadow CSS. -->
-      <ion-modal .isOpen=${!!this.deleteTarget} @ionModalDidDismiss=${() => this.deleteTarget = null}>
+      <ion-modal data-testid="tables-zones-delete-modal" .isOpen=${!!this.deleteTarget} @ionModalDidDismiss=${() => this.deleteTarget = null}>
         <ion-header class="ion-no-border"><ion-toolbar><ion-title>${t5("ui.deleteZoneTitle")}</ion-title></ion-toolbar></ion-header>
         <ion-content class="ion-padding">
           <ion-list lines="none">
@@ -6746,10 +6749,10 @@ var ErpTablesZones = class extends i3 {
           <!-- tables#55: the dialog already knows the zone has tables — it says so, with the
                number, right above, out of the count tables.zones.list returns. Offering the
                destructive action anyway is what tables#14 fixed for the POS blocked table. -->
-          <ion-button class="ion-margin-top" expand="block" color="danger"
+          <ion-button data-testid="tables-zones-delete-confirm" class="ion-margin-top" expand="block" color="danger"
             ?disabled=${this.saving || (this.deleteTarget?.table_count ?? 0) > 0}
             @click=${() => this.confirmDelete()}>${t5("ui.deleteZone")}</ion-button>
-          <ion-button expand="block" fill="outline" @click=${() => this.deleteTarget = null}>${t5("ui.cancel")}</ion-button>
+          <ion-button data-testid="tables-zones-delete-cancel" expand="block" fill="outline" @click=${() => this.deleteTarget = null}>${t5("ui.cancel")}</ion-button>
         </ion-content>
       </ion-modal>
     </div>`;

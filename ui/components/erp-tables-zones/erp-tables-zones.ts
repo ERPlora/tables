@@ -273,10 +273,11 @@ export class ErpTablesZones extends LitElement {
   render() {
     const t = (k: string, p?: Record<string, unknown>): string => erplora().t(CATALOG, k, p);
     return html`<div class="page">
-      ${this.formError ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.formError}</ok-inline-feedback>` : nothing}
-      ${this.ctrl?.error ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : nothing}
+      ${this.formError ? html`<ok-inline-feedback data-testid="tables-zones-error" tone="danger" icon="alert-circle-outline">${this.formError}</ok-inline-feedback>` : nothing}
+      ${this.ctrl?.error ? html`<ok-inline-feedback data-testid="tables-zones-load-error" tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : nothing}
 
       <ok-data-table
+        testid="tables-zones-table"
         .serverSide=${true}
         .fill=${true}
         .labels=${dataTableLabels(erplora().locale)}
@@ -303,21 +304,21 @@ export class ErpTablesZones extends LitElement {
         @filterChange=${(e: CustomEvent<{ col: string; value: unknown }>) => this.ctrl.setFilter(e.detail.col, e.detail.value)}
       >
         <!-- Create / edit: always projected (the «+» must never open an empty panel). -->
-        <form slot="create" class="form" @submit=${(e: Event) => this.submit(e)}>
-          <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.colName')} .value=${this.form.name}
+        <form slot="create" class="form" data-testid="tables-zones-form" @submit=${(e: Event) => this.submit(e)}>
+          <ion-input data-testid="tables-zones-name" mode="md" fill="outline" label-placement="floating" label=${t('ui.colName')} .value=${this.form.name}
             @ionInput=${(e: Event) => (this.form = { ...this.form, name: (e.target as HTMLInputElement).value || '' })}></ion-input>
-          <ion-select mode="md" fill="outline" label-placement="floating" label=${t('ui.colColor')} interface="popover" .value=${this.form.color}
+          <ion-select data-testid="tables-zones-color" mode="md" fill="outline" label-placement="floating" label=${t('ui.colColor')} interface="popover" .value=${this.form.color}
             @ionChange=${(e: CustomEvent) => (this.form = { ...this.form, color: (e.detail as { value: string }).value || 'primary' })}>
             ${COLORS.map((c) => html`<ion-select-option value=${c}>${t(COLOR_KEY[c])}</ion-select-option>`)}
           </ion-select>
-          <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.colOrder')} type="number" min="0" .value=${this.form.sortOrder}
+          <ion-input data-testid="tables-zones-order" mode="md" fill="outline" label-placement="floating" label=${t('ui.colOrder')} type="number" min="0" .value=${this.form.sortOrder}
             @ionInput=${(e: Event) => (this.form = { ...this.form, sortOrder: (e.target as HTMLInputElement).value || '0' })}></ion-input>
           ${this.editingId
-            ? html`<ion-toggle .checked=${this.form.isActive} @ionChange=${(e: CustomEvent) => (this.form = { ...this.form, isActive: !!(e.detail as { checked: boolean }).checked })}>${t('ui.zoneActive')}</ion-toggle>`
+            ? html`<ion-toggle data-testid="tables-zones-active" .checked=${this.form.isActive} @ionChange=${(e: CustomEvent) => (this.form = { ...this.form, isActive: !!(e.detail as { checked: boolean }).checked })}>${t('ui.zoneActive')}</ion-toggle>`
             : nothing}
           <div class="foot">
-            ${this.editingId ? html`<ion-button fill="clear" @click=${() => this.cancelEdit()}>${t('ui.cancel')}</ion-button>` : nothing}
-            <ion-button type="submit" ?disabled=${this.saving || !this.form.name.trim()}>
+            ${this.editingId ? html`<ion-button data-testid="tables-zones-cancel" fill="clear" @click=${() => this.cancelEdit()}>${t('ui.cancel')}</ion-button>` : nothing}
+            <ion-button data-testid="tables-zones-submit" type="submit" ?disabled=${this.saving || !this.form.name.trim()}>
               ${this.saving ? t('ui.saving') : this.editingId ? t('ui.saveChanges') : t('ui.addZone')}
             </ion-button>
           </div>
@@ -325,7 +326,7 @@ export class ErpTablesZones extends LitElement {
       </ok-data-table>
 
       <!-- Delete confirmation. ion-modal reparents to <body>: Ionic classes only, no shadow CSS. -->
-      <ion-modal .isOpen=${!!this.deleteTarget} @ionModalDidDismiss=${() => (this.deleteTarget = null)}>
+      <ion-modal data-testid="tables-zones-delete-modal" .isOpen=${!!this.deleteTarget} @ionModalDidDismiss=${() => (this.deleteTarget = null)}>
         <ion-header class="ion-no-border"><ion-toolbar><ion-title>${t('ui.deleteZoneTitle')}</ion-title></ion-toolbar></ion-header>
         <ion-content class="ion-padding">
           <ion-list lines="none">
@@ -336,10 +337,10 @@ export class ErpTablesZones extends LitElement {
           <!-- tables#55: the dialog already knows the zone has tables — it says so, with the
                number, right above, out of the count tables.zones.list returns. Offering the
                destructive action anyway is what tables#14 fixed for the POS blocked table. -->
-          <ion-button class="ion-margin-top" expand="block" color="danger"
+          <ion-button data-testid="tables-zones-delete-confirm" class="ion-margin-top" expand="block" color="danger"
             ?disabled=${this.saving || (this.deleteTarget?.table_count ?? 0) > 0}
             @click=${() => this.confirmDelete()}>${t('ui.deleteZone')}</ion-button>
-          <ion-button expand="block" fill="outline" @click=${() => (this.deleteTarget = null)}>${t('ui.cancel')}</ion-button>
+          <ion-button data-testid="tables-zones-delete-cancel" expand="block" fill="outline" @click=${() => (this.deleteTarget = null)}>${t('ui.cancel')}</ion-button>
         </ion-content>
       </ion-modal>
     </div>`;

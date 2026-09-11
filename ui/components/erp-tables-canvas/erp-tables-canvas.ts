@@ -576,7 +576,7 @@ export class ErpTablesCanvas extends LitElement {
 
   private renderError() {
     return this.error
-      ? html`<ok-inline-feedback tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>`
+      ? html`<ok-inline-feedback data-testid="tables-floor-error" tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>`
       : nothing;
   }
 
@@ -772,14 +772,14 @@ export class ErpTablesCanvas extends LitElement {
            because the status is now written on every tile. -->
       <div class="zonebar">
         ${this.zones.length
-          ? html`<ion-segment scrollable value=${this.activeZone}
+          ? html`<ion-segment data-testid="tables-floor-zones" scrollable value=${this.activeZone}
               @ionChange=${(e: CustomEvent) => { this.activeZone = (e.detail as { value: string }).value; }}>
-              ${this.zones.map((z) => html`<ion-segment-button value=${z.id}><ion-label>${z.name}</ion-label></ion-segment-button>`)}
+              ${this.zones.map((z) => html`<ion-segment-button data-testid=${`tables-floor-zone-tab-${z.id}`} value=${z.id}><ion-label>${z.name}</ion-label></ion-segment-button>`)}
             </ion-segment>`
           : html`<span class="flex"></span>`}
-        <ion-button data-add fill="clear" aria-label=${t('ui.addAction')} title=${t('ui.addAction')}
+        <ion-button data-testid="tables-floor-add" fill="clear" aria-label=${t('ui.addAction')} title=${t('ui.addAction')}
           @click=${() => { this.error = ''; this.addOpen = true; }}><ion-icon slot="icon-only" name="add-outline"></ion-icon></ion-button>
-        <ion-button fill="clear" aria-label=${t('ui.editZone')} title=${t('ui.editZone')}
+        <ion-button data-testid="tables-floor-zone-edit" fill="clear" aria-label=${t('ui.editZone')} title=${t('ui.editZone')}
           ?disabled=${!this.activeZoneObj} @click=${() => this.openZoneEdit()}><ion-icon slot="icon-only" name="create-outline"></ion-icon></ion-button>
       </div>
 
@@ -795,6 +795,7 @@ export class ErpTablesCanvas extends LitElement {
           const waiter = this.waiterName(tb);
           return html`
           <div class=${`mesa ${tb.shape === 'round' ? 'round' : ''} ${tb.id === this.dragId && this.dragMoved ? 'dragging' : ''}`}
+            data-testid=${`tables-floor-tile-${tb.id}`}
             role="button" tabindex="0"
             aria-label=${this.tableName(tb, t)}
             @keydown=${(e: KeyboardEvent) => this.onTableKey(tb, e)}
@@ -819,9 +820,9 @@ export class ErpTablesCanvas extends LitElement {
             </div>
           </div>`;
         })}
-        ${!this.loading && !this.zones.length ? html`<ok-empty-state icon="grid-outline" message=${t('ui.createZoneToStart')}></ok-empty-state>` : nothing}
-        ${!this.loading && this.zones.length && !this.tablesInZone.length ? html`<ok-empty-state icon="square-outline" message=${t('ui.noTablesInZonePrompt')}></ok-empty-state>` : nothing}
-        ${this.loading ? html`<div class="empty">${t('ui.loading')}</div>` : nothing}
+        ${!this.loading && !this.zones.length ? html`<ok-empty-state data-testid="tables-floor-empty-zones" icon="grid-outline" message=${t('ui.createZoneToStart')}></ok-empty-state>` : nothing}
+        ${!this.loading && this.zones.length && !this.tablesInZone.length ? html`<ok-empty-state data-testid="tables-floor-empty-tables" icon="square-outline" message=${t('ui.noTablesInZonePrompt')}></ok-empty-state>` : nothing}
+        ${this.loading ? html`<div class="empty" data-testid="tables-floor-loading">${t('ui.loading')}</div>` : nothing}
       </div>
       <p class="hint">${t('ui.canvasHint')}</p>
 
@@ -835,28 +836,28 @@ export class ErpTablesCanvas extends LitElement {
   private renderAddSheet() {
     const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
     return html`<div class="scrim" @click=${(e: Event) => { if ((e.target as HTMLElement).classList.contains('scrim')) this.addOpen = false; }}>
-      <div class="sheet">
+      <div class="sheet" data-testid="tables-floor-add-sheet">
         <div class="sheet-h">
           <span class="t">${t('ui.addTitle')}</span>
-          <ion-button class="x" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.addOpen = false; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
+          <ion-button data-testid="tables-floor-add-close" class="x" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.addOpen = false; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
         ${this.renderError()}
         <div class="add-block">
           <div class="field">
-            <ion-input data-zone-name mode="md" fill="outline" label-placement="floating" label=${t('ui.colZone')} placeholder=${t('ui.newZonePlaceholder')} .value=${this.newZoneName}
+            <ion-input data-testid="tables-floor-new-zone-name" mode="md" fill="outline" label-placement="floating" label=${t('ui.colZone')} placeholder=${t('ui.newZonePlaceholder')} .value=${this.newZoneName}
               @ionInput=${(e: CustomEvent) => { this.newZoneName = (e.target as HTMLInputElement).value || ''; }}></ion-input>
           </div>
           <div class="add-act">
-            <ion-button fill="outline" ?disabled=${this.saving || !this.newZoneName.trim()} @click=${() => this.addZone()}>${t('ui.addZone')}</ion-button>
+            <ion-button data-testid="tables-floor-new-zone-submit" fill="outline" ?disabled=${this.saving || !this.newZoneName.trim()} @click=${() => this.addZone()}>${t('ui.addZone')}</ion-button>
           </div>
         </div>
         <div class="add-block">
           <div class="field">
-            <ion-input data-table-number mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldTableNumber')} placeholder=${t('ui.autoNumberPlaceholder')} .value=${this.newTableNumber}
+            <ion-input data-testid="tables-floor-new-table-number" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldTableNumber')} placeholder=${t('ui.autoNumberPlaceholder')} .value=${this.newTableNumber}
               @ionInput=${(e: CustomEvent) => { this.newTableNumber = (e.target as HTMLInputElement).value || ''; }}></ion-input>
           </div>
           <div class="add-act">
-            <ion-button ?disabled=${this.saving || !this.zones.length} @click=${() => this.addTable()}>${t('ui.addTable')}</ion-button>
+            <ion-button data-testid="tables-floor-new-table-submit" ?disabled=${this.saving || !this.zones.length} @click=${() => this.addTable()}>${t('ui.addTable')}</ion-button>
           </div>
         </div>
       </div>
@@ -866,38 +867,38 @@ export class ErpTablesCanvas extends LitElement {
   private renderTableSheet(table: Table) {
     const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
     return html`<div class="scrim" @click=${(e: Event) => { if ((e.target as HTMLElement).classList.contains('scrim')) this.edit = undefined; }}>
-      <div class="sheet">
+      <div class="sheet" data-testid="tables-floor-table-sheet">
         <div class="sheet-h">
           <span class="t">${t('ui.editTable')}</span>
-          <ion-button class="x" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.edit = undefined; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
+          <ion-button data-testid="tables-floor-table-close" class="x" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.edit = undefined; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
         ${this.renderError()}
         <div class="row2">
           <div class="field">
-            <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldNumber')} .value=${table.number} @ionInput=${(e: CustomEvent) => this.patchEdit({ number: (e.target as HTMLInputElement).value || '' })}></ion-input></div>
+            <ion-input data-testid="tables-floor-table-number" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldNumber')} .value=${table.number} @ionInput=${(e: CustomEvent) => this.patchEdit({ number: (e.target as HTMLInputElement).value || '' })}></ion-input></div>
           <div class="field">
-            <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldCapacity')} type="number" min="1" .value=${String(table.capacity)} @ionInput=${(e: CustomEvent) => this.patchEdit({ capacity: Number((e.target as HTMLInputElement).value) || 1 })}></ion-input></div>
+            <ion-input data-testid="tables-floor-table-capacity" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldCapacity')} type="number" min="1" .value=${String(table.capacity)} @ionInput=${(e: CustomEvent) => this.patchEdit({ capacity: Number((e.target as HTMLInputElement).value) || 1 })}></ion-input></div>
         </div>
         <div class="field">
-          <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldNameOptional')} .value=${table.name} @ionInput=${(e: CustomEvent) => this.patchEdit({ name: (e.target as HTMLInputElement).value || '' })}></ion-input></div>
+          <ion-input data-testid="tables-floor-table-name" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldNameOptional')} .value=${table.name} @ionInput=${(e: CustomEvent) => this.patchEdit({ name: (e.target as HTMLInputElement).value || '' })}></ion-input></div>
         <div class="row2">
           <div class="field">
-            <ion-select mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldShape')} .value=${table.shape} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ shape: (e.detail as { value: string }).value })}>
+            <ion-select data-testid="tables-floor-table-shape" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldShape')} .value=${table.shape} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ shape: (e.detail as { value: string }).value })}>
               ${SHAPES.map((s) => html`<ion-select-option value=${s}>${t(SHAPE_KEY[s] ?? s)}</ion-select-option>`)}
             </ion-select></div>
           <div class="field">
-            <ion-select mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldStatus')} .value=${table.status} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ status: (e.detail as { value: string }).value })}>
+            <ion-select data-testid="tables-floor-table-status" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldStatus')} .value=${table.status} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ status: (e.detail as { value: string }).value })}>
               ${STATUSES.map((s) => html`<ion-select-option value=${s}>${t(STATUS_KEY[s] ?? s)}</ion-select-option>`)}
             </ion-select></div>
         </div>
         <div class="field">
-          <ion-select mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldZone')} .value=${table.zone_id ?? ''} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ zone_id: (e.detail as { value: string }).value || null })}>
+          <ion-select data-testid="tables-floor-table-zone" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldZone')} .value=${table.zone_id ?? ''} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ zone_id: (e.detail as { value: string }).value || null })}>
             <ion-select-option value="">${t('ui.noZone')}</ion-select-option>
             ${this.zones.map((z) => html`<ion-select-option value=${z.id}>${z.name}</ion-select-option>`)}
           </ion-select></div>
         <div class="sheet-foot">
-          <ion-button color="danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteTable()}>${t('ui.delete')}</ion-button>
-          <ion-button ?disabled=${this.saving} @click=${() => this.saveTable()}>${this.saving ? t('ui.saving') : t('ui.save')}</ion-button>
+          <ion-button data-testid="tables-floor-table-delete" color="danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteTable()}>${t('ui.delete')}</ion-button>
+          <ion-button data-testid="tables-floor-table-save" ?disabled=${this.saving} @click=${() => this.saveTable()}>${this.saving ? t('ui.saving') : t('ui.save')}</ion-button>
         </div>
       </div>
     </div>`;
@@ -906,19 +907,19 @@ export class ErpTablesCanvas extends LitElement {
   private renderZoneSheet(z: Zone) {
     const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
     return html`<div class="scrim" @click=${(e: Event) => { if ((e.target as HTMLElement).classList.contains('scrim')) this.zoneEdit = undefined; }}>
-      <div class="sheet">
+      <div class="sheet" data-testid="tables-floor-zone-sheet">
         <div class="sheet-h">
           <span class="t">${t('ui.editZone')}</span>
-          <ion-button class="x" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.zoneEdit = undefined; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
+          <ion-button data-testid="tables-floor-zone-close" class="x" fill="clear" aria-label=${t('ui.close')} @click=${() => { this.zoneEdit = undefined; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
         </div>
         ${this.renderError()}
         <div class="field">
-          <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.colName')} .value=${z.name} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, name: (e.target as HTMLInputElement).value || '' }; }}></ion-input></div>
+          <ion-input data-testid="tables-floor-zone-name" mode="md" fill="outline" label-placement="floating" label=${t('ui.colName')} .value=${z.name} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, name: (e.target as HTMLInputElement).value || '' }; }}></ion-input></div>
         <div class="field">
-          <ion-input mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldDescriptionOptional')} .value=${z.description ?? ''} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, description: (e.target as HTMLInputElement).value || '' }; }}></ion-input></div>
+          <ion-input data-testid="tables-floor-zone-description" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldDescriptionOptional')} .value=${z.description ?? ''} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, description: (e.target as HTMLInputElement).value || '' }; }}></ion-input></div>
         <div class="sheet-foot">
-          <ion-button color="danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t('ui.deleteZone')}</ion-button>
-          <ion-button ?disabled=${this.saving} @click=${() => this.saveZone()}>${this.saving ? t('ui.saving') : t('ui.save')}</ion-button>
+          <ion-button data-testid="tables-floor-zone-delete" color="danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t('ui.deleteZone')}</ion-button>
+          <ion-button data-testid="tables-floor-zone-save" ?disabled=${this.saving} @click=${() => this.saveZone()}>${this.saving ? t('ui.saving') : t('ui.save')}</ion-button>
         </div>
       </div>
     </div>`;
