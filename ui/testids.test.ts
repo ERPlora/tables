@@ -223,6 +223,14 @@ const CONTROL_TAGS = [
   'input',
   'select',
   'textarea',
+  // El hub deja los botones fuera («se declaran en el contrato») y aquí NO se puede: medido con el
+  // mutante «añado un control sin gancho» sobre un `<ion-button>` de acción, que sobrevivía con la
+  // guardia entera en verde. Una ACCIÓN sin gancho es un spec que no puede pulsar nada, igual que
+  // un campo sin gancho es un spec que no puede escribir: las dos rompen esto. Lo mismo el `<form>`
+  // en sí, que es lo que un spec envía.
+  'ion-button',
+  'button',
+  'form',
 ] as const;
 
 const CONTROL_OPEN = new RegExp(`<(${CONTROL_TAGS.join('|')})(?=[\\s/>])`, 'g');
@@ -236,9 +244,12 @@ const DATA_TABLE_OPEN = /<ok-data-table(?=[\s/>])/g;
  *   · `testid="x"`      — el prefijo que `<ok-data-table>` expande a su cromo. Es el mismo
  *                         contrato con el QA: si se renombra, el spec que pulsa «Añadir» se queda
  *                         sin nada que pulsar, aunque el atributo se llame distinto.
- * El lookbehind es lo que impide que `data-testid` se cuente además como un `testid` suelto.
+ * El lookbehind es lo que impide que `data-testid` se cuente además como un `testid` suelto, y
+ * excluye `:` a propósito: `:data-testid="x"` NO es un binding en Lit —pinta un atributo que
+ * se llama literalmente `:data-testid`, que `getByTestId` no resuelve—, así que leerlo como
+ * literal declararía en el contrato un nombre que no existe en la pantalla.
  */
-const LITERAL_TESTID = /(?<![\w-])(?:data-)?testid="([^"]*)"/g;
+const LITERAL_TESTID = /(?<![:\w-])(?:data-)?testid="([^"]*)"/g;
 
 /**
  * Cómo se ESCRIBE un gancho. Las reglas de arriba leen exactamente tres formas —
@@ -435,7 +446,7 @@ function literalTestids(markup: string): string[] {
 /** Las expresiones `data-testid=${…}` de una superficie, con la expresión entera. */
 function computedTestids(markup: string): string[] {
   const found: string[] = [];
-  const OPEN = /(?<![\w-])data-testid=\$\{/g;
+  const OPEN = /(?<![:\w-])data-testid=\$\{/g;
   for (let m = OPEN.exec(markup); m; m = OPEN.exec(markup)) {
     const end = endOfExpression(markup, m.index + m[0].length);
     found.push(markup.slice(m.index + m[0].length, end).trim());
