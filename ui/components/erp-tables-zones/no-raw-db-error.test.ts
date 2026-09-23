@@ -141,8 +141,8 @@ describe('el diálogo no ofrece un borrado que ya sabe que va a fallar', () => {
     const wc = await mount();
     wc.deleteTarget = zone;
     await wc.updateComplete;
-    const buttons = [...wc.shadowRoot.querySelectorAll('ion-modal ion-button')] as HTMLElement[];
-    const button = buttons.find((b) => b.getAttribute('color') === 'danger');
+    // Found by its stable test id: `color="danger"` is gone (pm#392), the tone is inline now.
+    const button = wc.shadowRoot.querySelector('ion-modal ion-button[data-testid="tables-zones-delete-confirm"]');
     expect(button, 'el diálogo pinta su botón de borrar').toBeTruthy();
     return button as HTMLElement;
   }

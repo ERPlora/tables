@@ -1,4 +1,5 @@
 import { LitElement, html, css, nothing } from 'lit';
+import { ionTone } from '../../lib/ion-tone';
 import { state } from 'lit/decorators.js';
 import { define } from '@erplora/outfitkit/define';
 import '@erplora/outfitkit/ok-inline-feedback';
@@ -411,7 +412,7 @@ export class ErpTablesSessions extends LitElement {
               ${t('ui.closeSessionImpact', { number: this.closeTarget?.table_number ?? '—', count: this.closeTarget?.guests_count ?? 0 })}
             </ion-label></ion-item>
           </ion-list>
-          <ion-button data-testid="tables-sessions-close-confirm" class="ion-margin-top" expand="block" color="danger" ?disabled=${this.saving} @click=${() => this.confirmClose()}>${t('ui.actionCloseSession')}</ion-button>
+          <ion-button data-testid="tables-sessions-close-confirm" class="ion-margin-top" expand="block" style=${ionTone('solid', 'danger')} ?disabled=${this.saving} @click=${() => this.confirmClose()}>${t('ui.actionCloseSession')}</ion-button>
           <ion-button data-testid="tables-sessions-close-cancel" expand="block" fill="outline" @click=${() => (this.closeTarget = null)}>${t('ui.cancel')}</ion-button>
         </ion-content>
       </ion-modal>
@@ -438,7 +439,7 @@ export class ErpTablesSessions extends LitElement {
           ${row(t('ui.colNotes'), s.notes || '—')}
         </ion-list>
         ${s.status === 'active' && can('tables.change_tablesession')
-          ? html`<ion-button data-testid="tables-sessions-detail-close-session" class="ion-margin-top" expand="block" color="danger" @click=${() => { this.closeTarget = s; this.detail = null; }}>${t('ui.actionCloseSession')}</ion-button>`
+          ? html`<ion-button data-testid="tables-sessions-detail-close-session" class="ion-margin-top" expand="block" style=${ionTone('solid', 'danger')} @click=${() => { this.closeTarget = s; this.detail = null; }}>${t('ui.actionCloseSession')}</ion-button>`
           : nothing}
       </ion-content>`;
   }

@@ -296,6 +296,16 @@ export class ErpTablesCanvas extends LitElement {
        something another button will discard. */
     .add-block + .add-block { margin-top:.9rem; padding-top:.9rem; border-top:1px solid var(--ion-border-color,#cfcabd); }
     .add-act { display:flex; justify-content:flex-end; }
+    /* pm#392 — a danger outline/clear button paints from HERE, never from \`color="danger"\`:
+       Ionic resolves \`color=\` through a GLOBAL \`.ion-color-danger\` rule that does not reach
+       inside this shadow root, so it fell back to the primary blue. Custom properties do inherit
+       through the boundary, so the theme token still applies. */
+    ion-button.tone-danger[fill] {
+      --border-color: var(--ion-color-danger, #c5000f);
+      --color: var(--ion-color-danger, #c5000f);
+      --background-activated: var(--ion-color-danger, #c5000f);
+      --background-focused: var(--ion-color-danger, #c5000f);
+    }
   `;
 
   @state() private zones: Zone[] = [];
@@ -897,7 +907,7 @@ export class ErpTablesCanvas extends LitElement {
             ${this.zones.map((z) => html`<ion-select-option value=${z.id}>${z.name}</ion-select-option>`)}
           </ion-select></div>
         <div class="sheet-foot">
-          <ion-button data-testid="tables-floor-table-delete" color="danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteTable()}>${t('ui.delete')}</ion-button>
+          <ion-button data-testid="tables-floor-table-delete" class="tone-danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteTable()}>${t('ui.delete')}</ion-button>
           <ion-button data-testid="tables-floor-table-save" ?disabled=${this.saving} @click=${() => this.saveTable()}>${this.saving ? t('ui.saving') : t('ui.save')}</ion-button>
         </div>
       </div>
@@ -918,7 +928,7 @@ export class ErpTablesCanvas extends LitElement {
         <div class="field">
           <ion-input data-testid="tables-floor-zone-description" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldDescriptionOptional')} .value=${z.description ?? ''} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, description: (e.target as HTMLInputElement).value || '' }; }}></ion-input></div>
         <div class="sheet-foot">
-          <ion-button data-testid="tables-floor-zone-delete" color="danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t('ui.deleteZone')}</ion-button>
+          <ion-button data-testid="tables-floor-zone-delete" class="tone-danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t('ui.deleteZone')}</ion-button>
           <ion-button data-testid="tables-floor-zone-save" ?disabled=${this.saving} @click=${() => this.saveZone()}>${this.saving ? t('ui.saving') : t('ui.save')}</ion-button>
         </div>
       </div>

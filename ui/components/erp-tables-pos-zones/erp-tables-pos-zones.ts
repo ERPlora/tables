@@ -169,6 +169,16 @@ export class ErpTablesPosZones extends LitElement {
     .guests .cta .seat { flex:1; }
     .mesa .live { font-size:.75rem; font-weight:700; color:var(--ion-color-danger,#d9480f);
       display:flex; align-items:center; justify-content:center; gap:.2rem; }
+    /* pm#392 — a danger outline/clear button paints from HERE, never from \`color="danger"\`:
+       Ionic resolves \`color=\` through a GLOBAL \`.ion-color-danger\` rule that does not reach
+       inside this shadow root, so it fell back to the primary blue. Custom properties do inherit
+       through the boundary, so the theme token still applies. */
+    ion-button.tone-danger[fill] {
+      --border-color: var(--ion-color-danger, #c5000f);
+      --color: var(--ion-color-danger, #c5000f);
+      --background-activated: var(--ion-color-danger, #c5000f);
+      --background-focused: var(--ion-color-danger, #c5000f);
+    }
   `;
 
   @state() private open = false;
@@ -778,7 +788,7 @@ export class ErpTablesPosZones extends LitElement {
 
         <div class="foot">
           ${!inAction && this.selectedId
-            ? html`<ion-button data-testid="tables-pos-remove" color="danger" fill="clear" @click=${() => void this.clear()}>
+            ? html`<ion-button data-testid="tables-pos-remove" class="tone-danger" fill="clear" @click=${() => void this.clear()}>
                 ${t('ui.removeTable')}
               </ion-button>`
             : nothing}

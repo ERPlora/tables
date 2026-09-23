@@ -1,4 +1,5 @@
 import { LitElement, html, css, nothing } from 'lit';
+import { ionTone } from '../../lib/ion-tone';
 import { state } from 'lit/decorators.js';
 import { define } from '@erplora/outfitkit/define';
 import '@erplora/outfitkit/ok-inline-feedback';
@@ -337,7 +338,7 @@ export class ErpTablesZones extends LitElement {
           <!-- tables#55: the dialog already knows the zone has tables — it says so, with the
                number, right above, out of the count tables.zones.list returns. Offering the
                destructive action anyway is what tables#14 fixed for the POS blocked table. -->
-          <ion-button data-testid="tables-zones-delete-confirm" class="ion-margin-top" expand="block" color="danger"
+          <ion-button data-testid="tables-zones-delete-confirm" class="ion-margin-top" expand="block" style=${ionTone('solid', 'danger')}
             ?disabled=${this.saving || (this.deleteTarget?.table_count ?? 0) > 0}
             @click=${() => this.confirmDelete()}>${t('ui.deleteZone')}</ion-button>
           <ion-button data-testid="tables-zones-delete-cancel" expand="block" fill="outline" @click=${() => (this.deleteTarget = null)}>${t('ui.cancel')}</ion-button>
