@@ -277,9 +277,17 @@ export class ErpTablesCanvas extends LitElement {
     .hint { color:#8b897f; font-size:.85rem; margin:.5rem 0 0; }
     .err { color:#d9480f; font-weight:600; }
     .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#8b897f; text-align:center; padding:1rem; }
-    /* Sheet de edición (en el shadow → conserva estilos) */
-    .scrim { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:60; }
-    .sheet { background:var(--ion-background-color,#fff); border-radius: var(--ok-radius-lg, 16px); padding:1rem; width:min(94vw,26rem); max-height:90vh; overflow:auto; box-shadow:0 12px 48px rgba(0,0,0,.35); }
+    /* Edit sheets (inside the shadow tree, so they keep their styles).
+       tables#88 - the scrim is laid over the VISIBLE module box, not the viewport: placeScrim()
+       sets its top/left/width/height to the shell's ion-content box (between the topbar and the
+       module tab bar), clipped to the screen. Centred over the whole viewport with a 90vh cap, the
+       foot of the sheet -- SAVE / DELETE -- landed on the tab bar on short screens, which ate the
+       tap and switched tab; no z-index can win it, the tab bar is not in this shadow tree. inset:0
+       is only the fallback outside a shell. The padding is the breathing room the old 90vh cap
+       left, and the sheet is capped by that box (100% minus its own 2rem of padding, it is
+       content-box), never by the viewport. */
+    .scrim { position:fixed; inset:0; box-sizing:border-box; padding:1rem; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:60; }
+    .sheet { background:var(--ion-background-color,#fff); border-radius: var(--ok-radius-lg, 16px); padding:1rem; width:min(94vw,26rem); max-height:calc(100% - 2rem); overflow:auto; box-shadow:0 12px 48px rgba(0,0,0,.35); }
     .sheet-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; }
     .sheet-h .t { font-size:1.2rem; font-weight:700; }
     .sheet-h ion-button.x { --color:#8b897f; margin:0; }
@@ -368,7 +376,49 @@ export class ErpTablesCanvas extends LitElement {
     window.removeEventListener('erplora:locale-changed', this.onLocaleChange);
     this.unsub?.();
     if (this.timer) clearInterval(this.timer);
+    this.unwatchSheetArea();
   }
+
+  /** tables#88 — while a sheet is open its scrim is laid over the box the person actually SEES:
+   *  the shell's ion-content (it ends where the module tab bar starts), clipped to the screen.
+   *  Neither the viewport (it includes the tab bar) nor this host (the shell floors its outlet at
+   *  480px, so on a short screen the module box is taller than what is visible) is that box. */
+  protected updated(): void {
+    if (!this.sheetOpen) { this.unwatchSheetArea(); return; }
+    this.placeScrim();
+    if (this.areaObserver || this.areaListening) return;
+    window.addEventListener('resize', this.placeScrim);
+    this.areaListening = true;
+    const area = this.closest('ion-content');
+    if (area && typeof ResizeObserver !== 'undefined') {
+      this.areaObserver = new ResizeObserver(this.placeScrim);
+      this.areaObserver.observe(area);
+    }
+  }
+
+  private areaObserver?: ResizeObserver;
+  private areaListening = false;
+
+  private unwatchSheetArea(): void {
+    if (this.areaListening) window.removeEventListener('resize', this.placeScrim);
+    this.areaListening = false;
+    this.areaObserver?.disconnect();
+    this.areaObserver = undefined;
+  }
+
+  private readonly placeScrim = (): void => {
+    const scrim = this.shadowRoot?.querySelector<HTMLElement>('.scrim');
+    if (!scrim) return;
+    const area = this.closest('ion-content')?.getBoundingClientRect();
+    const top = Math.max(0, area?.top ?? 0);
+    const left = Math.max(0, area?.left ?? 0);
+    const bottom = Math.min(window.innerHeight, area?.bottom ?? window.innerHeight);
+    const right = Math.min(window.innerWidth, area?.right ?? window.innerWidth);
+    scrim.style.top = `${top}px`;
+    scrim.style.left = `${left}px`;
+    scrim.style.width = `${Math.max(0, right - left)}px`;
+    scrim.style.height = `${Math.max(0, bottom - top)}px`;
+  };
 
   private async reload() {
     this.loading = true;
