@@ -80,10 +80,15 @@ describe('editing a zone titles the panel «Edit zone · <name>» (pm#450)', () 
 
   it('an older shell (title ignored) still reads «Edit zone · <name>»: newRecord is overridden while editing', async () => {
     const el = await mount();
+    const createLabels = { ...table(el).labels };
     await edit(el);
     expect(table(el).labels?.newRecord, 'OutfitKit < 0.1.94 would say «New» over an edit').toBe(
       'ui.panelEditZone(name=Terraza)',
     );
+    expect(
+      { ...table(el).labels, newRecord: createLabels.newRecord },
+      'only newRecord changes: the rest of the table must stay in the hub language while editing',
+    ).toEqual(createLabels);
   });
 
   it('«Add» after an edit opens a CLEAN create form (the header says «New»: the form must agree)', async () => {
