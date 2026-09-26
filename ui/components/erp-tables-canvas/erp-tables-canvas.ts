@@ -327,6 +327,8 @@ export class ErpTablesCanvas extends LitElement {
   // Mesa en edición (copia editable; null = sheet cerrado). zoneEdit = sheet de zona.
   @state() private edit?: Table;
   @state() private zoneEdit?: Zone;
+  /** pm#459: every «edit zone» takes a number; a reply that is no longer the last opening is dropped. */
+  private zoneEditSeq = 0;
   @state() private saving = false;
   // tables#64: «Añadir zona» y «Añadir mesa» son configuración, no servicio — viven detrás de un
   // solo «+», como Square esconde la edición del plano tras «Edit».
@@ -772,12 +774,18 @@ export class ErpTablesCanvas extends LitElement {
     const z = this.activeZoneObj;
     if (!z) return;
     this.error = '';
+    const seq = ++this.zoneEditSeq;
+    // Nothing covers the bar while zones.get is in flight: a late reply is also dropped when the
+    // person switched zone or opened another sheet meanwhile (review of tables#92).
+    const movedOn = () => seq !== this.zoneEditSeq || this.activeZone !== z.id || this.addOpen || !!this.edit;
     try {
-      // zones.get trae description (la lista no la incluye) para no perderla al actualizar.
+      // zones.get brings the description (the list does not) so an update does not wipe it.
       const full = await erplora().query<Zone | Zone[]>('tables.zones.get', { zone_id: z.id });
+      if (movedOn()) return;
       const zo = Array.isArray(full) ? full[0] : full;
       this.zoneEdit = { ...z, ...(zo || {}) };
     } catch {
+      if (movedOn()) return;
       this.zoneEdit = { ...z };
     }
   }

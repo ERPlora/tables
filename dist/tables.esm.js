@@ -2282,6 +2282,8 @@ var ErpTablesCanvas = class extends i3 {
     this.newTableNumber = "";
     this.error = "";
     this.loading = true;
+    /** pm#459: every «edit zone» takes a number; a reply that is no longer the last opening is dropped. */
+    this.zoneEditSeq = 0;
     this.saving = false;
     this.addOpen = false;
     this.waitersById = /* @__PURE__ */ new Map();
@@ -2763,11 +2765,15 @@ var ErpTablesCanvas = class extends i3 {
     const z2 = this.activeZoneObj;
     if (!z2) return;
     this.error = "";
+    const seq = ++this.zoneEditSeq;
+    const movedOn = () => seq !== this.zoneEditSeq || this.activeZone !== z2.id || this.addOpen || !!this.edit;
     try {
       const full = await erplora().query("tables.zones.get", { zone_id: z2.id });
+      if (movedOn()) return;
       const zo = Array.isArray(full) ? full[0] : full;
       this.zoneEdit = { ...z2, ...zo || {} };
     } catch {
+      if (movedOn()) return;
       this.zoneEdit = { ...z2 };
     }
   }
