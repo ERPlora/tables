@@ -775,14 +775,17 @@ export class ErpTablesCanvas extends LitElement {
     if (!z) return;
     this.error = '';
     const seq = ++this.zoneEditSeq;
+    // Nothing covers the bar while zones.get is in flight: a late reply is also dropped when the
+    // person switched zone or opened another sheet meanwhile (review of tables#92).
+    const movedOn = () => seq !== this.zoneEditSeq || this.activeZone !== z.id || this.addOpen || !!this.edit;
     try {
       // zones.get brings the description (the list does not) so an update does not wipe it.
       const full = await erplora().query<Zone | Zone[]>('tables.zones.get', { zone_id: z.id });
-      if (seq !== this.zoneEditSeq) return;
+      if (movedOn()) return;
       const zo = Array.isArray(full) ? full[0] : full;
       this.zoneEdit = { ...z, ...(zo || {}) };
     } catch {
-      if (seq !== this.zoneEditSeq) return;
+      if (movedOn()) return;
       this.zoneEdit = { ...z };
     }
   }

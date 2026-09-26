@@ -2766,13 +2766,14 @@ var ErpTablesCanvas = class extends i3 {
     if (!z2) return;
     this.error = "";
     const seq = ++this.zoneEditSeq;
+    const movedOn = () => seq !== this.zoneEditSeq || this.activeZone !== z2.id || this.addOpen || !!this.edit;
     try {
       const full = await erplora().query("tables.zones.get", { zone_id: z2.id });
-      if (seq !== this.zoneEditSeq) return;
+      if (movedOn()) return;
       const zo = Array.isArray(full) ? full[0] : full;
       this.zoneEdit = { ...z2, ...zo || {} };
     } catch {
-      if (seq !== this.zoneEditSeq) return;
+      if (movedOn()) return;
       this.zoneEdit = { ...z2 };
     }
   }
