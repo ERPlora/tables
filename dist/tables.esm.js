@@ -578,7 +578,7 @@ var ElementShim = class Element extends NodeShim {
     return value ?? null;
   }
 };
-var HTMLElementShim = class HTMLElement extends ElementShim {
+var HTMLElementShim = class HTMLElement2 extends ElementShim {
 };
 var HTMLElementShimWithRealType = HTMLElementShim;
 var ShadowRootShim = class ShadowRoot extends NodeShim {
@@ -1812,6 +1812,7 @@ var es_default = {
     addTitle: "A\xF1adir",
     addAction: "A\xF1adir zona o mesa",
     editZone: "Editar zona",
+    panelEditZone: "Editar zona \xB7 {name}",
     editTable: "Editar mesa",
     newZonePlaceholder: "Nueva zona\u2026",
     canvasHint: "Arrastra para colocar \xB7 clic en una mesa para editarla o borrarla. Los cambios se guardan al momento.",
@@ -2003,6 +2004,7 @@ var en_default = {
     addTitle: "Add",
     addAction: "Add zone or table",
     editZone: "Edit zone",
+    panelEditZone: "Edit zone \xB7 {name}",
     editTable: "Edit table",
     newZonePlaceholder: "New zone\u2026",
     canvasHint: "Drag to position \xB7 click a table to edit or delete it. Changes are saved instantly.",
@@ -6714,6 +6716,7 @@ var ErpTablesZones = class extends i3 {
     window.addEventListener("erplora:locale-changed", this.onLocaleChange);
   }
   async firstUpdated() {
+    this.renderRoot.querySelector("ok-data-table")?.addEventListener("click", (e5) => this.onTableClick(e5));
     this.ctrl = createListController(erplora5(), "tables.zones.list", () => this.requestUpdate(), {
       pageSize: 50,
       sort: "sort_order",
@@ -6750,6 +6753,13 @@ var ErpTablesZones = class extends i3 {
   dataTable() {
     return this.renderRoot.querySelector("ok-data-table");
   }
+  /** Labels of the table. The edit header comes from open('edit', { title }) (pm#450,
+   *  outfitkit#150); overriding `newRecord` while editing is the fallback for OutfitKit < 0.1.94,
+   *  which ignores the title and paints `newRecord` for the edit panel too. */
+  get tableLabels() {
+    const base = dataTableLabels(erplora5().locale);
+    return this.editingId && this.editRow ? { ...base, newRecord: erplora5().t(CATALOG5, "ui.panelEditZone", { name: this.editRow.name }) } : base;
+  }
   async onRowAction(ev) {
     const { actionId, row } = ev.detail;
     const z2 = row;
@@ -6758,7 +6768,7 @@ var ErpTablesZones = class extends i3 {
       this.editRow = z2;
       this.form = { name: z2.name, color: z2.color || "primary", sortOrder: String(z2.sort_order ?? 0), isActive: Number(z2.is_active) === 1 };
       this.formError = "";
-      this.dataTable()?.open("create");
+      this.dataTable()?.open("edit", { title: erplora5().t(CATALOG5, "ui.panelEditZone", { name: z2.name }) });
     } else if (actionId === "delete" && can("tables.delete_zone")) {
       this.deleteTarget = z2;
     }
@@ -6768,6 +6778,14 @@ var ErpTablesZones = class extends i3 {
     this.editRow = null;
     this.form = { ...EMPTY_FORM, sortOrder: String(this.nextOrder()) };
     this.formError = "";
+  }
+  /** pm#450: the table's «Add» emits no event and keeps our form state; after an edit it would
+   *  show the edited zone under a «New» header, and the submit would UPDATE it. Only resets the
+   *  form: «Add» has just opened the panel, so it must not be closed. */
+  onTableClick(e5) {
+    if (!this.editingId) return;
+    const addId = "tables-zones-table-add";
+    if (e5.composedPath().some((n6) => n6 instanceof HTMLElement && n6.getAttribute("data-testid") === addId)) this.cancelEdit();
   }
   async submit(ev) {
     ev.preventDefault();
@@ -6828,7 +6846,7 @@ var ErpTablesZones = class extends i3 {
         testid="tables-zones-table"
         .serverSide=${true}
         .fill=${true}
-        .labels=${dataTableLabels(erplora5().locale)}
+        .labels=${this.tableLabels}
         .columns=${this.columns}
         .actions=${this.actions} .rowClickable=${true}
         .addable=${can("tables.add_zone")}
@@ -6863,7 +6881,10 @@ var ErpTablesZones = class extends i3 {
             @ionInput=${(e5) => this.form = { ...this.form, sortOrder: e5.target.value || "0" }}></ion-input>
           ${this.editingId ? b2`<ion-toggle data-testid="tables-zones-active" .checked=${this.form.isActive} @ionChange=${(e5) => this.form = { ...this.form, isActive: !!e5.detail.checked }}>${t5("ui.zoneActive")}</ion-toggle>` : A}
           <div class="foot">
-            ${this.editingId ? b2`<ion-button data-testid="tables-zones-cancel" fill="clear" @click=${() => this.cancelEdit()}>${t5("ui.cancel")}</ion-button>` : A}
+            ${this.editingId ? b2`<ion-button data-testid="tables-zones-cancel" fill="clear" @click=${() => {
+      this.cancelEdit();
+      this.dataTable()?.close();
+    }}>${t5("ui.cancel")}</ion-button>` : A}
             <ion-button data-testid="tables-zones-submit" type="submit" ?disabled=${this.saving || !this.form.name.trim()}>
               ${this.saving ? t5("ui.saving") : this.editingId ? t5("ui.saveChanges") : t5("ui.addZone")}
             </ion-button>

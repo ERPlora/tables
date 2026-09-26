@@ -72,6 +72,7 @@
     "addTitle": "Add",
     "addAction": "Add zone or table",
     "editZone": "Edit zone",
+    "panelEditZone": "Edit zone · {name}",
     "editTable": "Edit table",
     "newZonePlaceholder": "New zone…",
     "canvasHint": "Drag to position · click a table to edit or delete it. Changes are saved instantly.",

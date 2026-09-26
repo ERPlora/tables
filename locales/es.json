@@ -73,6 +73,7 @@
     "addTitle": "Añadir",
     "addAction": "Añadir zona o mesa",
     "editZone": "Editar zona",
+    "panelEditZone": "Editar zona · {name}",
     "editTable": "Editar mesa",
     "newZonePlaceholder": "Nueva zona…",
     "canvasHint": "Arrastra para colocar · clic en una mesa para editarla o borrarla. Los cambios se guardan al momento.",
