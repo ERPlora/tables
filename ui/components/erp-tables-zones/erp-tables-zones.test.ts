@@ -141,7 +141,8 @@ describe('edit reuses the panel and sends the whole zone (rename / colour / orde
     expect(el.form.color).toBe('primary');
     expect(el.form.sortOrder).toBe('2');
     expect(el.form.isActive).toBe(false);
-    expect(opened).toBe('create');
+    // pm#450: an edit opens the table's «edit» panel (header «Edit zone · <name>»), not an alta.
+    expect(opened).toBe('edit');
   });
 
   it('submit in edit mode sends tables.zones.update with zone_id, keeps the description and toggles is_active', async () => {

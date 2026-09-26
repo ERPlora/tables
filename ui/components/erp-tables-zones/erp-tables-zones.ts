@@ -152,6 +152,9 @@ export class ErpTablesZones extends LitElement {
   }
 
   async firstUpdated(): Promise<void> {
+    // Wired natively, not with a Lit `@click` on the tag: `<ok-data-table>` carries `testid`, not
+    // `data-testid` (outfitkit#143), and a template binding would read as an action element that demands one.
+    this.renderRoot.querySelector('ok-data-table')?.addEventListener('click', (e) => this.onTableClick(e));
     this.ctrl = createListController<Zone>(erplora(), 'tables.zones.list', () => this.requestUpdate(), {
       pageSize: 50,
       sort: 'sort_order',
@@ -190,8 +193,18 @@ export class ErpTablesZones extends LitElement {
     return Math.max(max + 1, this.ctrl?.total ?? 0);
   }
 
-  private dataTable(): { open(p?: 'filters' | 'create'): void; close(): void } | null {
-    return this.renderRoot.querySelector('ok-data-table') as { open(p?: 'filters' | 'create'): void; close(): void } | null;
+  private dataTable(): { open(p?: 'filters' | 'create' | 'edit', opts?: { title?: string }): void; close(): void } | null {
+    return this.renderRoot.querySelector('ok-data-table') as { open(p?: 'filters' | 'create' | 'edit', opts?: { title?: string }): void; close(): void } | null;
+  }
+
+  /** Labels of the table. The edit header comes from open('edit', { title }) (pm#450,
+   *  outfitkit#150); overriding `newRecord` while editing is the fallback for OutfitKit < 0.1.94,
+   *  which ignores the title and paints `newRecord` for the edit panel too. */
+  private get tableLabels(): Record<string, string> {
+    const base = dataTableLabels(erplora().locale) as Record<string, string>;
+    return this.editingId && this.editRow
+      ? { ...base, newRecord: erplora().t(CATALOG, 'ui.panelEditZone', { name: this.editRow.name }) }
+      : base;
   }
 
   async onRowAction(ev: CustomEvent<{ actionId: string; row: Record<string, unknown> }>): Promise<void> {
@@ -202,7 +215,7 @@ export class ErpTablesZones extends LitElement {
       this.editRow = z;
       this.form = { name: z.name, color: z.color || 'primary', sortOrder: String(z.sort_order ?? 0), isActive: Number(z.is_active) === 1 };
       this.formError = '';
-      this.dataTable()?.open('create');
+      this.dataTable()?.open('edit', { title: erplora().t(CATALOG, 'ui.panelEditZone', { name: z.name }) });
     } else if (actionId === 'delete' && can('tables.delete_zone')) {
       // Never delete straight away: the runtime refuses a zone with tables, and even an empty one
       // deserves a confirmation (Lightspeed: "cannot be undone").
@@ -215,6 +228,15 @@ export class ErpTablesZones extends LitElement {
     this.editRow = null;
     this.form = { ...EMPTY_FORM, sortOrder: String(this.nextOrder()) };
     this.formError = '';
+  }
+
+  /** pm#450: the table's «Add» emits no event and keeps our form state; after an edit it would
+   *  show the edited zone under a «New» header, and the submit would UPDATE it. Only resets the
+   *  form: «Add» has just opened the panel, so it must not be closed. */
+  private onTableClick(e: Event): void {
+    if (!this.editingId) return;
+    const addId = 'tables-zones-table-add';
+    if (e.composedPath().some((n) => n instanceof HTMLElement && n.getAttribute('data-testid') === addId)) this.cancelEdit();
   }
 
   async submit(ev: Event): Promise<void> {
@@ -281,7 +303,7 @@ export class ErpTablesZones extends LitElement {
         testid="tables-zones-table"
         .serverSide=${true}
         .fill=${true}
-        .labels=${dataTableLabels(erplora().locale)}
+        .labels=${this.tableLabels}
         .columns=${this.columns}
         .actions=${this.actions} .rowClickable=${true}
         .addable=${can('tables.add_zone')}
@@ -318,7 +340,7 @@ export class ErpTablesZones extends LitElement {
             ? html`<ion-toggle data-testid="tables-zones-active" .checked=${this.form.isActive} @ionChange=${(e: CustomEvent) => (this.form = { ...this.form, isActive: !!(e.detail as { checked: boolean }).checked })}>${t('ui.zoneActive')}</ion-toggle>`
             : nothing}
           <div class="foot">
-            ${this.editingId ? html`<ion-button data-testid="tables-zones-cancel" fill="clear" @click=${() => this.cancelEdit()}>${t('ui.cancel')}</ion-button>` : nothing}
+            ${this.editingId ? html`<ion-button data-testid="tables-zones-cancel" fill="clear" @click=${() => { this.cancelEdit(); this.dataTable()?.close(); }}>${t('ui.cancel')}</ion-button>` : nothing}
             <ion-button data-testid="tables-zones-submit" type="submit" ?disabled=${this.saving || !this.form.name.trim()}>
               ${this.saving ? t('ui.saving') : this.editingId ? t('ui.saveChanges') : t('ui.addZone')}
             </ion-button>
