@@ -178,6 +178,7 @@ const COVERED: Record<string, { prefix: string; contract: string[]; computed?: s
       'tables-zones-delete-modal',
       'tables-zones-error',
       'tables-zones-form',
+      'tables-zones-form-error',
       'tables-zones-load-error',
       'tables-zones-name',
       'tables-zones-order',

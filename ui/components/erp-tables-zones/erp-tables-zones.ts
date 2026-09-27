@@ -1,4 +1,5 @@
 import { LitElement, html, css, nothing } from 'lit';
+import type { PropertyValues } from 'lit';
 import { ionTone } from '../../lib/ion-tone';
 import { state } from 'lit/decorators.js';
 import { define } from '@erplora/outfitkit/define';
@@ -95,7 +96,11 @@ export class ErpTablesZones extends LitElement {
 
   @state() private saving = false;
 
+  /** What the panel's form was refused while SAVING: painted inside the form (pm#513). */
   @state() private formError = '';
+
+  /** What went wrong OUTSIDE the panel (a delete confirmed on the page): painted on the page. */
+  @state() private pageError = '';
 
   private ctrl!: ListController<Zone>;
 
@@ -220,6 +225,7 @@ export class ErpTablesZones extends LitElement {
       // Never delete straight away: the runtime refuses a zone with tables, and even an empty one
       // deserves a confirmation (Lightspeed: "cannot be undone").
       this.deleteTarget = z;
+      this.pageError = '';
     }
   }
 
@@ -246,6 +252,7 @@ export class ErpTablesZones extends LitElement {
     if (!can(this.editingId ? 'tables.change_zone' : 'tables.add_zone')) return;
     this.saving = true;
     this.formError = '';
+    this.pageError = ''; // a save is the next thing the person did: an older delete refusal is stale
     try {
       const sortOrder = Math.max(0, Number(this.form.sortOrder) || 0);
       if (this.editingId) {
@@ -279,6 +286,7 @@ export class ErpTablesZones extends LitElement {
     if (!this.deleteTarget || !can('tables.delete_zone')) return;
     const target = this.deleteTarget;
     this.saving = true;
+    this.pageError = '';
     try {
       await erplora().command('tables.zones.delete', { zone_id: target.id });
       await this.ctrl.load();
@@ -286,17 +294,33 @@ export class ErpTablesZones extends LitElement {
       // The WASM handler refuses when the zone still has tables (`tables.zone_has_tables`,
       // tables#55). Before that code existed this painted the raw `tables__gate` CHECK violation
       // of Postgres, identical for all three guards of the module.
-      this.formError = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errDeleteZone'));
+      this.pageError = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errDeleteZone'));
     } finally {
       this.deleteTarget = null;
       this.saving = false;
     }
   }
 
+  /** pm#513: the refusal appears above the button that was pressed, at the foot of the form — on a
+   *  phone that can leave it off the sheet. Bring it into view once it has painted itself: scrolled
+   *  before, the banner still measures 0 px and ends up under the tab bar. */
+  updated(changed: PropertyValues): void {
+    super.updated(changed);
+    if (changed.has('formError') && this.formError) void this.revealFormError();
+  }
+
+  private async revealFormError(): Promise<void> {
+    const banner = this.renderRoot.querySelector('[data-testid="tables-zones-form-error"]') as
+      | (HTMLElement & { updateComplete?: Promise<unknown> })
+      | null;
+    await banner?.updateComplete;
+    banner?.scrollIntoView?.({ block: 'center' });
+  }
+
   render() {
     const t = (k: string, p?: Record<string, unknown>): string => erplora().t(CATALOG, k, p);
     return html`<div class="page">
-      ${this.formError ? html`<ok-inline-feedback data-testid="tables-zones-error" tone="danger" icon="alert-circle-outline">${this.formError}</ok-inline-feedback>` : nothing}
+      ${this.pageError ? html`<ok-inline-feedback data-testid="tables-zones-error" tone="danger" icon="alert-circle-outline">${this.pageError}</ok-inline-feedback>` : nothing}
       ${this.ctrl?.error ? html`<ok-inline-feedback data-testid="tables-zones-load-error" tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : nothing}
 
       <ok-data-table
@@ -339,6 +363,9 @@ export class ErpTablesZones extends LitElement {
           ${this.editingId
             ? html`<ion-toggle data-testid="tables-zones-active" .checked=${this.form.isActive} @ionChange=${(e: CustomEvent) => (this.form = { ...this.form, isActive: !!(e.detail as { checked: boolean }).checked })}>${t('ui.zoneActive')}</ion-toggle>`
             : nothing}
+          <!-- pm#513: the refusal travels WITH the form — under 834 px the panel is a full-screen
+               sheet and a banner on the page underneath it is never seen. -->
+          ${this.formError ? html`<ok-inline-feedback data-testid="tables-zones-form-error" tone="danger" icon="alert-circle-outline">${this.formError}</ok-inline-feedback>` : nothing}
           <div class="foot">
             ${this.editingId ? html`<ion-button data-testid="tables-zones-cancel" fill="clear" @click=${() => { this.cancelEdit(); this.dataTable()?.close(); }}>${t('ui.cancel')}</ion-button>` : nothing}
             <ion-button data-testid="tables-zones-submit" type="submit" ?disabled=${this.saving || !this.form.name.trim()}>
