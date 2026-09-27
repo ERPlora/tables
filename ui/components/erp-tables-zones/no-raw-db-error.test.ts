@@ -61,7 +61,7 @@ type Wc = HTMLElement & {
   shadowRoot: ShadowRoot;
   updateComplete: Promise<unknown>;
   deleteTarget: Record<string, unknown> | null;
-  formError: string;
+  pageError: string;
   confirmDelete: () => Promise<void>;
 };
 
@@ -85,7 +85,8 @@ async function deleteWith(error: unknown): Promise<string> {
   wc.deleteTarget = ZONES[0];
   failWith = error;
   await wc.confirmDelete();
-  return wc.formError;
+  // A refused delete is confirmed on the page, so it is a PAGE error (pm#513), not the form's.
+  return wc.pageError;
 }
 
 describe('la pantalla de zonas nunca enseña a la base de datos hablando', () => {

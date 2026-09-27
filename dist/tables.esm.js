@@ -5472,15 +5472,26 @@ var ErpTablesFloorPlan = class extends i3 {
       this.saving = false;
     }
   }
-  // El título de la vista lo pinta el topbar del shell: repetirlo aquí lo duplicaba en pantalla.
+  /** pm#513: the refusal appears above the button that was pressed — on a phone that can leave it
+   *  off the sheet. Bring it into view once it has painted itself: scrolled before, the banner still
+   *  measures 0 px and ends up under the tab bar. */
+  updated(changed) {
+    super.updated(changed);
+    if (changed.has("formError") && this.formError) void this.revealFormError();
+  }
+  async revealFormError() {
+    const banner = this.renderRoot.querySelector('[data-testid="tables-list-error"]');
+    await banner?.updateComplete;
+    banner?.scrollIntoView?.({ block: "center" });
+  }
+  // The view title is painted by the shell's top bar: repeating it here showed it twice.
   render() {
     const t5 = (k2, params) => erplora2().t(CATALOG2, k2, params);
     return b2`<div class="page">
-        ${this.formError ? b2`<ok-inline-feedback data-testid="tables-list-error" tone="danger" icon="alert-circle-outline">${this.formError}</ok-inline-feedback>` : A}
         ${this.ctrl?.error ? b2`<ok-inline-feedback data-testid="tables-list-load-error" tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : A}
         <ok-data-table testid="tables-list-table" .serverSide=${true} .fill=${true} .addable=${true} .columns=${this.columns} .views=${true} .cardTitle=${(r6) => String(r6.name || r6.number || "\u2014")} .cardIcon=${() => "grid-outline"} .rows=${this.ctrl?.rows ?? []} .total=${this.ctrl?.total ?? 0} .page=${this.ctrl?.state.page ?? 0} .pageSize=${this.ctrl?.state.pageSize ?? 50} .sort=${toColumnSort(this.ctrl?.state.sort)} .sortDir=${this.ctrl?.state.dir ?? "asc"} .searchable=${true} .searchPlaceholder=${t5("ui.searchPlaceholder")} .emptyMessage=${this.ctrl?.loading ? t5("ui.loading") : t5("ui.emptyTables")} @pageChange=${(e5) => this.ctrl.setPage(e5.detail)} @pageSizeChange=${(e5) => this.ctrl.setPageSize(e5.detail)} @sortChange=${(e5) => this.ctrl.setSort(toServerSort(e5.detail.sort), e5.detail.dir)} @searchChange=${(e5) => this.ctrl.setSearch(e5.detail)} @filterChange=${(e5) => this.ctrl.setFilter(e5.detail.col, e5.detail.value)}>
-          <!-- Alta de mesa: se proyecta SIEMPRE (aunque el panel esté cerrado); si se renderizara
-               solo con el panel abierto, el «+» de la barra abriría un panel vacío. -->
+          <!-- Create table: ALWAYS projected (even with the panel closed); rendered only while the
+               panel is open, the «+» of the bar would open an empty panel. -->
           <form slot="create" class="form" data-testid="tables-list-form" @submit=${(e5) => this.createTable(e5)}>
             <ion-input data-testid="tables-list-number" mode="md" fill="outline" label-placement="floating" label=${t5("ui.colNumber")} .value=${this.newNumber} @ionInput=${(e5) => this.newNumber = e5.target.value}></ion-input>
             <ion-input data-testid="tables-list-capacity" mode="md" fill="outline" label-placement="floating" label=${t5("ui.colCapacity")} type="number" min="1" .value=${this.newCapacity} @ionInput=${(e5) => this.newCapacity = e5.target.value}></ion-input>
@@ -5488,6 +5499,9 @@ var ErpTablesFloorPlan = class extends i3 {
               <ion-select-option value="">${t5("ui.noZone")}</ion-select-option>
               ${this.zones.map((z2) => b2`<ion-select-option value=${z2.id}>${z2.name}</ion-select-option>`)}
             </ion-select>
+            <!-- pm#513: the refusal travels WITH the form — under 834 px the panel is a full-screen
+                 sheet and a banner on the page underneath it is never seen. -->
+            ${this.formError ? b2`<ok-inline-feedback data-testid="tables-list-error" tone="danger" icon="alert-circle-outline">${this.formError}</ok-inline-feedback>` : A}
             <ion-button data-testid="tables-list-submit" type="submit" ?disabled=${this.saving || !this.newNumber}>${this.saving ? t5("ui.saving") : t5("ui.addTable")}</ion-button>
           </form>
         </ok-data-table>
@@ -6663,6 +6677,7 @@ var ErpTablesZones = class extends i3 {
     this.deleteTarget = null;
     this.saving = false;
     this.formError = "";
+    this.pageError = "";
     this.onLocaleChange = () => this.requestUpdate();
   }
   static {
@@ -6777,6 +6792,7 @@ var ErpTablesZones = class extends i3 {
       this.dataTable()?.open("edit", { title: erplora5().t(CATALOG5, "ui.panelEditZone", { name: z2.name }) });
     } else if (actionId === "delete" && can("tables.delete_zone")) {
       this.deleteTarget = z2;
+      this.pageError = "";
     }
   }
   cancelEdit() {
@@ -6800,6 +6816,7 @@ var ErpTablesZones = class extends i3 {
     if (!can(this.editingId ? "tables.change_zone" : "tables.add_zone")) return;
     this.saving = true;
     this.formError = "";
+    this.pageError = "";
     try {
       const sortOrder = Math.max(0, Number(this.form.sortOrder) || 0);
       if (this.editingId) {
@@ -6832,20 +6849,33 @@ var ErpTablesZones = class extends i3 {
     if (!this.deleteTarget || !can("tables.delete_zone")) return;
     const target = this.deleteTarget;
     this.saving = true;
+    this.pageError = "";
     try {
       await erplora5().command("tables.zones.delete", { zone_id: target.id });
       await this.ctrl.load();
     } catch (e5) {
-      this.formError = domainMessage(e5, erplora5().locale, erplora5().t(CATALOG5, "ui.errDeleteZone"));
+      this.pageError = domainMessage(e5, erplora5().locale, erplora5().t(CATALOG5, "ui.errDeleteZone"));
     } finally {
       this.deleteTarget = null;
       this.saving = false;
     }
   }
+  /** pm#513: the refusal appears above the button that was pressed, at the foot of the form — on a
+   *  phone that can leave it off the sheet. Bring it into view once it has painted itself: scrolled
+   *  before, the banner still measures 0 px and ends up under the tab bar. */
+  updated(changed) {
+    super.updated(changed);
+    if (changed.has("formError") && this.formError) void this.revealFormError();
+  }
+  async revealFormError() {
+    const banner = this.renderRoot.querySelector('[data-testid="tables-zones-form-error"]');
+    await banner?.updateComplete;
+    banner?.scrollIntoView?.({ block: "center" });
+  }
   render() {
     const t5 = (k2, p4) => erplora5().t(CATALOG5, k2, p4);
     return b2`<div class="page">
-      ${this.formError ? b2`<ok-inline-feedback data-testid="tables-zones-error" tone="danger" icon="alert-circle-outline">${this.formError}</ok-inline-feedback>` : A}
+      ${this.pageError ? b2`<ok-inline-feedback data-testid="tables-zones-error" tone="danger" icon="alert-circle-outline">${this.pageError}</ok-inline-feedback>` : A}
       ${this.ctrl?.error ? b2`<ok-inline-feedback data-testid="tables-zones-load-error" tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : A}
 
       <ok-data-table
@@ -6886,6 +6916,9 @@ var ErpTablesZones = class extends i3 {
           <ion-input data-testid="tables-zones-order" mode="md" fill="outline" label-placement="floating" label=${t5("ui.colOrder")} type="number" min="0" .value=${this.form.sortOrder}
             @ionInput=${(e5) => this.form = { ...this.form, sortOrder: e5.target.value || "0" }}></ion-input>
           ${this.editingId ? b2`<ion-toggle data-testid="tables-zones-active" .checked=${this.form.isActive} @ionChange=${(e5) => this.form = { ...this.form, isActive: !!e5.detail.checked }}>${t5("ui.zoneActive")}</ion-toggle>` : A}
+          <!-- pm#513: the refusal travels WITH the form — under 834 px the panel is a full-screen
+               sheet and a banner on the page underneath it is never seen. -->
+          ${this.formError ? b2`<ok-inline-feedback data-testid="tables-zones-form-error" tone="danger" icon="alert-circle-outline">${this.formError}</ok-inline-feedback>` : A}
           <div class="foot">
             ${this.editingId ? b2`<ion-button data-testid="tables-zones-cancel" fill="clear" @click=${() => {
       this.cancelEdit();
@@ -6934,4 +6967,7 @@ __decorateClass([
 __decorateClass([
   r5()
 ], ErpTablesZones.prototype, "formError", 2);
+__decorateClass([
+  r5()
+], ErpTablesZones.prototype, "pageError", 2);
 define("erp-tables-zones", ErpTablesZones);
