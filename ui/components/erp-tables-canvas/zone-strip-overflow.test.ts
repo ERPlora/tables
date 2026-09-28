@@ -114,6 +114,9 @@ describe('the zone strip says when there are more zones past the edge (tables#97
     seg.style.direction = 'rtl';
     await scrollTo(el, seg, { scrollLeft: 0 });
     expect(cues(seg)).toEqual({ left: true, right: false });
+    // Scrolled all the way to the left, scrollLeft is NEGATIVE: now only the right edge hides zones.
+    await scrollTo(el, seg, { scrollLeft: -(428 - 270) });
+    expect(cues(seg)).toEqual({ left: false, right: true });
   });
 
   it('the phone opens the plan with the cue already on, without anyone scrolling the strip', async () => {
