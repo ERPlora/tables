@@ -120,14 +120,19 @@ export class ErpTablesPosZones extends LitElement {
     .x { background:none; border:none; font-size:1.3rem; cursor:pointer; color:#8b897f; }
     .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr)); gap:.6rem; margin-top:.8rem; }
     .mesa-wrap { position:relative; }
-    .mesa { width:100%; border:2px solid; border-radius: var(--ok-radius, 12px); padding:.6rem .4rem; cursor:pointer; text-align:center; background:var(--ion-background-color,#fff); transition:transform .05s; }
+    .mesa { width:100%; border:2px solid; border-radius: var(--ok-radius, 12px); padding:.6rem .25rem; cursor:pointer; text-align:center; background:var(--ion-background-color,#fff); transition:transform .05s;
+      container-type:inline-size; }
     .mesa:active { transform:scale(.96); }
     .mesa[aria-pressed=true] { outline:3px solid var(--ion-color-primary,#0091ce); outline-offset:1px; }
     .mesa[disabled] { opacity:.35; cursor:not-allowed; }
     .mesa.target { outline:2px dashed var(--ion-color-primary,#0091ce); outline-offset:1px; }
     .mesa .n { font-weight:700; font-size:1.05rem; }
     .mesa .c { font-size:.75rem; color:#8b897f; }
-    .mesa .s { font-size:.65rem; text-transform:uppercase; letter-spacing:.03em; font-weight:600; }
+    /* tables#98: on a 390 px phone a tile has ~64 px of room and DISPONIBLE/RESERVADA/BLOQUEADA broke
+       mid-word. The status stays on one line (Toast/Square): the tile is a size container, the word
+       scales with it up to its normal .65rem, and the ellipsis is only the net for a longer locale. */
+    .mesa .s { font-size:min(.65rem, 15cqi); text-transform:uppercase; letter-spacing:0; font-weight:600;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     /* Nombre y hora de la reserva viva. Cabe en la celda porque es lo unico que el encargado
        necesita de un vistazo; el resto va en el tooltip. */
     .mesa .hold { font-size:.65rem; color:var(--ion-color-warning,#f08c00); font-weight:600;
