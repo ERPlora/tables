@@ -1250,3 +1250,49 @@ describe('pending-order wording in en + es (tables#95)', () => {
     expect(es.ui.sendPendingOrder).toBe('Enviar comanda');
   });
 });
+
+// tables#98 — on a 390 px phone «Elegir mesa» lays four tiles per row (64 px of room each) and the
+// status word (DISPONIBLE, RESERVADA, BLOQUEADA ≈ 67–69 px) broke mid-word: «DISPONIBL» + a lone
+// «E». Toast/Square keep the tile's status on one line; so does this one. happy-dom does no layout
+// (nor min()/cqi), so the rules are anchored as declared; the real fit is measured on the bench
+// (hub:stable, ios+md, 320/390/834/1280, es+en).
+describe('the status word of each table tile reads whole on a phone (tables#98)', () => {
+  const rule = async (selector: string) => {
+    const el = await montar();
+    const cssText = ((el.constructor as unknown as { styles: { cssText: string } }).styles).cssText;
+    const esc = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+');
+    const m = cssText.match(new RegExp(`(?:^|[}\\s])${esc}\\s*\\{([^}]*)\\}`));
+    expect(m, `rule «${selector}» exists`).not.toBeNull();
+    return m![1];
+  };
+
+  it('never breaks inside the word: one line, clipped with an ellipsis only as a last resort', async () => {
+    const s = await rule('.mesa .s');
+    expect(s).toMatch(/white-space:\s*nowrap/);
+    expect(s).toMatch(/overflow:\s*hidden/);
+    expect(s).toMatch(/text-overflow:\s*ellipsis/);
+  });
+
+  it('the word shrinks with the tile (container units) and never grows past its size on wide screens', async () => {
+    const mesa = await rule('.mesa');
+    expect(mesa).toMatch(/container-type:\s*inline-size/);
+    const s = await rule('.mesa .s');
+    expect(s).toMatch(/font-size:\s*min\(\s*\.65rem\s*,\s*15cqi\s*\)/);
+    expect(s).toMatch(/letter-spacing:\s*0[;\s]/);
+  });
+
+  it('the tile leaves the word room: the side padding is .25rem, not .4rem', async () => {
+    const mesa = await rule('.mesa');
+    expect(mesa).toMatch(/padding:\s*\.6rem\s+\.25rem/);
+  });
+
+  it('the status is its own line inside the tile, with the status key', async () => {
+    const el = await montar();
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    const s = el.shadowRoot.querySelector(`[data-testid="tables-pos-table-${MESA.id}"] .s`);
+    expect(s?.textContent?.trim()).toBe('ui.statusAvailable');
+  });
+});
