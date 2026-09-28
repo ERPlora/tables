@@ -6463,13 +6463,26 @@ function erplora4() {
   if (!c5) throw new Error("erplora SDK not initialised by the shell");
   return c5;
 }
+function businessZone() {
+  const tz = erplora4().timezone;
+  const zone = typeof tz === "string" && tz.trim() ? tz.trim() : "UTC";
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: zone });
+    return zone;
+  } catch {
+    return "UTC";
+  }
+}
 function clockTime(iso, now) {
   if (!iso) return "\u2014";
   const d3 = new Date(iso);
   if (Number.isNaN(d3.getTime())) return "\u2014";
-  const sameDay = d3.toDateString() === now.toDateString();
-  const opts = sameDay ? { hour: "numeric", minute: "2-digit" } : { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", ...d3.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {} };
-  return new Intl.DateTimeFormat(erplora4().locale || void 0, opts).format(d3);
+  const timeZone = businessZone();
+  const dayOf = (x2) => new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(x2);
+  const day = dayOf(d3);
+  const today = dayOf(now);
+  const opts = day === today ? { hour: "numeric", minute: "2-digit" } : { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", ...day.slice(0, 4) !== today.slice(0, 4) ? { year: "numeric" } : {} };
+  return new Intl.DateTimeFormat(erplora4().locale || void 0, { ...opts, timeZone }).format(d3);
 }
 function paidAmount(paid) {
   if (paid == null || paid === "") return "\u2014";

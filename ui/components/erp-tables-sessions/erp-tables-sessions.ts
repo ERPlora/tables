@@ -32,6 +32,8 @@ interface ErploraClientLike extends ListClient {
   on(event: string, cb: (payload: unknown) => void): () => void;
   hasPermission?(permission: string): boolean;
   locale: string;
+  /** The hub's resolved IANA zone (hub#1022): the business clock every time on screen reads. */
+  timezone?: string;
   /** Cents → the hub's currency (ADR-0055): divides by the currency's own decimals, never /100 blindly. */
   formatMoney(minor: number, opts?: { currency?: string; locale?: string }): string;
   t(catalog: Record<string, unknown>, key: string, params?: Record<string, unknown>): string;
@@ -103,20 +105,40 @@ function erplora(): ErploraClientLike {
 }
 
 /**
- * `2026-08-18T20:15:00Z` → the device's wall clock in the hub language (`20:15` / `8:15 PM`).
- * tables#101: «Closed» and «All» are not limited to tonight, so a time from another day carries
- * its date (`17 ago, 19:30`) and one from another year its year — the time alone would pass last
- * week's check off as tonight's.
+ * The business clock: the hub's IANA zone the shell publishes as `erplora.timezone` (hub#1212,
+ * the same one appointments, reservations and whatsapp_inbox read). Never the device's zone: a
+ * tablet left on another zone must not move tonight's checks by hours. Absent or unreadable →
+ * `UTC`, like the runtime's own degradation; `Intl` would otherwise throw on every render.
+ */
+function businessZone(): string {
+  const tz = erplora().timezone;
+  const zone = typeof tz === 'string' && tz.trim() ? tz.trim() : 'UTC';
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: zone });
+    return zone;
+  } catch {
+    return 'UTC';
+  }
+}
+
+/**
+ * `2026-08-18T20:15:00Z` → the business wall clock in the hub language (`20:15` / `8:15 PM`).
+ * tables#101: «Closed» and «All» are not limited to tonight, so a time from another business day
+ * carries its date (`17 ago, 19:30`) and one from another year its year — the time alone would
+ * pass last week's check off as tonight's.
  */
 function clockTime(iso: string | null | undefined, now: Date): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  const sameDay = d.toDateString() === now.toDateString();
-  const opts: Intl.DateTimeFormatOptions = sameDay
+  const timeZone = businessZone();
+  const dayOf = (x: Date) => new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(x);
+  const day = dayOf(d);
+  const today = dayOf(now);
+  const opts: Intl.DateTimeFormatOptions = day === today
     ? { hour: 'numeric', minute: '2-digit' }
-    : { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) };
-  return new Intl.DateTimeFormat(erplora().locale || undefined, opts).format(d);
+    : { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', ...(day.slice(0, 4) !== today.slice(0, 4) ? { year: 'numeric' } : {}) };
+  return new Intl.DateTimeFormat(erplora().locale || undefined, { ...opts, timeZone }).format(d);
 }
 
 /**

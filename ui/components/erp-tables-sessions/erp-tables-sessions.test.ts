@@ -412,11 +412,14 @@ describe('a closed check says what it charged, never the internal order id (tabl
 // hand each time. Toast «Closed checks» and Square «Orders» show the closing time. Same rule as the
 // amount (tables#96): visible on Closed and All, hidden on Open (it always reads «—» there).
 //
-// The time reads the device's wall clock in the hub's language (never the ISO string), and the
-// Closed tab is not limited to today, so a check closed on another day also carries its date —
-// «19:30» alone would pass last week's check off as tonight's.
-const at = (y: number, mo: number, d: number, h: number, mi: number) => new Date(y, mo - 1, d, h, mi).toISOString();
-const TONIGHT = new Date(2026, 7, 18, 23, 0);
+// The time reads the business wall clock (`erplora.timezone`) in the hub's language (never the ISO
+// string), and the Closed tab is not limited to today, so a check closed on another day also
+// carries its date — «19:30» alone would pass last week's check off as tonight's.
+const BUSINESS_ZONE = 'Europe/Madrid';
+/** A Madrid wall time as an instant: UTC+2 from April to October, UTC+1 otherwise (enough for these fixtures). */
+const at = (y: number, mo: number, d: number, h: number, mi: number) =>
+  new Date(Date.UTC(y, mo - 1, d, h - (mo >= 4 && mo <= 10 ? 2 : 1), mi)).toISOString();
+const TONIGHT = new Date(at(2026, 8, 18, 23, 0));
 const CLOSED = [
   { ...SESSIONS[1], id: 'c1', opened_at: at(2026, 8, 18, 18, 0), closed_at: at(2026, 8, 18, 19, 30) },
   { ...SESSIONS[1], id: 'c2', opened_at: at(2026, 8, 17, 18, 0), closed_at: at(2026, 8, 17, 19, 30) },
@@ -427,7 +430,9 @@ const ISO = /\d{4}-\d{2}-\d{2}|T\d{2}:\d{2}|Z$/;
 const plain = (s: string) => s.replace(/\s/g, ' ');
 
 async function mountClosed(locale = 'es'): Promise<Wc> {
-  (globalThis as Record<string, unknown> & { erplora: Record<string, unknown> }).erplora.locale = locale;
+  const sdk = (globalThis as Record<string, unknown> & { erplora: Record<string, unknown> }).erplora;
+  sdk.locale = locale;
+  sdk.timezone ??= BUSINESS_ZONE;
   const el = await mount();
   el.now = () => TONIGHT;
   return el;
@@ -463,12 +468,12 @@ describe('a closed check says when it was closed (tables#101)', () => {
     expect(closedCol(el).hidden, 'back on Open the column shows again').toBe(true);
   });
 
-  it('a check closed today reads the local clock in Spanish: «19:30», no date, no ISO', async () => {
+  it('a check closed today reads the business clock in Spanish: «19:30», no date, no ISO', async () => {
     const el = await mountClosed('es');
     expect(closedCol(el).format!(CLOSED[0])).toBe('19:30');
   });
 
-  it('a check closed today reads the local clock in English: «7:30 PM»', async () => {
+  it('a check closed today reads the business clock in English: «7:30 PM»', async () => {
     const el = await mountClosed('en');
     expect(plain(closedCol(el).format!(CLOSED[0]))).toBe('7:30 PM');
   });
@@ -522,10 +527,10 @@ describe('a closed check says when it was closed (tables#101)', () => {
     expect(txt).toContain('18:00');
   });
 
-  it('«today» is the LOCAL day, not the UTC one: a check closed just before midnight, read just after, says yesterday', async () => {
-    // Pinned to Madrid (UTC+2 in August) so the local and the UTC day really differ, on any machine.
+  it('«today» is the business day, not the UTC one: a check closed just before midnight, read just after, says yesterday', async () => {
+    // Business in Madrid (UTC+2 in August) on a device pinned to UTC, so the two days really differ.
     const tz = process.env.TZ;
-    process.env.TZ = 'Europe/Madrid';
+    process.env.TZ = 'UTC';
     try {
       const el = await mountClosed('es');
       // 23:50 on the 17th and 00:30 on the 18th, Madrid time: the same UTC day (the 17th).
@@ -550,5 +555,73 @@ describe('a closed check says when it was closed (tables#101)', () => {
     expect(text, 'the detail has no opening time').toContain('6:00 PM');
     expect(text, 'a check closed tonight carries a date in the detail').not.toContain('Aug');
     expect(text).not.toMatch(/T\d{2}:\d{2}/);
+  });
+});
+
+// Review of tables#104: the times are read on the BUSINESS clock — the hub's IANA zone the shell
+// publishes as `erplora.timezone` (hub#1212; appointments#12, reservations, whatsapp_inbox#183) —
+// never on the device's. A tablet left on another zone must not move tonight's checks by hours,
+// nor decide on its own which checks were closed «today».
+describe('a closed check reads the BUSINESS clock, not the device one (tables#101 review)', () => {
+  async function withZones(device: string, business: unknown, run: () => Promise<void>) {
+    const tz = process.env.TZ;
+    process.env.TZ = device;
+    (globalThis as Record<string, unknown> & { erplora: Record<string, unknown> }).erplora.timezone = business;
+    try {
+      await run();
+    } finally {
+      if (tz === undefined) delete process.env.TZ;
+      else process.env.TZ = tz;
+    }
+  }
+
+  it('the hour is the business hour, whatever zone the tablet sits in', async () => {
+    // 17:30 UTC = 19:30 in Madrid (the business) = 07:30 next day in Kiritimati (the tablet).
+    await withZones('Pacific/Kiritimati', 'Europe/Madrid', async () => {
+      const el = await mountClosed('es');
+      el.now = () => new Date('2026-08-18T21:00:00Z'); // 23:00 in Madrid, same day
+      expect(closedCol(el).format!({ ...CLOSED[0], closed_at: '2026-08-18T17:30:00Z' })).toBe('19:30');
+      expect(openedCol(el).format!({ ...CLOSED[0], opened_at: '2026-08-18T16:00:00Z' })).toBe('18:00');
+    });
+  });
+
+  it('«today» is the business day: a check closed before midnight in the shop, read after it, says yesterday', async () => {
+    // Closed 23:50 on the 17th in Madrid, read at 00:30 on the 18th in Madrid. The tablet
+    // (Kiritimati, UTC+14) sees both on the 18th and would drop the date.
+    await withZones('Pacific/Kiritimati', 'Europe/Madrid', async () => {
+      const el = await mountClosed('es');
+      el.now = () => new Date('2026-08-17T22:30:00Z');
+      const txt = plain(closedCol(el).format!({ ...CLOSED[0], closed_at: '2026-08-17T21:50:00Z' }));
+      expect(txt).toContain('17');
+      expect(txt).toContain('23:50');
+    });
+  });
+
+  it('the detail reads the same business clock as the list', async () => {
+    await withZones('Pacific/Kiritimati', 'Europe/Madrid', async () => {
+      const el = await mountClosed('es');
+      el.now = () => new Date('2026-08-18T21:00:00Z');
+      await el.onRowAction(new CustomEvent('rowAction', { detail: { actionId: 'detail', row: { ...CLOSED[0], opened_at: '2026-08-18T16:00:00Z', closed_at: '2026-08-18T17:30:00Z' } } }));
+      await el.updateComplete;
+      const text = plain(el.shadowRoot.querySelector('[data-testid="tables-sessions-detail"]')?.textContent ?? '');
+      expect(text).toContain('19:30');
+      expect(text).toContain('18:00');
+    });
+  });
+
+  it('no zone published degrades to UTC, like the runtime — never to the tablet zone', async () => {
+    await withZones('Pacific/Kiritimati', '', async () => {
+      const el = await mountClosed('es');
+      el.now = () => new Date('2026-08-18T21:00:00Z');
+      expect(closedCol(el).format!({ ...CLOSED[0], closed_at: '2026-08-18T17:30:00Z' })).toBe('17:30');
+    });
+  });
+
+  it('a zone this browser cannot read degrades to UTC instead of blanking the list', async () => {
+    await withZones('Pacific/Kiritimati', 'Mars/Olympus_Mons', async () => {
+      const el = await mountClosed('es');
+      el.now = () => new Date('2026-08-18T21:00:00Z');
+      expect(closedCol(el).format!({ ...CLOSED[0], closed_at: '2026-08-18T17:30:00Z' })).toBe('17:30');
+    });
   });
 });
