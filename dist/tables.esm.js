@@ -6476,6 +6476,7 @@ function paidAmount(paid) {
   const minor = Number(paid);
   return Number.isFinite(minor) ? erplora4().formatMoney(minor) : "\u2014";
 }
+var TIME_WIDTH = "minmax(8.5rem,1fr)";
 function durationMinutes(s5, now) {
   const from = new Date(s5.opened_at).getTime();
   const to = s5.closed_at ? new Date(s5.closed_at).getTime() : now.getTime();
@@ -6553,9 +6554,11 @@ var ErpTablesSessions = class extends i3 {
         format: (r6) => this.waiterName(r6.waiter_id) || "\u2014"
       },
       { key: "guests_count", header: t5("ui.colGuests"), align: "right", sortable: true, format: (r6) => t5("ui.paxCount", { count: r6.guests_count ?? 0 }) },
-      { key: "opened_at", header: t5("ui.colOpenedAt"), sortable: true, format: (r6) => clockTime(r6.opened_at, this.now()) },
+      // tables#101: a time from another day carries its date («27 sept, 21:40»), which the grid's
+      // default 5.5rem floor cut at 768 px; TIME_WIDTH is the floor that fits it.
+      { key: "opened_at", header: t5("ui.colOpenedAt"), sortable: true, width: TIME_WIDTH, format: (r6) => clockTime(r6.opened_at, this.now()) },
       // tables#101: when the check closed. Hidden on «Open» only, where it always reads «—».
-      { key: "closed_at", header: t5("ui.colClosedAt"), sortable: true, hidden: this.segment === "open", format: (r6) => clockTime(r6.closed_at, this.now()) },
+      { key: "closed_at", header: t5("ui.colClosedAt"), sortable: true, hidden: this.segment === "open", width: TIME_WIDTH, format: (r6) => clockTime(r6.closed_at, this.now()) },
       {
         key: "duration",
         header: t5("ui.colDuration"),
