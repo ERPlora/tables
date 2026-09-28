@@ -2309,8 +2309,8 @@ var ErpTablesCanvas = class extends i3 {
       const hidden = seg.scrollWidth - seg.clientWidth;
       const rtl = getComputedStyle(seg).direction === "rtl";
       const left = rtl ? hidden + seg.scrollLeft : seg.scrollLeft;
-      seg.classList.toggle("more-left", hidden > 1 && left > 1);
-      seg.classList.toggle("more-right", hidden > 1 && left < hidden - 1);
+      seg.classList.toggle("more-left", left > 1);
+      seg.classList.toggle("more-right", left < hidden - 1);
     };
     this.areaListening = false;
     this.placeScrim = () => {
@@ -2464,7 +2464,6 @@ var ErpTablesCanvas = class extends i3 {
         this.observedZones = this.zones;
       }
     }
-    this.updateZoneCue();
   }
   unwatchZoneStrip() {
     this.stripObserver?.disconnect();
