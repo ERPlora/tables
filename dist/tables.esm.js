@@ -1863,6 +1863,8 @@ var es_default = {
     close: "Cerrar",
     noTablesInZoneHint: "Crea mesas en el m\xF3dulo Mesas.",
     sendPendingBeforeTable: "Env\xEDa primero los {count} productos pendientes de la comanda actual.",
+    sendPendingBeforeTableOne: "Env\xEDa primero el producto pendiente de la comanda actual.",
+    sendPendingOrder: "Enviar comanda",
     colTables: "Mesas",
     colAvailable: "Libres",
     colOrder: "Orden",
@@ -2055,6 +2057,8 @@ var en_default = {
     close: "Close",
     noTablesInZoneHint: "Create tables in the Tables module.",
     sendPendingBeforeTable: "Send the {count} pending items in the current order first.",
+    sendPendingBeforeTableOne: "Send the pending item in the current order first.",
+    sendPendingOrder: "Send order",
     colTables: "Tables",
     colAvailable: "Available",
     colOrder: "Order",
@@ -5641,6 +5645,9 @@ var ErpTablesPosZones = class extends i3 {
     this.error = "";
     this.pendingCount = 0;
     this.kitchenEnabled = false;
+    /** «Send order» was tapped for `heldBack`. Only then does the held action go ahead by itself: an
+     *  order sent from «Current order» just lifts the warning, it does not seat a table for anyone. */
+    this.sendRequested = false;
     this.mode = "select";
     /** Room setting `prompt_guests_on_seat` (tables#3 c). Off = a bar that never counts covers:
      *  seating a free table opens the check with the capacity in ONE tap (Lightspeed "Cover count
@@ -5662,6 +5669,12 @@ var ErpTablesPosZones = class extends i3 {
       const value = Number(detail?.pending_count ?? 0);
       this.pendingCount = Number.isFinite(value) ? Math.max(0, value) : 0;
       this.kitchenEnabled = detail?.kitchen_enabled === true;
+      const held = this.heldBack;
+      if (!held || this.pendingBlocks) return;
+      const goAhead = this.sendRequested && this.open;
+      this.heldBack = void 0;
+      this.sendRequested = false;
+      if (goAhead) void (held.kind === "pick" ? this.pick(held.table) : this.clear());
     };
     // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template se re-evalúan
     // con el nuevo `erplora.locale`.
@@ -5790,6 +5803,11 @@ var ErpTablesPosZones = class extends i3 {
     .empty ion-icon { font-size:2rem; opacity:.5; display:block; margin:0 auto .4rem; }
     .empty p { margin:.15rem 0; }
     .empty .empty-hint { font-size:.82rem; opacity:.75; }
+    /* tables#95: the pending-order warning carries its own way out (Toast «Unsent items: Send»). */
+    .pending { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; margin:.6rem 0; padding:.6rem .7rem;
+      border-radius: var(--ok-radius, 12px); background:rgba(var(--ion-color-warning-rgb, 255,196,9), .16);
+      color:var(--ion-text-color,#1c1b18); font-size:.9rem; }
+    .pending .msg { flex:1 1 12rem; }
     .foot { display:flex; justify-content:space-between; align-items:center; margin-top:1rem; }
     /* tables#32: covers prompt. Touch targets >= 44px (tables#16): the stepper and the quick
        chips are what a waiter taps with one hand while standing. */
@@ -5823,6 +5841,18 @@ var ErpTablesPosZones = class extends i3 {
     }
   `;
   }
+  /** With kitchen on, the check cannot change table until its order is sent (sales only shares
+   *  the count, never the lines). */
+  get pendingBlocks() {
+    return this.kitchenEnabled && this.pendingCount > 0;
+  }
+  /** tables#95: «Send order» from the warning. Same host contract as the kitchen footer button
+   *  (`erp:order-fire`, bubbles+composed): sales fires only the pending lines and re-emits
+   *  `erp:pos-state`, which is what lets the held action go ahead. */
+  sendPending() {
+    this.sendRequested = true;
+    this.dispatchEvent(new CustomEvent("erp:order-fire", { detail: {}, bubbles: true, composed: true }));
+  }
   connectedCallback() {
     super.connectedCallback();
     this.addEventListener("erp:pos-state", this.onPosState);
@@ -5847,6 +5877,8 @@ var ErpTablesPosZones = class extends i3 {
     this.open = true;
     this.loading = true;
     this.error = "";
+    this.heldBack = void 0;
+    this.sendRequested = false;
     try {
       const [z2, t5, s5] = await Promise.all([
         erplora3().queryAll("tables.zones.list", { sort: "sort_order", dir: "asc" }).catch(() => []),
@@ -5923,8 +5955,8 @@ var ErpTablesPosZones = class extends i3 {
       void this.refreshTables();
       return;
     }
-    if (this.kitchenEnabled && this.pendingCount > 0) {
-      this.error = erplora3().t(CATALOG3, "ui.sendPendingBeforeTable", { count: this.pendingCount });
+    if (this.pendingBlocks) {
+      this.heldBack = { kind: "pick", table: t5 };
       return;
     }
     if (this.sessionId && this.selectedId && this.selectedId !== t5.id) {
@@ -6011,8 +6043,8 @@ var ErpTablesPosZones = class extends i3 {
     this.guestsPrompt = { kind: "edit", table: t5, value: Math.max(1, Number(t5.live_guests) || t5.capacity || 1) };
   }
   async clear() {
-    if (this.kitchenEnabled && this.pendingCount > 0) {
-      this.error = erplora3().t(CATALOG3, "ui.sendPendingBeforeTable", { count: this.pendingCount });
+    if (this.pendingBlocks) {
+      this.heldBack = { kind: "clear" };
       this.open = true;
       return;
     }
@@ -6188,6 +6220,11 @@ var ErpTablesPosZones = class extends i3 {
 
         ${this.error ? b2`<p data-testid="tables-pos-error" style="color:#d9480f">${this.error}</p>` : A}
 
+        ${this.heldBack ? b2`<div class="pending" role="alert" data-testid="tables-pos-pending">
+              <span class="msg">${this.pendingCount === 1 ? t5("ui.sendPendingBeforeTableOne") : t5("ui.sendPendingBeforeTable", { count: this.pendingCount })}</span>
+              <ion-button data-testid="tables-pos-send-pending" @click=${() => this.sendPending()}>${t5("ui.sendPendingOrder")}</ion-button>
+            </div>` : A}
+
         ${this.guestsPrompt ? this.renderGuestsPrompt(t5) : A}
 
         ${this.actionSource && !inAction && !this.guestsPrompt ? b2`<div class="actions">
@@ -6320,6 +6357,9 @@ __decorateClass([
 __decorateClass([
   r5()
 ], ErpTablesPosZones.prototype, "kitchenEnabled", 2);
+__decorateClass([
+  r5()
+], ErpTablesPosZones.prototype, "heldBack", 2);
 __decorateClass([
   r5()
 ], ErpTablesPosZones.prototype, "mode", 2);

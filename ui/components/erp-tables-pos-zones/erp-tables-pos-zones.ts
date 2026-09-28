@@ -148,6 +148,11 @@ export class ErpTablesPosZones extends LitElement {
     .empty ion-icon { font-size:2rem; opacity:.5; display:block; margin:0 auto .4rem; }
     .empty p { margin:.15rem 0; }
     .empty .empty-hint { font-size:.82rem; opacity:.75; }
+    /* tables#95: the pending-order warning carries its own way out (Toast «Unsent items: Send»). */
+    .pending { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; margin:.6rem 0; padding:.6rem .7rem;
+      border-radius: var(--ok-radius, 12px); background:rgba(var(--ion-color-warning-rgb, 255,196,9), .16);
+      color:var(--ion-text-color,#1c1b18); font-size:.9rem; }
+    .pending .msg { flex:1 1 12rem; }
     .foot { display:flex; justify-content:space-between; align-items:center; margin-top:1rem; }
     /* tables#32: covers prompt. Touch targets >= 44px (tables#16): the stepper and the quick
        chips are what a waiter taps with one hand while standing. */
@@ -193,6 +198,12 @@ export class ErpTablesPosZones extends LitElement {
    *  cuenta/mesa: primero hay que validar la comanda actual. */
   @state() private pendingCount = 0;
   @state() private kitchenEnabled = false;
+  /** tables#95: what the unsent order is holding back — the table the waiter tapped, or «Remove
+   *  table». The warning offers «Send order»; once sales reports nothing pending, it goes ahead. */
+  @state() private heldBack?: { kind: 'pick'; table: Table } | { kind: 'clear' };
+  /** «Send order» was tapped for `heldBack`. Only then does the held action go ahead by itself: an
+   *  order sent from «Current order» just lifts the warning, it does not seat a table for anyone. */
+  private sendRequested = false;
   /** Modo del selector: `select` = elegir mesa; `transfer`/`merge` = elegir mesa DESTINO tras el
    *  menú ⋮ de una mesa ocupada (punto 4/3). */
   @state() private mode: 'select' | 'transfer' | 'merge' = 'select';
@@ -229,7 +240,27 @@ export class ErpTablesPosZones extends LitElement {
     const value = Number(detail?.pending_count ?? 0);
     this.pendingCount = Number.isFinite(value) ? Math.max(0, value) : 0;
     this.kitchenEnabled = detail?.kitchen_enabled === true;
+    const held = this.heldBack;
+    if (!held || this.pendingBlocks) return;
+    const goAhead = this.sendRequested && this.open;
+    this.heldBack = undefined;
+    this.sendRequested = false;
+    if (goAhead) void (held.kind === 'pick' ? this.pick(held.table) : this.clear());
   };
+
+  /** With kitchen on, the check cannot change table until its order is sent (sales only shares
+   *  the count, never the lines). */
+  private get pendingBlocks(): boolean {
+    return this.kitchenEnabled && this.pendingCount > 0;
+  }
+
+  /** tables#95: «Send order» from the warning. Same host contract as the kitchen footer button
+   *  (`erp:order-fire`, bubbles+composed): sales fires only the pending lines and re-emits
+   *  `erp:pos-state`, which is what lets the held action go ahead. */
+  private sendPending(): void {
+    this.sendRequested = true;
+    this.dispatchEvent(new CustomEvent('erp:order-fire', { detail: {}, bubbles: true, composed: true }));
+  }
 
   // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template se re-evalúan
   // con el nuevo `erplora.locale`.
@@ -261,6 +292,8 @@ export class ErpTablesPosZones extends LitElement {
     this.open = true;
     this.loading = true;
     this.error = '';
+    this.heldBack = undefined;
+    this.sendRequested = false;
     try {
       const [z, t, s] = await Promise.all([
         erplora().queryAll('tables.zones.list', { sort: 'sort_order', dir: 'asc' }).catch(() => []),
@@ -413,8 +446,8 @@ export class ErpTablesPosZones extends LitElement {
       void this.refreshTables();
       return;
     }
-    if (this.kitchenEnabled && this.pendingCount > 0) {
-      this.error = erplora().t(CATALOG, 'ui.sendPendingBeforeTable', { count: this.pendingCount });
+    if (this.pendingBlocks) {
+      this.heldBack = { kind: 'pick', table: t };
       return;
     }
     // Cambiar de mesa antes de cobrar: libera la anterior SOLO si no tiene comanda.
@@ -534,8 +567,8 @@ export class ErpTablesPosZones extends LitElement {
     // Quitar la mesa = APARCAR la sesión (decisión Ioan 2026-07-19): la mesa queda libre y la
     // sesión sobrevive como «aparcada» (ADR-0146), recuperable. Cerrarla era terminal: la
     // cuenta perdía su rastro de servicio.
-    if (this.kitchenEnabled && this.pendingCount > 0) {
-      this.error = erplora().t(CATALOG, 'ui.sendPendingBeforeTable', { count: this.pendingCount });
+    if (this.pendingBlocks) {
+      this.heldBack = { kind: 'clear' };
       this.open = true;
       return;
     }
@@ -711,6 +744,15 @@ export class ErpTablesPosZones extends LitElement {
         </div>
 
         ${this.error ? html`<p data-testid="tables-pos-error" style="color:#d9480f">${this.error}</p>` : nothing}
+
+        ${this.heldBack
+          ? html`<div class="pending" role="alert" data-testid="tables-pos-pending">
+              <span class="msg">${this.pendingCount === 1
+                ? t('ui.sendPendingBeforeTableOne')
+                : t('ui.sendPendingBeforeTable', { count: this.pendingCount })}</span>
+              <ion-button data-testid="tables-pos-send-pending" @click=${() => this.sendPending()}>${t('ui.sendPendingOrder')}</ion-button>
+            </div>`
+          : nothing}
 
         ${this.guestsPrompt ? this.renderGuestsPrompt(t) : nothing}
 

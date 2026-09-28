@@ -124,6 +124,8 @@
     "close": "Cerrar",
     "noTablesInZoneHint": "Crea mesas en el módulo Mesas.",
     "sendPendingBeforeTable": "Envía primero los {count} productos pendientes de la comanda actual.",
+    "sendPendingBeforeTableOne": "Envía primero el producto pendiente de la comanda actual.",
+    "sendPendingOrder": "Enviar comanda",
     "colTables": "Mesas",
     "colAvailable": "Libres",
     "colOrder": "Orden",
