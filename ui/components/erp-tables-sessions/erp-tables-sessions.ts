@@ -130,6 +130,9 @@ function paidAmount(paid: unknown): string {
   return Number.isFinite(minor) ? erplora().formatMoney(minor) : '—';
 }
 
+/** Grid floor of the opening/closing columns: fits «27 sept, 21:40» / «Sep 27, 9:40 PM». */
+const TIME_WIDTH = 'minmax(8.5rem,1fr)';
+
 /** Whole minutes between `opened_at` and `closed_at` (or `now` for an open check). */
 export function durationMinutes(s: { opened_at: string; closed_at: string | null }, now: Date): number {
   const from = new Date(s.opened_at).getTime();
@@ -222,9 +225,11 @@ export class ErpTablesSessions extends LitElement {
         format: (r) => this.waiterName(r.waiter_id) || '—',
       },
       { key: 'guests_count', header: t('ui.colGuests'), align: 'right', sortable: true, format: (r) => t('ui.paxCount', { count: r.guests_count ?? 0 }) },
-      { key: 'opened_at', header: t('ui.colOpenedAt'), sortable: true, format: (r) => clockTime(r.opened_at as string, this.now()) },
+      // tables#101: a time from another day carries its date («27 sept, 21:40»), which the grid's
+      // default 5.5rem floor cut at 768 px; TIME_WIDTH is the floor that fits it.
+      { key: 'opened_at', header: t('ui.colOpenedAt'), sortable: true, width: TIME_WIDTH, format: (r) => clockTime(r.opened_at as string, this.now()) },
       // tables#101: when the check closed. Hidden on «Open» only, where it always reads «—».
-      { key: 'closed_at', header: t('ui.colClosedAt'), sortable: true, hidden: this.segment === 'open', format: (r) => clockTime(r.closed_at as string | null, this.now()) },
+      { key: 'closed_at', header: t('ui.colClosedAt'), sortable: true, hidden: this.segment === 'open', width: TIME_WIDTH, format: (r) => clockTime(r.closed_at as string | null, this.now()) },
       {
         key: 'duration',
         header: t('ui.colDuration'),

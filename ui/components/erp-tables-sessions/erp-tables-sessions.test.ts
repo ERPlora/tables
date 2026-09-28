@@ -488,6 +488,18 @@ describe('a closed check says when it was closed (tables#101)', () => {
     expect(txt).toContain('23:45');
   });
 
+  it('the time columns are wide enough for a date and a time: «27 sept, 21:40» is not cut at 768 px', async () => {
+    // Seen on the bench (hub:dev, 768 px): with the grid's default 5.5rem floor the closing time of
+    // yesterday's check read «27 sept, 21:…» — the one figure the column exists for, cut off.
+    const el = await mountClosed('es');
+    await showSegment(el, 'closed');
+    for (const col of [closedCol(el), openedCol(el)]) {
+      const floor = /^minmax\((\d+(?:\.\d+)?)rem,\s*1fr\)$/.exec((col as Col & { width?: string }).width ?? '');
+      expect(floor, `«${col.key}» keeps the default floor`).toBeTruthy();
+      expect(Number(floor![1]), `«${col.key}» floor too narrow for a date and a time`).toBeGreaterThanOrEqual(8.5);
+    }
+  });
+
   it('an open check (no closing time) still reads «—»', async () => {
     const el = await mountClosed('es');
     expect(closedCol(el).format!({ ...CLOSED[0], closed_at: null })).toBe('—');
