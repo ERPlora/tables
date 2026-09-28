@@ -8,6 +8,9 @@ The module contributes five tabs to the hub navigation: **Floor Plan**, **Zones*
 The visual editor of the room. Tables are boxes on a canvas, grouped by zone tabs.
 
 - **Drag a table** to reposition it; the new position and size are saved immediately.
+- On a phone the **zone tabs** scroll sideways; an edge that fades out means there are more zones
+  that way. Swiping up or down on an **empty part of the plan** scrolls the page (only a table
+  answers to dragging), so the help line under the plan can always be read.
 - **Add a zone** or **add a table** from here.
 - The plan shows each table's live status by colour, including tables **held** for a booking.
 

@@ -242,17 +242,33 @@ export class ErpTablesCanvas extends LitElement {
        configuración, en iconos. A 390 px el plano empieza justo debajo. */
     .zonebar { display:flex; gap:.25rem; align-items:center; margin-bottom:.4rem; }
     .zonebar ion-segment { flex:1; min-width:0; }
+    /* tables#97: on a phone the strip scrolls sideways, and a hard cut at the edge read as «there
+       are no more zones». Each edge with zones behind it fades out, like any scrollable tab strip;
+       updateZoneCue() sets the classes from the strip's own scroll position. */
+    .zonebar ion-segment.more-right {
+      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+      mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent); }
+    .zonebar ion-segment.more-left {
+      -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent);
+      mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent); }
+    .zonebar ion-segment.more-left.more-right {
+      -webkit-mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
+      mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent); }
     .zonebar .flex { flex:1; }
+    /* tables#97: only a TABLE owns the touch gesture (touch-action:none on .mesa, so it drags). The
+       empty plan lets a vertical swipe scroll the page: on a phone the plan fills the screen, and
+       with touch-action:none everywhere the help line under it could never be scrolled into view. */
     .canvas { position:relative; height:60vh; min-height:22rem; border:1px dashed var(--ion-border-color,#cfcabd); border-radius: var(--ok-radius, 14px); background:
         repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px),
         repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px);
-      overflow:hidden; touch-action:none; }
+      overflow:hidden; touch-action:pan-y; }
     /* tables#53: el TAMAÑO ya no se clava aquí — lo pinta cada mesa con el suyo (estilo inline),
        porque la fila lo trae y tables.tables.move lo persiste. Se deja como respaldo para una
        mesa que no lo declare. */
     .mesa { position:absolute; width:${BOX}px; height:${BOX}px; border:2px solid; border-radius: var(--ok-radius, 12px);
       display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:grab;
-      background:var(--ion-background-color,#fff); user-select:none; box-shadow:0 1px 4px rgba(0,0,0,.12); }
+      background:var(--ion-background-color,#fff); user-select:none; box-shadow:0 1px 4px rgba(0,0,0,.12);
+      touch-action:none; }
     .mesa.round { border-radius: var(--ok-radius-pill, 50%); }
     .mesa.dragging { cursor:grabbing; opacity:.85; box-shadow:0 6px 18px rgba(0,0,0,.28); z-index:5; }
     /* Keyboard focus is visible: the table is a button (tables#16). */
@@ -379,13 +395,59 @@ export class ErpTablesCanvas extends LitElement {
     this.unsub?.();
     if (this.timer) clearInterval(this.timer);
     this.unwatchSheetArea();
+    this.unwatchZoneStrip();
   }
+
+  /** tables#97 — the strip overflows only once Ionic has laid its buttons out (after the first
+   *  paint) and whenever a zone, the language or the screen changes their width. A ResizeObserver
+   *  on the strip AND on every button catches all of it (it also reports once as soon as it starts
+   *  watching); scrolling the strip is caught by @scroll. */
+  private stripObserver?: ResizeObserver;
+  private observedStrip?: Element;
+  private observedZones?: Zone[];
+
+  private watchZoneStrip(): void {
+    const seg = this.renderRoot.querySelector<HTMLElement>('[data-testid="tables-floor-zones"]');
+    if (seg !== this.observedStrip || this.zones !== this.observedZones) {
+      this.unwatchZoneStrip();
+      if (seg && typeof ResizeObserver !== 'undefined') {
+        this.stripObserver = new ResizeObserver(this.updateZoneCue);
+        this.stripObserver.observe(seg);
+        seg.querySelectorAll('ion-segment-button').forEach((b) => this.stripObserver?.observe(b));
+        this.observedStrip = seg;
+        this.observedZones = this.zones;
+      }
+    }
+  }
+
+  private unwatchZoneStrip(): void {
+    this.stripObserver?.disconnect();
+    this.stripObserver = undefined;
+    this.observedStrip = undefined;
+    this.observedZones = undefined;
+  }
+
+  /** Fades each edge of the zone strip that has zones behind it. The classes go straight on the
+   *  element (no Lit class binding): a bound `class` would wipe the ones Ionic sets on its host. */
+  private readonly updateZoneCue = (): void => {
+    const seg = this.renderRoot.querySelector<HTMLElement>('[data-testid="tables-floor-zones"]');
+    if (!seg) return;
+    const hidden = seg.scrollWidth - seg.clientWidth;
+    // Pixels of strip past the LEFT edge. Right-to-left, scrollLeft runs from 0 (start, at the
+    // right) down to -hidden, so the left overflow is what is still left to scroll.
+    const rtl = getComputedStyle(seg).direction === 'rtl';
+    const left = rtl ? hidden + seg.scrollLeft : seg.scrollLeft;
+    // 1 px of slack: a fractional scroll position must not leave a fade on an edge already reached.
+    seg.classList.toggle('more-left', left > 1);
+    seg.classList.toggle('more-right', left < hidden - 1);
+  };
 
   /** tables#88 — while a sheet is open its scrim is laid over the box the person actually SEES:
    *  the shell's ion-content (it ends where the module tab bar starts), clipped to the screen.
    *  Neither the viewport (it includes the tab bar) nor this host (the shell floors its outlet at
    *  480px, so on a short screen the module box is taller than what is visible) is that box. */
   protected updated(): void {
+    this.watchZoneStrip();
     if (!this.sheetOpen) { this.unwatchSheetArea(); return; }
     this.placeScrim();
     if (this.areaObserver || this.areaListening) return;
@@ -841,6 +903,7 @@ export class ErpTablesCanvas extends LitElement {
       <div class="zonebar">
         ${this.zones.length
           ? html`<ion-segment data-testid="tables-floor-zones" scrollable value=${this.activeZone}
+              @scroll=${this.updateZoneCue}
               @ionChange=${(e: CustomEvent) => { this.activeZone = (e.detail as { value: string }).value; }}>
               ${this.zones.map((z) => html`<ion-segment-button data-testid=${`tables-floor-zone-tab-${z.id}`} value=${z.id}><ion-label>${z.name}</ion-label></ion-segment-button>`)}
             </ion-segment>`
