@@ -153,7 +153,9 @@ A hold is not a session — nobody has sat down yet. Both actions need
 
 The sell screen shows a table button contributed by this module (requires `tables.view_table`).
 
-1. Press it. A modal opens with a tab per zone.
+1. Press it. A modal opens with a tab per zone. Each table shows its number, seats and its status
+   written on one line (Available, Occupied, Reserved, Blocked); on a narrow phone the word gets a
+   touch smaller instead of breaking in two (tables#98).
 2. Pick a table. The check now carries it, and the sell screen shows the label.
 3. **Quitar mesa** (remove table) lives inside the same selector.
 
