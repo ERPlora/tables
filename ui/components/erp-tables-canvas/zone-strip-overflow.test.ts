@@ -134,20 +134,44 @@ describe('the zone strip says when there are more zones past the edge (tables#97
     expect(cues(seg)).toEqual({ left: false, right: true });
   });
 
+  it('half a pixel from an edge counts as the edge: no fade left on a strip that has arrived', async () => {
+    const el = await mount();
+    const seg = strip(el);
+    await scrollTo(el, seg, { scrollLeft: 158 - 0.5 });
+    expect(cues(seg)).toEqual({ left: true, right: false });
+    await scrollTo(el, seg, { scrollLeft: 0.5 });
+    expect(cues(seg)).toEqual({ left: false, right: true });
+  });
+
+  it('a zone added while the plan is open is watched too (its button can push the strip over)', async () => {
+    const el = await mount();
+    const more = [...ZONES, { id: 'z7', name: 'Reservado', color: 'primary', sort_order: 6, is_active: 1 }];
+    const sdk = (globalThis as Record<string, unknown>).erplora as Record<string, unknown>;
+    sdk.queryAll = async (name: string) => (name === 'tables.zones.list' ? more : TABLES);
+    await (el as unknown as { reload(): Promise<void> }).reload();
+    await el.updateComplete;
+    const seg = strip(el);
+    const added = seg.querySelector('[data-testid="tables-floor-zone-tab-z7"]');
+    expect(added).toBeTruthy();
+    const watching = observers.filter((o) => !o.disconnected && o.targets.includes(seg));
+    expect(watching.some((o) => o.targets.includes(added as Element)), 'the new zone button is not watched').toBe(true);
+  });
+
   it('the cue is a fade the person sees: each class masks its own edge, both classes mask both', async () => {
     const el = await mount();
     const seg = strip(el);
-    const mask = (s: HTMLElement) => {
+    // Both spellings: the standard one and the -webkit- one Safari (the iPad/iPhone app) reads.
+    const masks = (s: HTMLElement) => {
       const cs = getComputedStyle(s);
-      return cs.getPropertyValue('mask-image') || cs.getPropertyValue('-webkit-mask-image');
+      return [cs.getPropertyValue('mask-image'), cs.getPropertyValue('-webkit-mask-image')];
     };
-    expect(mask(seg), 'a strip that fits must not fade').toMatch(/^(none)?$/);
+    for (const m of masks(seg)) expect(m, 'a strip that fits must not fade').toMatch(/^(none)?$/);
     await scrollTo(el, seg, { scrollLeft: 0 });
-    expect(mask(seg)).toMatch(/linear-gradient\(to right, #000 calc\(100% - 2\.5rem\), transparent\)/);
+    for (const m of masks(seg)) expect(m).toMatch(/^linear-gradient\(to right, #000 calc\(100% - 2\.5rem\), transparent\)$/);
     await scrollTo(el, seg, { scrollLeft: 158 });
-    expect(mask(seg)).toMatch(/linear-gradient\(to left, #000 calc\(100% - 2\.5rem\), transparent\)/);
+    for (const m of masks(seg)) expect(m).toMatch(/^linear-gradient\(to left, #000 calc\(100% - 2\.5rem\), transparent\)$/);
     await scrollTo(el, seg, { scrollLeft: 80 });
-    expect(mask(seg)).toMatch(/linear-gradient\(to right, transparent, #000 2\.5rem, #000 calc\(100% - 2\.5rem\), transparent\)/);
+    for (const m of masks(seg)) expect(m).toMatch(/^linear-gradient\(to right, transparent, #000 2\.5rem, #000 calc\(100% - 2\.5rem\), transparent\)$/);
   });
 
   it('leaving the plan stops watching the strip', async () => {

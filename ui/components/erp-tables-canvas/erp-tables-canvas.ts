@@ -400,7 +400,8 @@ export class ErpTablesCanvas extends LitElement {
 
   /** tables#97 — the strip overflows only once Ionic has laid its buttons out (after the first
    *  paint) and whenever a zone, the language or the screen changes their width. A ResizeObserver
-   *  on the strip AND on every button catches all of it; scrolling the strip is caught by @scroll. */
+   *  on the strip AND on every button catches all of it (it also reports once as soon as it starts
+   *  watching); scrolling the strip is caught by @scroll. */
   private stripObserver?: ResizeObserver;
   private observedStrip?: Element;
   private observedZones?: Zone[];
@@ -417,7 +418,6 @@ export class ErpTablesCanvas extends LitElement {
         this.observedZones = this.zones;
       }
     }
-    this.updateZoneCue();
   }
 
   private unwatchZoneStrip(): void {
@@ -437,8 +437,9 @@ export class ErpTablesCanvas extends LitElement {
     // right) down to -hidden, so the left overflow is what is still left to scroll.
     const rtl = getComputedStyle(seg).direction === 'rtl';
     const left = rtl ? hidden + seg.scrollLeft : seg.scrollLeft;
-    seg.classList.toggle('more-left', hidden > 1 && left > 1);
-    seg.classList.toggle('more-right', hidden > 1 && left < hidden - 1);
+    // 1 px of slack: a fractional scroll position must not leave a fade on an edge already reached.
+    seg.classList.toggle('more-left', left > 1);
+    seg.classList.toggle('more-right', left < hidden - 1);
   };
 
   /** tables#88 — while a sheet is open its scrim is laid over the box the person actually SEES:
