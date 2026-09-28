@@ -201,6 +201,12 @@ def test_charging_the_order_in_full_frees_the_table(hub: Hub, cash: str) -> None
         lambda: session_by_id(hub, sid).get("status"), accept=lambda s: s == "closed"
     )
     hub.check("its session is closed along with the order", closed, "closed")
+    # tables#96: the CLOSED check says what it charged — the REAL `sale.completed` payload (cents)
+    # through the relay into tables' own ledger, not a stub of it.
+    charged = wait_until(
+        lambda: session_by_id(hub, sid).get("paid_total"), accept=lambda v: v == 250
+    )
+    hub.check("the closed check carries what the sale charged (cents)", charged, 250)
 
 
 def test_a_partial_charge_leaves_the_table_occupied(hub: Hub, cash: str) -> None:
@@ -247,6 +253,12 @@ def test_a_partial_charge_leaves_the_table_occupied(hub: Hub, cash: str) -> None
         table_status(hub, tid),
         "occupied",
     )
+    # tables#96: a partial charge of a split bill already counts on the check that is still open.
+    sid = session_on(hub, tid)["id"]
+    charged = wait_until(
+        lambda: session_by_id(hub, sid).get("paid_total"), accept=lambda v: v == 250
+    )
+    hub.check("the partial charge is on the still-open check", charged, 250)
 
 
 def test_parking_frees_the_table_without_closing_the_account(hub: Hub) -> None:

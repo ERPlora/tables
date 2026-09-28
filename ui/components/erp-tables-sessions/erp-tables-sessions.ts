@@ -32,6 +32,8 @@ interface ErploraClientLike extends ListClient {
   on(event: string, cb: (payload: unknown) => void): () => void;
   hasPermission?(permission: string): boolean;
   locale: string;
+  /** Cents → the hub's currency (ADR-0055): divides by the currency's own decimals, never /100 blindly. */
+  formatMoney(minor: number, opts?: { currency?: string; locale?: string }): string;
   t(catalog: Record<string, unknown>, key: string, params?: Record<string, unknown>): string;
 }
 
@@ -49,6 +51,8 @@ interface Session {
   split_from_id: string | null;
   zone_id: string | null;
   zone: string | null;
+  /** tables#96 · cents the check's order charged (its sales minus the voided ones); NULL = nothing yet. */
+  paid_total: number | null;
 }
 
 interface Zone {
@@ -106,6 +110,17 @@ function hhmm(iso?: string | null): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+/**
+ * tables#96 · what a check charged, in the hub's currency — or «—» when nothing was charged (an
+ * open check, or a sale older than the ledger). Never «0,00»: an empty check did not charge zero,
+ * it has not been charged.
+ */
+function paidAmount(paid: unknown): string {
+  if (paid == null || paid === '') return '—';
+  const minor = Number(paid);
+  return Number.isFinite(minor) ? erplora().formatMoney(minor) : '—';
+}
+
 /** Whole minutes between `opened_at` and `closed_at` (or `now` for an open check). */
 export function durationMinutes(s: { opened_at: string; closed_at: string | null }, now: Date): number {
   const from = new Date(s.opened_at).getTime();
@@ -161,6 +176,18 @@ export class ErpTablesSessions extends LitElement {
     return [
       { key: 'table_number', header: t('ui.colTable'), sortable: true, filterable: true, filterType: 'text', format: (r) => (r.table_number as string) || t('ui.noTable') },
       {
+        // tables#96: the check says what it CHARGED, never the order's internal id (a code nobody can
+        // act on). Hidden on «Open»: nothing is charged while the party sits; on «Closed» and «All»
+        // it is a visible column, so the phone cards carry it too. Right after the table: as the last
+        // column it fell past the right edge of a 768 px tablet.
+        key: 'paid_total',
+        header: t('ui.colPaidTotal'),
+        align: 'right',
+        sortable: true,
+        hidden: this.segment === 'open',
+        format: (r) => paidAmount(r.paid_total),
+      },
+      {
         key: 'zone',
         header: t('ui.colZone'),
         sortable: true,
@@ -204,7 +231,6 @@ export class ErpTablesSessions extends LitElement {
         options: STATUSES.map((s) => ({ value: s, label: t(STATUS_KEY[s]) })),
         format: (r) => (STATUS_KEY[r.status as string] ? t(STATUS_KEY[r.status as string]) : (r.status as string)),
       },
-      { key: 'order_id', header: t('ui.colCheck'), hidden: true, format: (r) => (r.order_id ? String(r.order_id).slice(0, 8) : '—') },
     ];
   }
 
@@ -435,7 +461,7 @@ export class ErpTablesSessions extends LitElement {
           ${row(t('ui.colOpenedAt'), hhmm(s.opened_at))}
           ${row(t('ui.colClosedAt'), hhmm(s.closed_at))}
           ${row(t('ui.colDuration'), t('ui.durationMinutes', { minutes: durationMinutes(s, this.now()) }))}
-          ${row(t('ui.colCheck'), s.order_id ?? '—')}
+          ${row(t('ui.colPaidTotal'), paidAmount(s.paid_total))}
           ${row(t('ui.colNotes'), s.notes || '—')}
         </ion-list>
         ${s.status === 'active' && can('tables.change_tablesession')

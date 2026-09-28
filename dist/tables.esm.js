@@ -1894,7 +1894,7 @@ var es_default = {
     colClosedAt: "Cierre",
     colDuration: "Tiempo",
     durationMinutes: "{minutes} min",
-    colCheck: "Cuenta",
+    colPaidTotal: "Cobrado",
     colNotes: "Notas",
     actionDetail: "Detalle",
     actionCloseSession: "Cerrar sesi\xF3n",
@@ -2088,7 +2088,7 @@ var en_default = {
     colClosedAt: "Closed",
     colDuration: "Time",
     durationMinutes: "{minutes} min",
-    colCheck: "Check",
+    colPaidTotal: "Charged",
     colNotes: "Notes",
     actionDetail: "Details",
     actionCloseSession: "Close session",
@@ -6420,6 +6420,11 @@ function hhmm3(iso) {
   if (Number.isNaN(d3.getTime())) return "\u2014";
   return `${String(d3.getHours()).padStart(2, "0")}:${String(d3.getMinutes()).padStart(2, "0")}`;
 }
+function paidAmount(paid) {
+  if (paid == null || paid === "") return "\u2014";
+  const minor = Number(paid);
+  return Number.isFinite(minor) ? erplora4().formatMoney(minor) : "\u2014";
+}
 function durationMinutes(s5, now) {
   const from = new Date(s5.opened_at).getTime();
   const to = s5.closed_at ? new Date(s5.closed_at).getTime() : now.getTime();
@@ -6459,6 +6464,18 @@ var ErpTablesSessions = class extends i3 {
     const t5 = (k2, p4) => erplora4().t(CATALOG4, k2, p4);
     return [
       { key: "table_number", header: t5("ui.colTable"), sortable: true, filterable: true, filterType: "text", format: (r6) => r6.table_number || t5("ui.noTable") },
+      {
+        // tables#96: the check says what it CHARGED, never the order's internal id (a code nobody can
+        // act on). Hidden on «Open»: nothing is charged while the party sits; on «Closed» and «All»
+        // it is a visible column, so the phone cards carry it too. Right after the table: as the last
+        // column it fell past the right edge of a 768 px tablet.
+        key: "paid_total",
+        header: t5("ui.colPaidTotal"),
+        align: "right",
+        sortable: true,
+        hidden: this.segment === "open",
+        format: (r6) => paidAmount(r6.paid_total)
+      },
       {
         key: "zone",
         header: t5("ui.colZone"),
@@ -6502,8 +6519,7 @@ var ErpTablesSessions = class extends i3 {
         filterType: "select",
         options: STATUSES2.map((s5) => ({ value: s5, label: t5(STATUS_KEY4[s5]) })),
         format: (r6) => STATUS_KEY4[r6.status] ? t5(STATUS_KEY4[r6.status]) : r6.status
-      },
-      { key: "order_id", header: t5("ui.colCheck"), hidden: true, format: (r6) => r6.order_id ? String(r6.order_id).slice(0, 8) : "\u2014" }
+      }
     ];
   }
   get actions() {
@@ -6714,7 +6730,7 @@ var ErpTablesSessions = class extends i3 {
           ${row(t5("ui.colOpenedAt"), hhmm3(s5.opened_at))}
           ${row(t5("ui.colClosedAt"), hhmm3(s5.closed_at))}
           ${row(t5("ui.colDuration"), t5("ui.durationMinutes", { minutes: durationMinutes(s5, this.now()) }))}
-          ${row(t5("ui.colCheck"), s5.order_id ?? "\u2014")}
+          ${row(t5("ui.colPaidTotal"), paidAmount(s5.paid_total))}
           ${row(t5("ui.colNotes"), s5.notes || "\u2014")}
         </ion-list>
         ${s5.status === "active" && can("tables.change_tablesession") ? b2`<ion-button data-testid="tables-sessions-detail-close-session" class="ion-margin-top" expand="block" style=${ionTone("solid", "danger")} @click=${() => {

@@ -309,3 +309,98 @@ describe('the zone box reaches the server as zone_id (hub#1182)', () => {
     expect(lastAsked()?.filters).not.toHaveProperty('zone');
   });
 });
+
+// ── tables#96 ─────────────────────────────────────────────────────────────────────────────────
+//
+// Sessions › Closed printed the first 8 characters of the order's INTERNAL id under «Check» (and
+// the detail the whole id), and the amount charged appeared nowhere — not in the desktop table, not
+// in the phone cards. The market lists closed checks WITH their total (Toast «Closed checks»,
+// Square «Orders», Lightspeed «Closed receipts»). `tables.sessions.list` now projects `paid_total`
+// (cents, what the check's order charged and was not voided); the screen formats it with the hub's
+// currency and never shows the order id.
+const PAID = [
+  { ...SESSIONS[0], paid_total: null },
+  { ...SESSIONS[1], order_id: '6ab5397f-1c2d-4e5f-8a9b-0c1d2e3f4a5b', paid_total: 3850 },
+];
+
+/** The SDK money formatter, stubbed so the test sees WHICH number reached it. */
+function withMoney() {
+  const sdk = (globalThis as Record<string, unknown>).erplora as Record<string, unknown>;
+  sdk.formatMoney = (minor: number) => `€${(minor / 100).toFixed(2)}`;
+  sdk.queryPage = async (_name: string, params: Record<string, unknown>) => {
+    pages.push(params);
+    return { rows: PAID, total: PAID.length };
+  };
+}
+
+async function showSegment(el: Wc, id: string) {
+  const seg = el.shadowRoot.querySelector('[data-testid="tables-sessions-tabs"]')!;
+  seg.dispatchEvent(new CustomEvent('ionChange', { detail: { value: id } }));
+  await el.updateComplete;
+}
+
+type Col = Wc['columns'][number] & { hidden?: boolean };
+
+describe('a closed check says what it charged, never the internal order id (tables#96)', () => {
+  it('no column shows the order id', async () => {
+    withMoney();
+    const el = await mount();
+    expect(el.columns.map((c) => c.key), 'the internal order id is still a column').not.toContain('order_id');
+    for (const c of el.columns) {
+      expect(c.format?.(PAID[1]) ?? '', `column ${c.key} leaks the order id`).not.toContain('6ab5397f');
+    }
+  });
+
+  it('the amount column formats the cents with the hub currency', async () => {
+    withMoney();
+    const el = await mount();
+    const col = el.columns.find((c) => c.key === 'paid_total');
+    expect(col, 'there is no amount column').toBeTruthy();
+    expect(col!.format!(PAID[1])).toBe('€38.50');
+  });
+
+  it('a check with nothing charged reads «—», never «€0.00»', async () => {
+    withMoney();
+    const el = await mount();
+    const col = el.columns.find((c) => c.key === 'paid_total')!;
+    expect(col.format!(PAID[0])).toBe('—');
+  });
+
+  it('the amount is VISIBLE on Closed and All — desktop columns and phone cards alike — and sortable', async () => {
+    withMoney();
+    const el = await mount();
+    for (const seg of ['closed', 'all']) {
+      await showSegment(el, seg);
+      const col = el.columns.find((c) => c.key === 'paid_total') as Col;
+      expect(col.hidden, `the amount is hidden on «${seg}»`).toBeFalsy();
+      expect((col as Col & { sortable?: boolean }).sortable, 'the owner cannot sort by amount').toBe(true);
+    }
+  });
+
+  it('the amount comes right after the table, so a tablet sees it without scrolling sideways', async () => {
+    // Seen on the bench at 768 px: as the LAST column, «Charged» fell past the right edge of the
+    // grid — the one figure the screen exists for needed a sideways scroll. Toast and Square lead a
+    // closed check with its table and its total.
+    withMoney();
+    const el = await mount();
+    await showSegment(el, 'closed');
+    expect(el.columns.map((c) => c.key).slice(0, 2)).toEqual(['table_number', 'paid_total']);
+  });
+
+  it('on Open the amount column is hidden: nothing is charged while the party sits', async () => {
+    withMoney();
+    const el = await mount();
+    const col = el.columns.find((c) => c.key === 'paid_total') as Col;
+    expect(col.hidden).toBe(true);
+  });
+
+  it('the detail shows the amount charged and not the order id', async () => {
+    withMoney();
+    const el = await mount();
+    await el.onRowAction(new CustomEvent('rowAction', { detail: { actionId: 'detail', row: PAID[1] } }));
+    await el.updateComplete;
+    const text = el.shadowRoot.querySelector('[data-testid="tables-sessions-detail"]')?.textContent ?? '';
+    expect(text, 'the detail does not say what was charged').toContain('€38.50');
+    expect(text, 'the detail still prints the internal order id').not.toContain('6ab5397f');
+  });
+});

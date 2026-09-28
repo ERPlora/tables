@@ -126,7 +126,8 @@
         "file": "migrations/postgres/011_named_gate_constraints.sql",
         "kind": "contract",
         "since": "2.2.39"
-      }
+      },
+      "migrations/postgres/012_order_payment.sql"
     ]
   },
   "queries": {
@@ -272,7 +273,8 @@
           "closed_at",
           "notes",
           "zone_id",
-          "zone"
+          "zone",
+          "paid_total"
         ],
         "default_sort": "id",
         "default_dir": "asc",
@@ -785,6 +787,29 @@
         "description": "Internal: closes the table session (and its history segment) when its order ends — paid or voided (ADR-0146). Listener target, not called directly."
       }
     },
+    "tables._order_record_sale": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "sql": [
+        "commands/_order_record_sale.sql"
+      ],
+      "ai": {
+        "description": "Internal: records what a sale charged on the table check whose order it belongs to, so closed checks show their amount (tables#96). Listener target of sale.completed, not called directly."
+      }
+    },
+    "tables._order_sale_voided": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "sql": [
+        "commands/_order_void_sale.sql",
+        "commands/_session_close_by_order.sql",
+        "commands/_assignment_release_by_order.sql",
+        "commands/_table_free_by_order.sql"
+      ],
+      "ai": {
+        "description": "Internal: an annulled sale stops counting on its check and, as before, the check linked to its order closes and frees its table (ADR-0146, tables#96). Listener target of sale.voided, not called directly."
+      }
+    },
     "tables.sessions.park": {
       "permission": "tables.change_tablesession",
       "transaction": true,
@@ -883,8 +908,11 @@
       "order.completed": {
         "command": "tables._session_close_by_order"
       },
+      "sale.completed": {
+        "command": "tables._order_record_sale"
+      },
       "sale.voided": {
-        "command": "tables._session_close_by_order"
+        "command": "tables._order_sale_voided"
       },
       "reservations.reservation.status_changed": {
         "command": "tables._hold_from_reservation"
