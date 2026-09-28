@@ -199,6 +199,10 @@ export class ErpTablesSessions extends LitElement {
         hidden: this.segment === 'open',
         format: (r) => paidAmount(r.paid_total),
       },
+      // tables#101: when the check closed, right after what it charged (Toast «Closed checks»): next
+      // to «Opened» it fell under the pinned actions at 768 px. Hidden on «Open» only, where it
+      // always reads «—».
+      { key: 'closed_at', header: t('ui.colClosedAt'), sortable: true, hidden: this.segment === 'open', width: TIME_WIDTH, format: (r) => clockTime(r.closed_at as string | null, this.now()) },
       {
         key: 'zone',
         header: t('ui.colZone'),
@@ -225,11 +229,9 @@ export class ErpTablesSessions extends LitElement {
         format: (r) => this.waiterName(r.waiter_id) || '—',
       },
       { key: 'guests_count', header: t('ui.colGuests'), align: 'right', sortable: true, format: (r) => t('ui.paxCount', { count: r.guests_count ?? 0 }) },
-      // tables#101: a time from another day carries its date («27 sept, 21:40»), which the grid's
+      // tables#101: a time from another day carries its date («27 sept, 20:05»), which the grid's
       // default 5.5rem floor cut at 768 px; TIME_WIDTH is the floor that fits it.
       { key: 'opened_at', header: t('ui.colOpenedAt'), sortable: true, width: TIME_WIDTH, format: (r) => clockTime(r.opened_at as string, this.now()) },
-      // tables#101: when the check closed. Hidden on «Open» only, where it always reads «—».
-      { key: 'closed_at', header: t('ui.colClosedAt'), sortable: true, hidden: this.segment === 'open', width: TIME_WIDTH, format: (r) => clockTime(r.closed_at as string | null, this.now()) },
       {
         key: 'duration',
         header: t('ui.colDuration'),

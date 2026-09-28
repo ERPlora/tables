@@ -446,6 +446,14 @@ describe('a closed check says when it was closed (tables#101)', () => {
     }
   });
 
+  it('the closing time comes right after the amount, so a 768 px tablet sees it without scrolling sideways', async () => {
+    // Seen on the bench (hub:dev, 768 px): next to «Opened», «Closed» fell under the pinned actions
+    // column and needed a sideways scroll. Toast «Closed checks» reads table, total, closed time.
+    const el = await mountClosed();
+    await showSegment(el, 'closed');
+    expect(el.columns.map((c) => c.key).slice(0, 3)).toEqual(['table_number', 'paid_total', 'closed_at']);
+  });
+
   it('on Open the closing time is hidden: an open check has not closed', async () => {
     const el = await mountClosed();
     expect(el.segment).toBe('open');
