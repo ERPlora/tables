@@ -81,8 +81,14 @@ The checks, current and historical (`tables.sessions.list`, 50 rows per page). R
 - **Search** by table number.
 - **Filter** by table, guests, status, waiter, opening or closing time, or notes.
 
-Each row shows its order reference and, for a split check, which session it was split from — so the
-till can list a table's **checks** rather than a pile of loose sessions.
+Each row carries its order link and, for a split check, which session it was split from — so the
+till can list a table's **checks** rather than a pile of loose sessions. The internal order id is
+never shown.
+
+On **Closed** and **All**, the **Charged** column says what each check took: the sum of every sale
+charged on its order — both halves of a split bill included — minus the voided ones. It sorts, so
+«biggest checks first» is one tap. A check with nothing charged reads «—», never «0». The column is
+hidden on **Open**: a party still seated has usually not paid. Opening a row shows the same amount.
 
 ## The service flow, step by step
 

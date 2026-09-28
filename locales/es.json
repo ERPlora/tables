@@ -155,7 +155,7 @@
     "colClosedAt": "Cierre",
     "colDuration": "Tiempo",
     "durationMinutes": "{minutes} min",
-    "colCheck": "Cuenta",
+    "colPaidTotal": "Cobrado",
     "colNotes": "Notas",
     "actionDetail": "Detalle",
     "actionCloseSession": "Cerrar sesión",

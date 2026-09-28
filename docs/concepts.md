@@ -51,6 +51,16 @@ behaviour, and it is why the split-bill flow does not eject people who paid firs
 
 Voiding a sale also closes the session and frees the table.
 
+## What a check charged comes from `sales`' events
+
+Tables never reads `sales`' data. It keeps its own ledger, one line per sale charged on an order a
+check of this hub holds, fed by `sale.completed` (every charge, the partial ones of a split bill too)
+and `sale.voided` (the line stops counting). A sale redelivered by the outbox is recorded once. A
+counter sale with no order, or an order no table holds (takeaway), leaves no line.
+
+The ledger starts the day this version is installed: checks closed before it read «—». Refunds
+(`sale.refunded`) do not subtract — the column says what was **charged**, as Toast's closed checks do.
+
 ## Seating a reserved table is normal, and it consumes the hold
 
 A `reserved` table is not blocked. When the booked party arrives you seat them exactly as usual, and

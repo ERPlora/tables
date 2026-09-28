@@ -154,7 +154,7 @@
     "colClosedAt": "Closed",
     "colDuration": "Time",
     "durationMinutes": "{minutes} min",
-    "colCheck": "Check",
+    "colPaidTotal": "Charged",
     "colNotes": "Notes",
     "actionDetail": "Details",
     "actionCloseSession": "Close session",
