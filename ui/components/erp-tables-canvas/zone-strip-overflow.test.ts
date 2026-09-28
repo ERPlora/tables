@@ -163,18 +163,41 @@ describe('the zone strip says when there are more zones past the edge (tables#97
   it('the cue is a fade the person sees: each class masks its own edge, both classes mask both', async () => {
     const el = await mount();
     const seg = strip(el);
-    // Both spellings: the standard one and the -webkit- one Safari (the iPad/iPhone app) reads.
-    const masks = (s: HTMLElement) => {
-      const cs = getComputedStyle(s);
-      return [cs.getPropertyValue('mask-image'), cs.getPropertyValue('-webkit-mask-image')];
-    };
-    for (const m of masks(seg)) expect(m, 'a strip that fits must not fade').toMatch(/^(none)?$/);
+    const mask = (s: HTMLElement) => getComputedStyle(s).getPropertyValue('mask-image');
+    expect(mask(seg), 'a strip that fits must not fade').toMatch(/^(none)?$/);
     await scrollTo(el, seg, { scrollLeft: 0 });
-    for (const m of masks(seg)) expect(m).toMatch(/^linear-gradient\(to right, #000 calc\(100% - 2\.5rem\), transparent\)$/);
+    expect(mask(seg)).toMatch(/^linear-gradient\(to right, #000 calc\(100% - 2\.5rem\), transparent\)$/);
     await scrollTo(el, seg, { scrollLeft: 158 });
-    for (const m of masks(seg)) expect(m).toMatch(/^linear-gradient\(to left, #000 calc\(100% - 2\.5rem\), transparent\)$/);
+    expect(mask(seg)).toMatch(/^linear-gradient\(to left, #000 calc\(100% - 2\.5rem\), transparent\)$/);
     await scrollTo(el, seg, { scrollLeft: 80 });
-    for (const m of masks(seg)) expect(m).toMatch(/^linear-gradient\(to right, transparent, #000 2\.5rem, #000 calc\(100% - 2\.5rem\), transparent\)$/);
+    expect(mask(seg)).toMatch(/^linear-gradient\(to right, transparent, #000 2\.5rem, #000 calc\(100% - 2\.5rem\), transparent\)$/);
+  });
+
+  // Safari (the iPad/iPhone app) reads the -webkit- spelling. It is checked against the CSS the
+  // component DECLARES, not the computed style: happy-dom 20.14 no longer computes
+  // `-webkit-mask-image` (it returns '' even when the rule applies), so a computed-style check
+  // would fail for reasons that have nothing to do with the component.
+  it('each fade also carries the -webkit- spelling, with the same gradient as the standard one', async () => {
+    await import('./erp-tables-canvas');
+    const ctor = customElements.get('erp-tables-canvas') as unknown as { styles: { cssText: string } | Array<{ cssText: string }> };
+    const css = [ctor.styles].flat().map((s) => s.cssText).join('\n');
+    const block = (selector: string) => {
+      const escaped = selector.replace(/[.[\]()]/g, '\\$&');
+      const found = css.match(new RegExp(`(?:^|[\\s}])${escaped}\\s*\\{([^}]*)\\}`, 'g')) ?? [];
+      expect(found.length, `${selector} is declared once`).toBe(1);
+      return found[0];
+    };
+    const value = (rule: string, prop: string) => rule.match(new RegExp(`(?:^|[\\s;{])${prop}\\s*:\\s*([^;}]+)`))?.[1]?.trim();
+    const expected: Array<[string, string]> = [
+      ['.zonebar ion-segment.more-right', 'linear-gradient(to right, #000 calc(100% - 2.5rem), transparent)'],
+      ['.zonebar ion-segment.more-left', 'linear-gradient(to left, #000 calc(100% - 2.5rem), transparent)'],
+      ['.zonebar ion-segment.more-left.more-right', 'linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent)'],
+    ];
+    for (const [selector, gradient] of expected) {
+      const rule = block(selector);
+      expect(value(rule, '-webkit-mask-image'), `${selector} -webkit-`).toBe(gradient);
+      expect(value(rule, 'mask-image'), `${selector} standard`).toBe(gradient);
+    }
   });
 
   it('leaving the plan stops watching the strip', async () => {
