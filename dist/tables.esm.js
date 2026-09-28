@@ -6463,17 +6463,33 @@ function erplora4() {
   if (!c5) throw new Error("erplora SDK not initialised by the shell");
   return c5;
 }
-function hhmm3(iso) {
+function businessZone() {
+  const tz = erplora4().timezone;
+  const zone = typeof tz === "string" && tz.trim() ? tz.trim() : "UTC";
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: zone });
+    return zone;
+  } catch {
+    return "UTC";
+  }
+}
+function clockTime(iso, now) {
   if (!iso) return "\u2014";
   const d3 = new Date(iso);
   if (Number.isNaN(d3.getTime())) return "\u2014";
-  return `${String(d3.getHours()).padStart(2, "0")}:${String(d3.getMinutes()).padStart(2, "0")}`;
+  const timeZone = businessZone();
+  const dayOf = (x2) => new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(x2);
+  const day = dayOf(d3);
+  const today = dayOf(now);
+  const opts = day === today ? { hour: "numeric", minute: "2-digit" } : { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", ...day.slice(0, 4) !== today.slice(0, 4) ? { year: "numeric" } : {} };
+  return new Intl.DateTimeFormat(erplora4().locale || void 0, { ...opts, timeZone }).format(d3);
 }
 function paidAmount(paid) {
   if (paid == null || paid === "") return "\u2014";
   const minor = Number(paid);
   return Number.isFinite(minor) ? erplora4().formatMoney(minor) : "\u2014";
 }
+var TIME_WIDTH = "minmax(8.5rem,1fr)";
 function durationMinutes(s5, now) {
   const from = new Date(s5.opened_at).getTime();
   const to = s5.closed_at ? new Date(s5.closed_at).getTime() : now.getTime();
@@ -6525,6 +6541,10 @@ var ErpTablesSessions = class extends i3 {
         hidden: this.segment === "open",
         format: (r6) => paidAmount(r6.paid_total)
       },
+      // tables#101: when the check closed, right after what it charged (Toast «Closed checks»): next
+      // to «Opened» it fell under the pinned actions at 768 px. Hidden on «Open» only, where it
+      // always reads «—».
+      { key: "closed_at", header: t5("ui.colClosedAt"), sortable: true, hidden: this.segment === "open", width: TIME_WIDTH, format: (r6) => clockTime(r6.closed_at, this.now()) },
       {
         key: "zone",
         header: t5("ui.colZone"),
@@ -6551,8 +6571,9 @@ var ErpTablesSessions = class extends i3 {
         format: (r6) => this.waiterName(r6.waiter_id) || "\u2014"
       },
       { key: "guests_count", header: t5("ui.colGuests"), align: "right", sortable: true, format: (r6) => t5("ui.paxCount", { count: r6.guests_count ?? 0 }) },
-      { key: "opened_at", header: t5("ui.colOpenedAt"), sortable: true, format: (r6) => hhmm3(r6.opened_at) },
-      { key: "closed_at", header: t5("ui.colClosedAt"), sortable: true, hidden: true, format: (r6) => hhmm3(r6.closed_at) },
+      // tables#101: a time from another day carries its date («27 sept, 20:05»), which the grid's
+      // default 5.5rem floor cut at 768 px; TIME_WIDTH is the floor that fits it.
+      { key: "opened_at", header: t5("ui.colOpenedAt"), sortable: true, width: TIME_WIDTH, format: (r6) => clockTime(r6.opened_at, this.now()) },
       {
         key: "duration",
         header: t5("ui.colDuration"),
@@ -6776,8 +6797,8 @@ var ErpTablesSessions = class extends i3 {
           ${row(t5("ui.colWaiter"), this.waiterName(s5.waiter_id) || "\u2014")}
           ${row(t5("ui.colStatus"), STATUS_KEY4[s5.status] ? t5(STATUS_KEY4[s5.status]) : s5.status)}
           ${row(t5("ui.colGuests"), t5("ui.paxCount", { count: s5.guests_count ?? 0 }))}
-          ${row(t5("ui.colOpenedAt"), hhmm3(s5.opened_at))}
-          ${row(t5("ui.colClosedAt"), hhmm3(s5.closed_at))}
+          ${row(t5("ui.colOpenedAt"), clockTime(s5.opened_at, this.now()))}
+          ${row(t5("ui.colClosedAt"), clockTime(s5.closed_at, this.now()))}
           ${row(t5("ui.colDuration"), t5("ui.durationMinutes", { minutes: durationMinutes(s5, this.now()) }))}
           ${row(t5("ui.colPaidTotal"), paidAmount(s5.paid_total))}
           ${row(t5("ui.colNotes"), s5.notes || "\u2014")}

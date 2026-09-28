@@ -32,6 +32,8 @@ interface ErploraClientLike extends ListClient {
   on(event: string, cb: (payload: unknown) => void): () => void;
   hasPermission?(permission: string): boolean;
   locale: string;
+  /** The hub's resolved IANA zone (hub#1022): the business clock every time on screen reads. */
+  timezone?: string;
   /** Cents → the hub's currency (ADR-0055): divides by the currency's own decimals, never /100 blindly. */
   formatMoney(minor: number, opts?: { currency?: string; locale?: string }): string;
   t(catalog: Record<string, unknown>, key: string, params?: Record<string, unknown>): string;
@@ -102,12 +104,41 @@ function erplora(): ErploraClientLike {
   return c;
 }
 
-/** `2026-08-18T20:15:00Z` → `20:15` in the device's clock (the room reads the wall clock). */
-function hhmm(iso?: string | null): string {
+/**
+ * The business clock: the hub's IANA zone the shell publishes as `erplora.timezone` (hub#1212,
+ * the same one appointments, reservations and whatsapp_inbox read). Never the device's zone: a
+ * tablet left on another zone must not move tonight's checks by hours. Absent or unreadable →
+ * `UTC`, like the runtime's own degradation; `Intl` would otherwise throw on every render.
+ */
+function businessZone(): string {
+  const tz = erplora().timezone;
+  const zone = typeof tz === 'string' && tz.trim() ? tz.trim() : 'UTC';
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: zone });
+    return zone;
+  } catch {
+    return 'UTC';
+  }
+}
+
+/**
+ * `2026-08-18T20:15:00Z` → the business wall clock in the hub language (`20:15` / `8:15 PM`).
+ * tables#101: «Closed» and «All» are not limited to tonight, so a time from another business day
+ * carries its date (`17 ago, 19:30`) and one from another year its year — the time alone would
+ * pass last week's check off as tonight's.
+ */
+function clockTime(iso: string | null | undefined, now: Date): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const timeZone = businessZone();
+  const dayOf = (x: Date) => new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(x);
+  const day = dayOf(d);
+  const today = dayOf(now);
+  const opts: Intl.DateTimeFormatOptions = day === today
+    ? { hour: 'numeric', minute: '2-digit' }
+    : { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', ...(day.slice(0, 4) !== today.slice(0, 4) ? { year: 'numeric' } : {}) };
+  return new Intl.DateTimeFormat(erplora().locale || undefined, { ...opts, timeZone }).format(d);
 }
 
 /**
@@ -120,6 +151,9 @@ function paidAmount(paid: unknown): string {
   const minor = Number(paid);
   return Number.isFinite(minor) ? erplora().formatMoney(minor) : '—';
 }
+
+/** Grid floor of the opening/closing columns: fits «27 sept, 21:40» / «Sep 27, 9:40 PM». */
+const TIME_WIDTH = 'minmax(8.5rem,1fr)';
 
 /** Whole minutes between `opened_at` and `closed_at` (or `now` for an open check). */
 export function durationMinutes(s: { opened_at: string; closed_at: string | null }, now: Date): number {
@@ -187,6 +221,10 @@ export class ErpTablesSessions extends LitElement {
         hidden: this.segment === 'open',
         format: (r) => paidAmount(r.paid_total),
       },
+      // tables#101: when the check closed, right after what it charged (Toast «Closed checks»): next
+      // to «Opened» it fell under the pinned actions at 768 px. Hidden on «Open» only, where it
+      // always reads «—».
+      { key: 'closed_at', header: t('ui.colClosedAt'), sortable: true, hidden: this.segment === 'open', width: TIME_WIDTH, format: (r) => clockTime(r.closed_at as string | null, this.now()) },
       {
         key: 'zone',
         header: t('ui.colZone'),
@@ -213,8 +251,9 @@ export class ErpTablesSessions extends LitElement {
         format: (r) => this.waiterName(r.waiter_id) || '—',
       },
       { key: 'guests_count', header: t('ui.colGuests'), align: 'right', sortable: true, format: (r) => t('ui.paxCount', { count: r.guests_count ?? 0 }) },
-      { key: 'opened_at', header: t('ui.colOpenedAt'), sortable: true, format: (r) => hhmm(r.opened_at as string) },
-      { key: 'closed_at', header: t('ui.colClosedAt'), sortable: true, hidden: true, format: (r) => hhmm(r.closed_at as string | null) },
+      // tables#101: a time from another day carries its date («27 sept, 20:05»), which the grid's
+      // default 5.5rem floor cut at 768 px; TIME_WIDTH is the floor that fits it.
+      { key: 'opened_at', header: t('ui.colOpenedAt'), sortable: true, width: TIME_WIDTH, format: (r) => clockTime(r.opened_at as string, this.now()) },
       {
         key: 'duration',
         header: t('ui.colDuration'),
@@ -458,8 +497,8 @@ export class ErpTablesSessions extends LitElement {
           ${row(t('ui.colWaiter'), this.waiterName(s.waiter_id) || '—')}
           ${row(t('ui.colStatus'), STATUS_KEY[s.status] ? t(STATUS_KEY[s.status]) : s.status)}
           ${row(t('ui.colGuests'), t('ui.paxCount', { count: s.guests_count ?? 0 }))}
-          ${row(t('ui.colOpenedAt'), hhmm(s.opened_at))}
-          ${row(t('ui.colClosedAt'), hhmm(s.closed_at))}
+          ${row(t('ui.colOpenedAt'), clockTime(s.opened_at, this.now()))}
+          ${row(t('ui.colClosedAt'), clockTime(s.closed_at, this.now()))}
           ${row(t('ui.colDuration'), t('ui.durationMinutes', { minutes: durationMinutes(s, this.now()) }))}
           ${row(t('ui.colPaidTotal'), paidAmount(s.paid_total))}
           ${row(t('ui.colNotes'), s.notes || '—')}
