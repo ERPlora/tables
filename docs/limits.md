@@ -88,7 +88,8 @@ against the **session**, not the table. If the second order landed on the older 
 made without the session reference.
 
 **"I cannot change the table while ordering."** Kitchen is active and there are lines not yet fired.
-Send them first.
+Press **Send order** in the selector's warning (or send them from **Current order**); the table you
+tapped goes ahead once they are sent.
 
 **"I deleted a zone and its tables vanished."** Deleting a zone removes its tables; that is why it is
 refused while active tables remain. Everything is soft-deleted, so the history survives.

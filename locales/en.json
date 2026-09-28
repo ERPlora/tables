@@ -123,6 +123,8 @@
     "close": "Close",
     "noTablesInZoneHint": "Create tables in the Tables module.",
     "sendPendingBeforeTable": "Send the {count} pending items in the current order first.",
+    "sendPendingBeforeTableOne": "Send the pending item in the current order first.",
+    "sendPendingOrder": "Send order",
     "colTables": "Tables",
     "colAvailable": "Available",
     "colOrder": "Order",

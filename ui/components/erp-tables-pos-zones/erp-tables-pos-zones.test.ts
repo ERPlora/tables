@@ -104,7 +104,8 @@ describe('erp-tables-pos-zones', () => {
 
     expect(cambios, 'no emite un cambio de cuenta').toBe(0);
     expect((el as unknown as { open: boolean }).open, 'mantiene el selector abierto para explicar el bloqueo').toBe(true);
-    expect((el as unknown as { error: string }).error).toContain('ui.sendPendingBeforeTable');
+    // tables#95: the reason lives in its own warning (with «Send order»), not in the error line.
+    expect(el.shadowRoot.querySelector('[data-testid="tables-pos-pending"]')?.textContent).toContain('ui.sendPendingBeforeTable');
   });
 
   it('reemite la mesa restaurada cuando Ventas vuelve a montar sus slots', async () => {
@@ -1003,5 +1004,249 @@ describe('natural order of the picker grid (tables#182)', () => {
     await (el as unknown as { refreshTables: () => Promise<void> }).refreshTables();
     await tick(el);
     expect(painted(el)).toEqual(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12']);
+  });
+});
+
+// tables#95 — with an unsent line in the order, the picker used to paint «Send the 1 pending items
+// first» and offer no way out: the waiter had to guess that the send lives in «Current order».
+// Toast («Unsent items: Send / Stay»), Square («Send items?»), Lightspeed and TouchBistro put the
+// SEND action in the warning itself, and once sent the tapped table goes ahead. The send reuses the
+// host contract of the footer slot (`erp:order-fire`, filler → sales, bubbles+composed): sales
+// fires only the pending lines and re-emits `erp:pos-state` with the new count.
+describe('the pending-order warning offers the way out (tables#95)', () => {
+  const FREE = { id: 'tbl-6', number: '6', zone_id: 'z1', capacity: 4, status: 'available' };
+  const tick = async (el: HTMLElement) => {
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+  };
+
+  function stub() {
+    const calls: { name: string; payload?: Record<string, unknown> }[] = [];
+    (globalThis as Record<string, unknown>).erplora = {
+      query: async (name: string) => {
+        if (name === 'tables.settings.get') return [{ id: 's', prompt_guests_on_seat: 0 }];
+        if (name.includes('zone')) return [ZONA];
+        if (name === 'tables.sessions.list') return [];
+        return [FREE];
+      },
+      queryAll: async (name: string) => (name.includes('zone') ? [ZONA] : [FREE]),
+      command: async (name: string, payload?: Record<string, unknown>) => {
+        calls.push({ name, payload });
+        return { new_ids: ['ses-9'] };
+      },
+      locale: 'es',
+      t: (_c: unknown, key: string, params?: Record<string, unknown>) =>
+        (params ? `${key}|${JSON.stringify(params)}` : key),
+    };
+    return calls;
+  }
+
+  const posState = (el: HTMLElement, pending: number) =>
+    el.dispatchEvent(new CustomEvent('erp:pos-state', {
+      detail: { pending_count: pending, kitchen_enabled: true }, bubbles: false,
+    }));
+
+  /** Mounts inside a parent (the sales host stand-in), opens the picker and taps table 6. */
+  async function blockedOnTable(pending: number) {
+    const calls = stub();
+    await import('./erp-tables-pos-zones');
+    const host = document.createElement('div');
+    const el = document.createElement('erp-tables-pos-zones') as HTMLElement & { shadowRoot: ShadowRoot };
+    host.appendChild(el);
+    document.body.appendChild(host);
+    await tick(el);
+    posState(el, pending);
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await tick(el);
+    el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-pos-table-tbl-6"]')!.click();
+    await tick(el);
+    return { host, el, calls };
+  }
+
+  it('one pending line: the warning speaks in singular and carries a «Send order» button', async () => {
+    const { el } = await blockedOnTable(1);
+    const warning = el.shadowRoot.querySelector('[data-testid="tables-pos-pending"]');
+    expect(warning, 'the block is explained in its own warning').toBeTruthy();
+    expect(warning?.textContent).toContain('ui.sendPendingBeforeTableOne');
+    expect(warning?.textContent, 'no «the 1 items»').not.toContain('"count"');
+    const send = warning?.querySelector('[data-testid="tables-pos-send-pending"]');
+    expect(send, 'the warning offers the action that unblocks it').toBeTruthy();
+    expect(send?.textContent).toContain('ui.sendPendingOrder');
+  });
+
+  it('several pending lines: the plural carries the count', async () => {
+    const { el } = await blockedOnTable(3);
+    const warning = el.shadowRoot.querySelector('[data-testid="tables-pos-pending"]');
+    expect(warning?.textContent).toContain('ui.sendPendingBeforeTable|{"count":3}');
+    expect(warning?.textContent).not.toContain('ui.sendPendingBeforeTableOne');
+  });
+
+  it('«Send order» asks sales to fire the order through erp:order-fire (bubbles + composed)', async () => {
+    const { host, el } = await blockedOnTable(1);
+    const fired: CustomEvent[] = [];
+    host.addEventListener('erp:order-fire', (e) => fired.push(e as CustomEvent));
+    el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-pos-send-pending"]')!.click();
+    await tick(el);
+    expect(fired, 'one request to the host').toHaveLength(1);
+    expect(fired[0].bubbles, 'reaches the sales host').toBe(true);
+    expect(fired[0].composed, 'crosses the shadow roots up to the sales host').toBe(true);
+  });
+
+  it('once the order is sent, the tapped table goes ahead and the picker closes', async () => {
+    const { el, calls } = await blockedOnTable(1);
+    const contexts: Array<{ table_id: string | null }> = [];
+    el.addEventListener('erp:order-context', (e) => contexts.push((e as CustomEvent).detail));
+    el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-pos-send-pending"]')!.click();
+    await tick(el);
+    expect(contexts, 'nothing moves while the send is in flight').toHaveLength(0);
+
+    posState(el, 0); // sales re-read the order: no line left to send
+    await tick(el);
+
+    expect(calls.find((c) => c.name === 'tables.sessions.open')?.payload?.table_id).toBe('tbl-6');
+    expect(contexts.map((c) => c.table_id), 'the check moves to the table the waiter tapped').toEqual(['tbl-6']);
+    expect((el as unknown as { open: boolean }).open, 'the picker closes, as any pick does').toBe(false);
+    expect(el.shadowRoot.querySelector('[data-testid="tables-pos-pending"]')).toBeNull();
+  });
+
+  it('if the send fails (still pending), the table does not go ahead and the warning stays', async () => {
+    const { el } = await blockedOnTable(2);
+    const contexts: unknown[] = [];
+    el.addEventListener('erp:order-context', (e) => contexts.push((e as CustomEvent).detail));
+    el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-pos-send-pending"]')!.click();
+    await tick(el);
+    posState(el, 2);
+    await tick(el);
+    expect(contexts).toHaveLength(0);
+    expect(el.shadowRoot.querySelector('[data-testid="tables-pos-send-pending"]'), 'can try again').toBeTruthy();
+  });
+
+  it('sales re-renders while the send is in flight (still pending), then it lands: the table goes ahead', async () => {
+    const { el } = await blockedOnTable(1);
+    const contexts: Array<{ table_id: string | null }> = [];
+    el.addEventListener('erp:order-context', (e) => contexts.push((e as CustomEvent).detail));
+    el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-pos-send-pending"]')!.click();
+    await tick(el);
+    posState(el, 1); // sales emits `erp:pos-state` on every render, also mid-flight
+    await tick(el);
+    posState(el, 0);
+    await tick(el);
+    expect(contexts.map((c) => c.table_id)).toEqual(['tbl-6']);
+  });
+
+  it('a «Send order» from an earlier opening does not count: after reopening, a table tapped again waits for its own', async () => {
+    const { el } = await blockedOnTable(1);
+    const contexts: unknown[] = [];
+    el.addEventListener('erp:order-context', (e) => contexts.push((e as CustomEvent).detail));
+    el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-pos-send-pending"]')!.click();
+    await tick(el);
+    el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-pos-close"]')!.click();
+    await tick(el);
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await tick(el);
+    el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-pos-table-tbl-6"]')!.click();
+    await tick(el);
+    posState(el, 0); // sent from «Current order», not from this warning
+    await tick(el);
+    expect(contexts).toHaveLength(0);
+    expect(el.shadowRoot.querySelector('[data-testid="tables-pos-pending"]')).toBeNull();
+  });
+
+  it('sent from elsewhere («Current order»): the warning goes away but no table is taken for the waiter', async () => {
+    const { el } = await blockedOnTable(1);
+    const contexts: unknown[] = [];
+    el.addEventListener('erp:order-context', (e) => contexts.push((e as CustomEvent).detail));
+    posState(el, 0);
+    await tick(el);
+    expect(el.shadowRoot.querySelector('[data-testid="tables-pos-pending"]'), 'nothing blocks any more').toBeNull();
+    expect(contexts, 'the waiter did not ask to send and go: they tap the table again').toHaveLength(0);
+    expect((el as unknown as { open: boolean }).open).toBe(true);
+  });
+
+  it('closing the picker drops the pending request: a later send does not seat a table behind the waiter', async () => {
+    const { el } = await blockedOnTable(1);
+    const contexts: unknown[] = [];
+    el.addEventListener('erp:order-context', (e) => contexts.push((e as CustomEvent).detail));
+    el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-pos-send-pending"]')!.click();
+    await tick(el);
+    el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-pos-close"]')!.click();
+    await tick(el);
+    posState(el, 0);
+    await tick(el);
+    expect(contexts).toHaveLength(0);
+  });
+
+  it('reopening the picker starts clean: the old tap is not resumed when the order goes out later', async () => {
+    const { el } = await blockedOnTable(1);
+    const contexts: unknown[] = [];
+    el.addEventListener('erp:order-context', (e) => contexts.push((e as CustomEvent).detail));
+    el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-pos-send-pending"]')!.click();
+    await tick(el);
+    el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-pos-close"]')!.click();
+    await tick(el);
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await tick(el);
+    expect(el.shadowRoot.querySelector('[data-testid="tables-pos-pending"]'), 'no stale warning').toBeNull();
+    posState(el, 0);
+    await tick(el);
+    expect(contexts).toHaveLength(0);
+  });
+
+  it('without kitchen, unsent lines do not block: the table is taken straight away', async () => {
+    const { el } = await (async () => {
+      stub();
+      await import('./erp-tables-pos-zones');
+      const node = document.createElement('erp-tables-pos-zones') as HTMLElement & { shadowRoot: ShadowRoot };
+      document.body.appendChild(node);
+      await tick(node);
+      node.dispatchEvent(new CustomEvent('erp:pos-state', {
+        detail: { pending_count: 2, kitchen_enabled: false }, bubbles: false,
+      }));
+      return { el: node };
+    })();
+    const contexts: Array<{ table_id: string | null }> = [];
+    el.addEventListener('erp:order-context', (e) => contexts.push((e as CustomEvent).detail));
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await tick(el);
+    el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-pos-table-tbl-6"]')!.click();
+    await tick(el);
+    expect(el.shadowRoot.querySelector('[data-testid="tables-pos-pending"]')).toBeNull();
+    expect(contexts.map((c) => c.table_id)).toEqual(['tbl-6']);
+  });
+
+  it('«Remove table» blocked by the pending order also goes ahead after «Send order»', async () => {
+    const calls = stub();
+    const el = await montar();
+    const wc = el as unknown as { selectedId?: string; sessionId?: string; clear(): Promise<void>; open: boolean };
+    wc.selectedId = 'tbl-6';
+    wc.sessionId = 'ses-6';
+    posState(el, 1);
+    await wc.clear();
+    await tick(el);
+    expect(calls.map((c) => c.name)).not.toContain('tables.sessions.park');
+    el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-pos-send-pending"]')!.click();
+    await tick(el);
+    posState(el, 0);
+    await tick(el);
+    expect(calls.find((c) => c.name === 'tables.sessions.park')?.payload).toEqual({ session_id: 'ses-6' });
+    expect(wc.selectedId).toBeUndefined();
+  });
+});
+
+// The words, not just the keys (HALLAZGO rv-sales-419): the singular reads «the pending item», never
+// «the 1 items», and the button exists in both languages.
+describe('pending-order wording in en + es (tables#95)', () => {
+  it('singular and plural sentences and the «Send order» label are translated', async () => {
+    const en = (await import('../../../locales/en.json')).default as { ui: Record<string, string> };
+    const es = (await import('../../../locales/es.json')).default as { ui: Record<string, string> };
+    expect(en.ui.sendPendingBeforeTableOne).toMatch(/the pending item\b/);
+    expect(es.ui.sendPendingBeforeTableOne).toMatch(/el producto pendiente\b/);
+    expect(en.ui.sendPendingBeforeTableOne).not.toContain('{count}');
+    expect(es.ui.sendPendingBeforeTableOne).not.toContain('{count}');
+    expect(en.ui.sendPendingBeforeTable).toContain('{count}');
+    expect(es.ui.sendPendingBeforeTable).toContain('{count}');
+    expect(en.ui.sendPendingOrder).toBe('Send order');
+    expect(es.ui.sendPendingOrder).toBe('Enviar comanda');
   });
 });

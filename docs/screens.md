@@ -159,7 +159,10 @@ The sell screen shows a table button contributed by this module (requires `table
 
 The button stays available even when a table is already assigned, so you can change it. When Kitchen
 is active and the check has lines not yet fired, the selector **blocks changing or removing the
-table** until you send them.
+table** until you send them. The warning carries a **Send order** button: it fires the pending lines
+to the kitchen and, once they are sent, the table you tapped (or **Quitar mesa**) goes ahead and the
+selector closes. If the lines are sent from **Current order** instead, the warning just goes away and
+you tap the table again.
 
 ## First-run setup
 
