@@ -102,12 +102,21 @@ function erplora(): ErploraClientLike {
   return c;
 }
 
-/** `2026-08-18T20:15:00Z` → `20:15` in the device's clock (the room reads the wall clock). */
-function hhmm(iso?: string | null): string {
+/**
+ * `2026-08-18T20:15:00Z` → the device's wall clock in the hub language (`20:15` / `8:15 PM`).
+ * tables#101: «Closed» and «All» are not limited to tonight, so a time from another day carries
+ * its date (`17 ago, 19:30`) and one from another year its year — the time alone would pass last
+ * week's check off as tonight's.
+ */
+function clockTime(iso: string | null | undefined, now: Date): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const sameDay = d.toDateString() === now.toDateString();
+  const opts: Intl.DateTimeFormatOptions = sameDay
+    ? { hour: 'numeric', minute: '2-digit' }
+    : { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) };
+  return new Intl.DateTimeFormat(erplora().locale || undefined, opts).format(d);
 }
 
 /**
@@ -213,8 +222,9 @@ export class ErpTablesSessions extends LitElement {
         format: (r) => this.waiterName(r.waiter_id) || '—',
       },
       { key: 'guests_count', header: t('ui.colGuests'), align: 'right', sortable: true, format: (r) => t('ui.paxCount', { count: r.guests_count ?? 0 }) },
-      { key: 'opened_at', header: t('ui.colOpenedAt'), sortable: true, format: (r) => hhmm(r.opened_at as string) },
-      { key: 'closed_at', header: t('ui.colClosedAt'), sortable: true, hidden: true, format: (r) => hhmm(r.closed_at as string | null) },
+      { key: 'opened_at', header: t('ui.colOpenedAt'), sortable: true, format: (r) => clockTime(r.opened_at as string, this.now()) },
+      // tables#101: when the check closed. Hidden on «Open» only, where it always reads «—».
+      { key: 'closed_at', header: t('ui.colClosedAt'), sortable: true, hidden: this.segment === 'open', format: (r) => clockTime(r.closed_at as string | null, this.now()) },
       {
         key: 'duration',
         header: t('ui.colDuration'),
@@ -458,8 +468,8 @@ export class ErpTablesSessions extends LitElement {
           ${row(t('ui.colWaiter'), this.waiterName(s.waiter_id) || '—')}
           ${row(t('ui.colStatus'), STATUS_KEY[s.status] ? t(STATUS_KEY[s.status]) : s.status)}
           ${row(t('ui.colGuests'), t('ui.paxCount', { count: s.guests_count ?? 0 }))}
-          ${row(t('ui.colOpenedAt'), hhmm(s.opened_at))}
-          ${row(t('ui.colClosedAt'), hhmm(s.closed_at))}
+          ${row(t('ui.colOpenedAt'), clockTime(s.opened_at, this.now()))}
+          ${row(t('ui.colClosedAt'), clockTime(s.closed_at, this.now()))}
           ${row(t('ui.colDuration'), t('ui.durationMinutes', { minutes: durationMinutes(s, this.now()) }))}
           ${row(t('ui.colPaidTotal'), paidAmount(s.paid_total))}
           ${row(t('ui.colNotes'), s.notes || '—')}
