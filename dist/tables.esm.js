@@ -2301,6 +2301,17 @@ var ErpTablesCanvas = class extends i3 {
     // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template (legend, sheets,
     // tooltips…) se re-evalúan con el nuevo `erplora.locale`.
     this.onLocaleChange = () => this.requestUpdate();
+    /** Fades each edge of the zone strip that has zones behind it. The classes go straight on the
+     *  element (no Lit class binding): a bound `class` would wipe the ones Ionic sets on its host. */
+    this.updateZoneCue = () => {
+      const seg = this.renderRoot.querySelector('[data-testid="tables-floor-zones"]');
+      if (!seg) return;
+      const hidden = seg.scrollWidth - seg.clientWidth;
+      const rtl = getComputedStyle(seg).direction === "rtl";
+      const left = rtl ? hidden + seg.scrollLeft : seg.scrollLeft;
+      seg.classList.toggle("more-left", hidden > 1 && left > 1);
+      seg.classList.toggle("more-right", hidden > 1 && left < hidden - 1);
+    };
     this.areaListening = false;
     this.placeScrim = () => {
       const scrim = this.shadowRoot?.querySelector(".scrim");
@@ -2325,17 +2336,33 @@ var ErpTablesCanvas = class extends i3 {
        configuración, en iconos. A 390 px el plano empieza justo debajo. */
     .zonebar { display:flex; gap:.25rem; align-items:center; margin-bottom:.4rem; }
     .zonebar ion-segment { flex:1; min-width:0; }
+    /* tables#97: on a phone the strip scrolls sideways, and a hard cut at the edge read as «there
+       are no more zones». Each edge with zones behind it fades out, like any scrollable tab strip;
+       updateZoneCue() sets the classes from the strip's own scroll position. */
+    .zonebar ion-segment.more-right {
+      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+      mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent); }
+    .zonebar ion-segment.more-left {
+      -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent);
+      mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent); }
+    .zonebar ion-segment.more-left.more-right {
+      -webkit-mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
+      mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent); }
     .zonebar .flex { flex:1; }
+    /* tables#97: only a TABLE owns the touch gesture (touch-action:none on .mesa, so it drags). The
+       empty plan lets a vertical swipe scroll the page: on a phone the plan fills the screen, and
+       with touch-action:none everywhere the help line under it could never be scrolled into view. */
     .canvas { position:relative; height:60vh; min-height:22rem; border:1px dashed var(--ion-border-color,#cfcabd); border-radius: var(--ok-radius, 14px); background:
         repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px),
         repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px);
-      overflow:hidden; touch-action:none; }
+      overflow:hidden; touch-action:pan-y; }
     /* tables#53: el TAMAÑO ya no se clava aquí — lo pinta cada mesa con el suyo (estilo inline),
        porque la fila lo trae y tables.tables.move lo persiste. Se deja como respaldo para una
        mesa que no lo declare. */
     .mesa { position:absolute; width:${BOX}px; height:${BOX}px; border:2px solid; border-radius: var(--ok-radius, 12px);
       display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:grab;
-      background:var(--ion-background-color,#fff); user-select:none; box-shadow:0 1px 4px rgba(0,0,0,.12); }
+      background:var(--ion-background-color,#fff); user-select:none; box-shadow:0 1px 4px rgba(0,0,0,.12);
+      touch-action:none; }
     .mesa.round { border-radius: var(--ok-radius-pill, 50%); }
     .mesa.dragging { cursor:grabbing; opacity:.85; box-shadow:0 6px 18px rgba(0,0,0,.28); z-index:5; }
     /* Keyboard focus is visible: the table is a button (tables#16). */
@@ -2423,12 +2450,34 @@ var ErpTablesCanvas = class extends i3 {
     this.unsub?.();
     if (this.timer) clearInterval(this.timer);
     this.unwatchSheetArea();
+    this.unwatchZoneStrip();
+  }
+  watchZoneStrip() {
+    const seg = this.renderRoot.querySelector('[data-testid="tables-floor-zones"]');
+    if (seg !== this.observedStrip || this.zones !== this.observedZones) {
+      this.unwatchZoneStrip();
+      if (seg && typeof ResizeObserver !== "undefined") {
+        this.stripObserver = new ResizeObserver(this.updateZoneCue);
+        this.stripObserver.observe(seg);
+        seg.querySelectorAll("ion-segment-button").forEach((b3) => this.stripObserver?.observe(b3));
+        this.observedStrip = seg;
+        this.observedZones = this.zones;
+      }
+    }
+    this.updateZoneCue();
+  }
+  unwatchZoneStrip() {
+    this.stripObserver?.disconnect();
+    this.stripObserver = void 0;
+    this.observedStrip = void 0;
+    this.observedZones = void 0;
   }
   /** tables#88 — while a sheet is open its scrim is laid over the box the person actually SEES:
    *  the shell's ion-content (it ends where the module tab bar starts), clipped to the screen.
    *  Neither the viewport (it includes the tab bar) nor this host (the shell floors its outlet at
    *  480px, so on a short screen the module box is taller than what is visible) is that box. */
   updated() {
+    this.watchZoneStrip();
     if (!this.sheetOpen) {
       this.unwatchSheetArea();
       return;
@@ -2833,6 +2882,7 @@ var ErpTablesCanvas = class extends i3 {
            because the status is now written on every tile. -->
       <div class="zonebar">
         ${this.zones.length ? b2`<ion-segment data-testid="tables-floor-zones" scrollable value=${this.activeZone}
+              @scroll=${this.updateZoneCue}
               @ionChange=${(e5) => {
       this.activeZone = e5.detail.value;
     }}>
