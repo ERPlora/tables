@@ -15,6 +15,7 @@
 //     stays on the PAGE: no panel is open then, and a message inside a closed panel is just as
 //     invisible (rv-appointments-227).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { dataTableShowsLoadError } from '@erplora/module-sdk';
 
 const ZONE = { id: 'z1', name: 'Terraza', description: 'Fuera', color: 'primary', sort_order: 0, is_active: 1, table_count: 0, available_tables_count: 0 };
 const TABLE = { id: 't1', number: 'T1', name: '', capacity: 4, shape: 'square', status: 'available', is_active: 1, zone: null, zone_id: null };
@@ -91,6 +92,17 @@ const inFormAndRevealed = (el: Wc, testid: string): Element | null => {
 const onPage = (el: Wc, testid: string): Element | null => {
   const banner = el.shadowRoot.querySelector(`[data-testid="${testid}"]`);
   return banner && !banner.closest('form[slot="create"]') ? banner : null;
+};
+
+/** pm#533: an OutfitKit whose table paints the load error itself gets the reason there, and the page
+ *  adds no banner of its own; an older one keeps the banner on the page. Never in the form. */
+const expectLoadFailureOnPage = (el: Wc, banner: string): void => {
+  if (dataTableShowsLoadError()) {
+    expect((el.shadowRoot.querySelector('ok-data-table') as unknown as { error?: string }).error).toBe('list down');
+    expect(el.shadowRoot.querySelector(`[data-testid="${banner}"]`), 'the reason would be said twice').toBeNull();
+  } else {
+    expect(onPage(el, banner)).not.toBeNull();
+  }
 };
 
 const editZone = (el: Wc): Promise<void> => el.onRowAction({ detail: { actionId: 'edit', row: ZONE } });
@@ -172,7 +184,7 @@ describe('pm#513 · zones: what goes wrong OUTSIDE the save stays on the page (r
   it('a list that does not load is shown on the page, not in the form', async () => {
     loadFails = true;
     const el = await mount('erp-tables-zones');
-    expect(onPage(el, 'tables-zones-load-error')).not.toBeNull();
+    expectLoadFailureOnPage(el, 'tables-zones-load-error');
     expect(inForm(el, 'tables-zones-form-error')).toBeNull();
     expect(inForm(el, 'tables-zones-load-error')).toBeNull();
   });
@@ -250,7 +262,7 @@ describe('pm#513 · tables list: a refused «Add table» is shown INSIDE the pan
   it('a list that does not load stays on the page, not in the form (rv-appointments-227)', async () => {
     loadFails = true;
     const el = await mount('erp-tables-floor-plan');
-    expect(onPage(el, 'tables-list-load-error')).not.toBeNull();
+    expectLoadFailureOnPage(el, 'tables-list-load-error');
     expect(inForm(el, 'tables-list-load-error')).toBeNull();
     expect(inForm(el, 'tables-list-error')).toBeNull();
   });

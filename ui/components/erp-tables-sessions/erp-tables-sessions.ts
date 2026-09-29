@@ -5,7 +5,7 @@ import { define } from '@erplora/outfitkit/define';
 import '@erplora/outfitkit/ok-inline-feedback';
 import '@erplora/outfitkit/ok-data-table';
 import type { DataTableColumn, DataTableAction } from '@erplora/outfitkit';
-import { createListController, dataTableLabels } from '@erplora/module-sdk';
+import { createListController, dataTableLabels, dataTableShowsLoadError } from '@erplora/module-sdk';
 import type { ListController, ListClient, ListParams, ListPage } from '@erplora/module-sdk';
 // Module i18n catalog (ADR-0055): esbuild inlines these JSON files into the WC `dist`.
 import esLocale from '../../../locales/es.json';
@@ -429,7 +429,7 @@ export class ErpTablesSessions extends LitElement {
     const t = (k: string, p?: Record<string, unknown>): string => erplora().t(CATALOG, k, p);
     return html`<div class="page">
       ${this.error ? html`<ok-inline-feedback data-testid="tables-sessions-error" tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : nothing}
-      ${this.ctrl?.error ? html`<ok-inline-feedback data-testid="tables-sessions-load-error" tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : nothing}
+      ${this.ctrl?.error && !dataTableShowsLoadError() ? html`<ok-inline-feedback data-testid="tables-sessions-load-error" tone="danger" icon="alert-circle-outline">${this.ctrl.error}</ok-inline-feedback>` : nothing}
 
       <ion-segment data-testid="tables-sessions-tabs" value=${this.segment} @ionChange=${(e: CustomEvent) => this.onSegment(String((e.detail as { value: string }).value))}>
         ${SEGMENTS.map((s) => html`<ion-segment-button data-testid=${`tables-sessions-tab-${s.id}`} value=${s.id}><ion-label>${t(s.key)}</ion-label></ion-segment-button>`)}
@@ -437,6 +437,8 @@ export class ErpTablesSessions extends LitElement {
 
       <ok-data-table
         testid="tables-sessions-table"
+        .error=${this.ctrl?.error ?? ''}
+        @retry=${() => Promise.all([this.ctrl?.load(), this.loadZones(), this.loadSettings(), this.loadWaiters()])}
         .serverSide=${true}
         .fill=${true}
         .labels=${dataTableLabels(erplora().locale)}
