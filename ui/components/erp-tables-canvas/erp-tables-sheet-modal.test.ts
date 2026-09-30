@@ -146,6 +146,18 @@ describe('the floor plan sheets open in the hub\'s standard window, over the WHO
     expect(el.edit?.id, 'a stray dismiss closed «Edit table»').toBe('m1');
   });
 
+  it.each(OPEN)('«%s» ignores a dismiss that bubbles up from an overlay opened INSIDE it', async (_n, testid, open) => {
+    const el = await mount();
+    await open(el);
+    const modal = byTestId(el, testid)!.closest('ion-modal') as HTMLElement & { isOpen?: boolean };
+    // Ionic's overlay events bubble: a picker opened from a field of the sheet would close the sheet.
+    modal.querySelector('ion-input, ion-select')!
+      .dispatchEvent(new CustomEvent('ionModalDidDismiss', { bubbles: true, composed: true }));
+    await settle(el);
+    expect(modal.isOpen, 'a nested overlay closed the sheet under the person').toBe(true);
+    expect(byTestId(el, testid), 'the sheet lost its content').not.toBeNull();
+  });
+
   it('the close button of each sheet still closes it', async () => {
     const el = await mount();
     for (const [, , open] of OPEN) {
