@@ -122,6 +122,49 @@ describe('the floor plan sheets open in the hub\'s standard window, over the WHO
     expect((byTestId(el, testid)!.closest('ion-modal') as HTMLElement & { isOpen?: boolean }).isOpen).toBe(true);
   });
 
+  // Ionic 8 presents an inline modal by MOVING all its element children into a new
+  // `div.ion-delegate-host` (unless its first child already is one) before teleporting it to ion-app
+  // (@ionic/core utils/framework-delegate.js, CoreDelegate.attachViewToDom). Lit's markers of a
+  // conditional stay behind as comments of the ion-modal, so a sheet rendered straight into the
+  // modal can no longer be removed on close: on the bench (hub:dev) the second table tapped opened
+  // with the FIRST table's sheet on top of it, and its «Delete» deleted the table the person had
+  // just tapped. happy-dom has no Ionic, so the move is replayed here.
+  const presentLikeIonic = (modal: Element): void => {
+    if (!modal.children.length || modal.children[0].classList.contains('ion-delegate-host')) return;
+    const host = document.createElement('div');
+    host.classList.add('ion-delegate-host', 'ion-page');
+    host.append(...modal.children);
+    modal.appendChild(host);
+  };
+
+  it.each(OPEN)('«%s» presented by Ionic, closed and opened again holds ONE sheet, not the old one too', async (_n, testid, open) => {
+    const el = await mount();
+    for (let round = 0; round < 3; round++) {
+      await open(el);
+      const modal = byTestId(el, testid)!.closest('ion-modal')!;
+      presentLikeIonic(modal);
+      expect(modal.querySelectorAll(`[data-testid="${testid}"]`).length, `open #${round + 1}: a sheet left over from an earlier open`).toBe(1);
+      modal.dispatchEvent(new CustomEvent('ionModalDidDismiss', { bubbles: true }));
+      await settle(el);
+      expect(modal.querySelectorAll(`[data-testid="${testid}"]`).length, `close #${round + 1}: the sheet outlived its window`).toBe(0);
+    }
+  });
+
+  it('«Edit table» presented by Ionic and opened again on ANOTHER table shows only that table', async () => {
+    const el = await mount();
+    await OPEN[1][2](el);
+    const modal = byTestId(el, 'tables-floor-table-sheet')!.closest('ion-modal')!;
+    presentLikeIonic(modal);
+    byTestId(el, 'tables-floor-table-close')!.click();
+    await settle(el);
+
+    byTestId(el, 'tables-floor-tile-m2')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await settle(el);
+    presentLikeIonic(modal);
+    const numbers = [...modal.querySelectorAll<HTMLElement & { value?: string }>('[data-testid="tables-floor-table-number"]')].map((n) => n.value);
+    expect(numbers, 'the window shows a table the person did not tap').toEqual(['2']);
+  });
+
   it('closing «Edit table» by the backdrop and tapping ANOTHER table opens that table', async () => {
     const el = await mount();
     await OPEN[1][2](el);
@@ -162,8 +205,9 @@ describe('the floor plan sheets open in the hub\'s standard window, over the WHO
   // 0 even with --ion-grid-column-padding set), so the outlined fields touched each other edge to
   // edge; and the shell imports only core, structure, typography, padding and flex-utils of Ionic's
   // global CSS (hub apps/web/src/main.ts) — `ion-text-end` did nothing and «Add zone» sat on the
-  // left. The sheet spaces itself with what the shell does load, and inline properties.
-  const SHELL_UTILITIES = /^ion-(no-)?(padding|margin)(-(top|bottom|start|end|horizontal|vertical))?$|^ion-(justify-content|align-items|align-self)-[a-z-]+$|^ion-no-border$/;
+  // left. The sheet spaces itself with what the shell does load, and inline properties. `ion-page`
+  // (the frame of each sheet) comes with core.css.
+  const SHELL_UTILITIES = /^ion-(no-)?(padding|margin)(-(top|bottom|start|end|horizontal|vertical))?$|^ion-(justify-content|align-items|align-self)-[a-z-]+$|^ion-no-border$|^ion-page$/;
   it.each(OPEN)('«%s» uses only the Ionic utility classes the hub shell loads', async (_n, testid, open) => {
     const el = await mount();
     await open(el);

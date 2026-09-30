@@ -2891,24 +2891,26 @@ var ErpTablesCanvas = class extends i3 {
            and is centred on it, which a position:fixed layer inside this shadow root never was
            (an ancestor with transform/contain makes it relative to its own box). What moves with
            the modal leaves this shadow root, so the sheets use Ionic's layout only: no class of
-           the static styles below reaches them. -->
+           the static styles below reaches them. Each sheet sits in its own .ion-page: presenting,
+           Ionic MOVES the modal's children into a wrapper of its own, and a sheet moved away from
+           Lit's markers is never removed — the next table tapped opened under the previous one. -->
       <ion-modal data-testid="tables-floor-add-modal" .isOpen=${this.addOpen}
         @ionModalDidDismiss=${(e5) => {
       if (e5.target === e5.currentTarget) this.addOpen = false;
     }}>
-        ${this.addOpen ? this.renderAddSheet() : A}
+        <div class="ion-page">${this.addOpen ? this.renderAddSheet() : A}</div>
       </ion-modal>
       <ion-modal data-testid="tables-floor-table-modal" .isOpen=${!!this.edit}
         @ionModalDidDismiss=${(e5) => {
       if (e5.target === e5.currentTarget) this.edit = void 0;
     }}>
-        ${this.edit ? this.renderTableSheet(this.edit) : A}
+        <div class="ion-page">${this.edit ? this.renderTableSheet(this.edit) : A}</div>
       </ion-modal>
       <ion-modal data-testid="tables-floor-zone-modal" .isOpen=${!!this.zoneEdit}
         @ionModalDidDismiss=${(e5) => {
       if (e5.target === e5.currentTarget) this.zoneEdit = void 0;
     }}>
-        ${this.zoneEdit ? this.renderZoneSheet(this.zoneEdit) : A}
+        <div class="ion-page">${this.zoneEdit ? this.renderZoneSheet(this.zoneEdit) : A}</div>
       </ion-modal>
     `;
   }
