@@ -1736,7 +1736,7 @@ __decorateClass3([
 ], OkEmptyState.prototype, "message");
 define("ok-empty-state", OkEmptyState);
 
-// @erplora/module-tables/locales/es.json
+// locales/es.json
 var es_default = {
   name: "Mesas",
   description: "Plano de sala del restaurante: zonas, mesas y sesiones de mesa.",
@@ -1931,7 +1931,7 @@ var es_default = {
   }
 };
 
-// @erplora/module-tables/locales/en.json
+// locales/en.json
 var en_default = {
   name: "Tables",
   navigation: {
@@ -2125,7 +2125,7 @@ var en_default = {
   }
 };
 
-// @erplora/module-tables/ui/lib/domain-error.ts
+// ui/lib/domain-error.ts
 var ERRORS = {
   es: es_default.errors ?? {},
   en: en_default.errors ?? {}
@@ -2149,7 +2149,7 @@ function domainMessage(e5, lang, fallback) {
   return presentable(message) ? message : fallback;
 }
 
-// @erplora/module-tables/ui/lib/natural-order.ts
+// ui/lib/natural-order.ts
 var PAD_WIDTH = 12;
 function naturalKey(label) {
   return (label ?? "").replace(/[0-9]+/g, (run) => run.padStart(PAD_WIDTH, "0"));
@@ -2175,7 +2175,7 @@ function sortNaturallyBy(rows3, pick, locale) {
   return [...rows3].sort((a3, b3) => compareNatural(pick(a3), pick(b3), locale));
 }
 
-// @erplora/module-tables/ui/components/erp-tables-canvas/erp-tables-canvas.ts
+// ui/components/erp-tables-canvas/erp-tables-canvas.ts
 var CATALOG = { es: es_default, en: en_default };
 function hhmm(iso) {
   if (!iso) return "";
@@ -5915,7 +5915,7 @@ function majorToMinor(amount, decimals) {
   return Number.isFinite(n6) ? Math.round(n6 * 10 ** decimals) : 0;
 }
 
-// @erplora/module-tables/ui/components/erp-tables-floor-plan/erp-tables-floor-plan.ts
+// ui/components/erp-tables-floor-plan/erp-tables-floor-plan.ts
 var CATALOG2 = { es: es_default, en: en_default };
 var STATUS_KEY2 = {
   available: "ui.statusAvailable",
@@ -6134,13 +6134,13 @@ __decorateClass([
 ], ErpTablesFloorPlan.prototype, "zones", 2);
 define("erp-tables-floor-plan", ErpTablesFloorPlan);
 
-// @erplora/module-tables/ui/lib/permissions.ts
+// ui/lib/permissions.ts
 function can(permission) {
   const shell = globalThis.erplora;
   return typeof shell?.hasPermission === "function" ? shell.hasPermission(permission) : true;
 }
 
-// @erplora/module-tables/ui/components/erp-tables-pos-zones/erp-tables-pos-zones.ts
+// ui/components/erp-tables-pos-zones/erp-tables-pos-zones.ts
 var CATALOG3 = { es: es_default, en: en_default };
 var STATUS_COLOR2 = {
   available: "var(--ion-color-success, #2f9e44)",
@@ -6919,7 +6919,7 @@ __decorateClass([
 ], ErpTablesPosZones.prototype, "guestsPrompt", 2);
 define("erp-tables-pos-zones", ErpTablesPosZones);
 
-// @erplora/module-tables/ui/lib/ion-tone.ts
+// ui/lib/ion-tone.ts
 var PALETTE = {
   danger: { base: "#c5000f", contrast: "#fff", shade: "#ad000d", tint: "#cb1a27" }
 };
@@ -6935,7 +6935,7 @@ function ionTone2(_kind, tone) {
   ].join("; ");
 }
 
-// @erplora/module-tables/ui/components/erp-tables-sessions/erp-tables-sessions.ts
+// ui/components/erp-tables-sessions/erp-tables-sessions.ts
 var CATALOG4 = { es: es_default, en: en_default };
 var STATUSES2 = ["active", "closed", "transferred", "merged", "parked"];
 var STATUS_KEY4 = {
@@ -7332,7 +7332,7 @@ __decorateClass([
 ], ErpTablesSessions.prototype, "error", 2);
 define("erp-tables-sessions", ErpTablesSessions);
 
-// @erplora/module-tables/ui/components/erp-tables-zones/erp-tables-zones.ts
+// ui/components/erp-tables-zones/erp-tables-zones.ts
 var CATALOG5 = { es: es_default, en: en_default };
 var COLORS = ["primary", "secondary", "tertiary", "success", "warning", "danger", "medium"];
 var COLOR_KEY = {
