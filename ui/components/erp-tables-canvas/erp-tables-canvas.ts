@@ -903,14 +903,12 @@ export class ErpTablesCanvas extends LitElement {
     `;
   }
 
-  /** The title bar of a sheet: its name and a close icon with an accessible name. */
-  private renderSheetHeader(title: string, closeTestId: string, close: () => void) {
-    const t = (k: string): string => erplora().t(CATALOG, k);
+  /** The title bar of a sheet: its name and its close control (an icon with an accessible name,
+   *  written by each sheet so its data-testid stays a literal the QA suite can find — tables#86). */
+  private renderSheetHeader(title: string, close: unknown) {
     return html`<ion-header class="ion-no-border"><ion-toolbar>
       <ion-title>${title}</ion-title>
-      <ion-buttons slot="end">
-        <ion-button data-testid=${closeTestId} aria-label=${t('ui.close')} title=${t('ui.close')} @click=${close}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
-      </ion-buttons>
+      <ion-buttons slot="end">${close}</ion-buttons>
     </ion-toolbar></ion-header>`;
   }
 
@@ -919,7 +917,8 @@ export class ErpTablesCanvas extends LitElement {
    *  will discard. */
   private renderAddSheet() {
     const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
-    return html`${this.renderSheetHeader(t('ui.addTitle'), 'tables-floor-add-close', () => { this.addOpen = false; })}
+    return html`${this.renderSheetHeader(t('ui.addTitle'), html`<ion-button data-testid="tables-floor-add-close" aria-label=${t('ui.close')} title=${t('ui.close')}
+        @click=${() => { this.addOpen = false; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>`)}
       <ion-content class="ion-padding" data-testid="tables-floor-add-sheet">
         ${this.renderError(true)}
         <ion-grid class="ion-no-padding">
@@ -947,7 +946,8 @@ export class ErpTablesCanvas extends LitElement {
 
   private renderTableSheet(table: Table) {
     const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
-    return html`${this.renderSheetHeader(t('ui.editTable'), 'tables-floor-table-close', () => { this.edit = undefined; })}
+    return html`${this.renderSheetHeader(t('ui.editTable'), html`<ion-button data-testid="tables-floor-table-close" aria-label=${t('ui.close')} title=${t('ui.close')}
+        @click=${() => { this.edit = undefined; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>`)}
       <ion-content class="ion-padding" data-testid="tables-floor-table-sheet">
         ${this.renderError(true)}
         <ion-grid class="ion-no-padding">
@@ -1003,7 +1003,8 @@ export class ErpTablesCanvas extends LitElement {
 
   private renderZoneSheet(z: Zone) {
     const t = (k: string, params?: Record<string, unknown>): string => erplora().t(CATALOG, k, params);
-    return html`${this.renderSheetHeader(t('ui.editZone'), 'tables-floor-zone-close', () => { this.zoneEdit = undefined; })}
+    return html`${this.renderSheetHeader(t('ui.editZone'), html`<ion-button data-testid="tables-floor-zone-close" aria-label=${t('ui.close')} title=${t('ui.close')}
+        @click=${() => { this.zoneEdit = undefined; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>`)}
       <ion-content class="ion-padding" data-testid="tables-floor-zone-sheet">
         ${this.renderError(true)}
         <ion-grid class="ion-no-padding">

@@ -63,6 +63,7 @@ const COVERED: Record<string, { prefix: string; contract: string[]; computed?: s
     contract: [
       'tables-floor-add',
       'tables-floor-add-close',
+      'tables-floor-add-modal',
       'tables-floor-add-sheet',
       'tables-floor-empty-tables',
       'tables-floor-empty-zones',
@@ -76,6 +77,7 @@ const COVERED: Record<string, { prefix: string; contract: string[]; computed?: s
       'tables-floor-table-close',
       'tables-floor-table-delete',
       'tables-floor-table-name',
+      'tables-floor-table-modal',
       'tables-floor-table-number',
       'tables-floor-table-save',
       'tables-floor-table-sheet',
@@ -86,6 +88,7 @@ const COVERED: Record<string, { prefix: string; contract: string[]; computed?: s
       'tables-floor-zone-delete',
       'tables-floor-zone-description',
       'tables-floor-zone-edit',
+      'tables-floor-zone-modal',
       'tables-floor-zone-name',
       'tables-floor-zone-save',
       'tables-floor-zone-sheet',
