@@ -3,12 +3,13 @@
 // Ionic implements `color="danger"` with a GLOBAL rule of the document stylesheet
 // (`.ion-color-danger { --ion-color-base: … }`), which does not reach inside a shadow root. Where the
 // button lives decides the fix:
-//   · in the component's own shadow root (the floor-plan edit sheets, the POS zone picker's native
-//     <dialog>): «Delete table», «Delete zone» and «Remove table» fell back to the primary blue. They
-//     carry a `tone-danger` class and the component's `static styles` paint it from the token;
-//   · inside an `ion-modal` (close a session, delete a zone): Ionic reparents an open modal to
-//     <body>, where the global rule applies — and where the component's `static styles` never
-//     arrive. There the tone travels INLINE, as custom properties read from the token (`ionTone`).
+//   · in the component's own shadow root (the POS zone picker's native <dialog>): «Remove table»
+//     fell back to the primary blue. It carries a `tone-danger` class and the component's
+//     `static styles` paint it from the token;
+//   · inside an `ion-modal` (close a session, delete a zone, and since tables#107 the floor plan's
+//     «Delete table» / «Delete zone»): Ionic reparents an open modal to `ion-app`, where the
+//     component's `static styles` never arrive. There the tone travels INLINE, as custom
+//     properties read from the token (`ionTone`).
 //
 // happy-dom neither lays out nor loads Ionic's CSS, so the computed colours were measured in a real
 // browser; what is pinned here is the CONTRACT that makes them paint.
@@ -94,6 +95,15 @@ describe('ionTone: the inline custom properties, read from the theme token', () 
     expect(s).toContain('--background-hover: var(--ion-color-danger-tint, #cb1a27)');
     expect(s).toContain('--color: var(--ion-color-danger-contrast, #fff)');
   });
+
+  it('an outline button paints its text, its border and its states from the tone — never a fill', () => {
+    const s = ionTone('outline', 'danger');
+    expect(s).toContain('--color: var(--ion-color-danger, #c5000f)');
+    expect(s).toContain('--border-color: var(--ion-color-danger, #c5000f)');
+    expect(s).toContain('--background-activated: var(--ion-color-danger, #c5000f)');
+    expect(s).toContain('--background-focused: var(--ion-color-danger, #c5000f)');
+    expect(s, 'an outline button keeps its transparent background').not.toMatch(/(^|;\s*)--background:/);
+  });
 });
 
 // ── The components ───────────────────────────────────────────────────────────────────────────────
@@ -153,29 +163,12 @@ async function mount(tag: string, load: () => Promise<unknown>): Promise<Wc> {
 const byTestId = (el: Wc, id: string) => el.shadowRoot.querySelector(`[data-testid="${id}"]`);
 
 describe('pm#392: in the component shadow root the tone is a class painted by static styles', () => {
-  it.each([
-    ['erp-tables-canvas', () => import('./components/erp-tables-canvas/erp-tables-canvas')],
-    ['erp-tables-pos-zones', () => import('./components/erp-tables-pos-zones/erp-tables-pos-zones')],
-  ] as const)('%s paints its outline/clear danger button from the token', async (tag, load) => {
-    await load();
+  it('the POS zone picker paints its outline/clear danger button from the token', async () => {
+    const tag = 'erp-tables-pos-zones';
+    await import('./components/erp-tables-pos-zones/erp-tables-pos-zones');
     const rule = ruleBody(cssOf(customElements.get(tag)), OUTLINED_DANGER);
     expect(rule, 'text').toMatch(/--color:\s*var\(--ion-color-danger\b/);
     expect(rule, 'border').toMatch(/--border-color:\s*var\(--ion-color-danger\b/);
-  });
-
-  it('floor plan: «Delete table» and «Delete zone» of the edit sheets carry the tone', async () => {
-    const el = await mount('erp-tables-canvas', () => import('./components/erp-tables-canvas/erp-tables-canvas'));
-    el.edit = TABLE;
-    await el.updateComplete;
-    const table = byTestId(el, 'tables-floor-table-delete');
-    expect(table?.classList.contains('tone-danger')).toBe(true);
-    expect(table?.hasAttribute('color')).toBe(false);
-    el.edit = undefined;
-    el.zoneEdit = ZONE;
-    await el.updateComplete;
-    const zone = byTestId(el, 'tables-floor-zone-delete');
-    expect(zone?.classList.contains('tone-danger')).toBe(true);
-    expect(zone?.hasAttribute('color')).toBe(false);
   });
 
   it('POS picker: «Remove table» carries the tone', async () => {
@@ -191,6 +184,23 @@ describe('pm#392: in the component shadow root the tone is a class painted by st
 });
 
 describe('pm#392: inside a reparented ion-modal the tone travels inline', () => {
+  it('floor plan: «Delete table» and «Delete zone» of the edit sheets are outline danger (tables#107)', async () => {
+    const el = await mount('erp-tables-canvas', () => import('./components/erp-tables-canvas/erp-tables-canvas'));
+    el.edit = TABLE;
+    await el.updateComplete;
+    const table = byTestId(el, 'tables-floor-table-delete');
+    expect(table, 'rendered with a table in edit').not.toBeNull();
+    expect(table!.getAttribute('style')).toBe(ionTone('outline', 'danger'));
+    expect(table!.hasAttribute('color')).toBe(false);
+    el.edit = undefined;
+    el.zoneEdit = ZONE;
+    await el.updateComplete;
+    const zone = byTestId(el, 'tables-floor-zone-delete');
+    expect(zone, 'rendered with a zone in edit').not.toBeNull();
+    expect(zone!.getAttribute('style')).toBe(ionTone('outline', 'danger'));
+    expect(zone!.hasAttribute('color')).toBe(false);
+  });
+
   it('sessions: «Close session» of the detail and its confirmation are solid danger', async () => {
     const el = await mount('erp-tables-sessions', () => import('./components/erp-tables-sessions/erp-tables-sessions'));
     el.detail = SESSION;
