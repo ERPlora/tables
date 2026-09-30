@@ -158,6 +158,66 @@ describe('the floor plan sheets open in the hub\'s standard window, over the WHO
     expect(byTestId(el, testid), 'the sheet lost its content').not.toBeNull();
   });
 
+  // Measured on the bench (hub:stable 1.1.30): an ion-col paints NO gutter in the hub shell (padding
+  // 0 even with --ion-grid-column-padding set), so the outlined fields touched each other edge to
+  // edge; and the shell imports only core, structure, typography, padding and flex-utils of Ionic's
+  // global CSS (hub apps/web/src/main.ts) — `ion-text-end` did nothing and «Add zone» sat on the
+  // left. The sheet spaces itself with what the shell does load, and inline properties.
+  const SHELL_UTILITIES = /^ion-(no-)?(padding|margin)(-(top|bottom|start|end|horizontal|vertical))?$|^ion-(justify-content|align-items|align-self)-[a-z-]+$|^ion-no-border$/;
+  it.each(OPEN)('«%s» uses only the Ionic utility classes the hub shell loads', async (_n, testid, open) => {
+    const el = await mount();
+    await open(el);
+    const modal = byTestId(el, testid)!.closest('ion-modal')!;
+    const used = new Set<string>();
+    for (const node of [modal, ...modal.querySelectorAll('*')]) for (const c of node.classList) if (c.startsWith('ion-')) used.add(c);
+    expect([...used].filter((c) => !SHELL_UTILITIES.test(c)), 'a class the shell never paints').toEqual([]);
+    expect(modal.querySelector('ion-grid'), 'a grid whose gutter the shell does not paint').toBeNull();
+  });
+
+  it.each(OPEN)('«%s» separates its fields: rows apart, and two fields on one row apart', async (_n, testid, open) => {
+    const el = await mount();
+    await open(el);
+    const rows = [...byTestId(el, testid)!.querySelectorAll<HTMLElement>('ion-row')].filter((r) => r.querySelector('ion-input, ion-select'));
+    expect(rows.length, 'the fields are laid out in rows').toBeGreaterThan(1);
+    for (const row of rows.slice(0, -1)) {
+      const next = row.nextElementSibling as HTMLElement | null;
+      const apart = row.classList.contains('ion-margin-bottom') || !!next?.classList.contains('ion-margin-top');
+      expect(apart, 'a row of fields glued to what follows it').toBe(true);
+    }
+    const pairs = rows.map((r) => [...r.children].filter((c) => c.tagName === 'ION-COL')).filter((cols) => cols.length === 2);
+    if (testid === 'tables-floor-table-sheet') expect(pairs.length, 'the table sheet has fields side by side').toBeGreaterThan(0);
+    for (const [first, second] of pairs) {
+      expect(first.getAttribute('style') ?? '', 'the first field of a pair keeps its distance').toMatch(/padding-inline-end:\s*\d/);
+      expect(second.getAttribute('style') ?? '', 'the second field of a pair keeps its distance').toMatch(/padding-inline-start:\s*\d/);
+    }
+  });
+
+  it('«Add»: each action sits at the end of the row under its own field', async () => {
+    const el = await mount();
+    await OPEN[0][2](el);
+    for (const id of ['tables-floor-new-zone-submit', 'tables-floor-new-table-submit']) {
+      const row = byTestId(el, id)!.closest('ion-row');
+      expect(row?.classList.contains('ion-justify-content-end'), `${id} is not pushed to the end`).toBe(true);
+    }
+  });
+
+  it.each([
+    ['edit table', 1, ['tables-floor-table-delete', 'tables-floor-table-save']],
+    ['edit zone', 2, ['tables-floor-zone-delete', 'tables-floor-zone-save']],
+  ] as const)('«%s» shows its actions as form buttons, one at each end of its foot', async (_n, i, ids) => {
+    const el = await mount();
+    await OPEN[i][2](el);
+    const [destructive, save] = ids.map((id) => byTestId(el, id)!);
+    for (const b of [destructive, save]) {
+      expect(b.closest('ion-footer'), 'the action stays on screen however long the sheet').not.toBeNull();
+      expect(b.closest('ion-buttons'), 'a toolbar button, not a form button').toBeNull();
+    }
+    const row = destructive.parentElement!;
+    expect(row, 'both actions share one row').toBe(save.parentElement);
+    expect(row.classList.contains('ion-justify-content-between'), 'one action at each end').toBe(true);
+    expect(row.firstElementChild, 'the destructive action goes first').toBe(destructive);
+  });
+
   it('the close button of each sheet still closes it', async () => {
     const el = await mount();
     for (const [, , open] of OPEN) {

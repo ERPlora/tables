@@ -234,6 +234,12 @@ function autoLayoutTables(tables: Table[]): Table[] {
   return tables.map((t) => fixed.get(t.id) ?? t);
 }
 
+/** tables#107 — two fields on one row of a sheet keep 12 px between them. An ion-col paints no
+ *  gutter in the hub shell, and the sheet lives in a reparented ion-modal that the static styles of
+ *  this component never reach, so the distance travels inline. */
+const PAIR_START = 'padding-inline-end: 6px';
+const PAIR_END = 'padding-inline-start: 6px';
+
 export class ErpTablesCanvas extends LitElement {
   static styles = css`
     :host { display:block; font-family: system-ui, sans-serif; color: var(--ion-text-color,#1c1b18); }
@@ -921,26 +927,24 @@ export class ErpTablesCanvas extends LitElement {
         @click=${() => { this.addOpen = false; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>`)}
       <ion-content class="ion-padding" data-testid="tables-floor-add-sheet">
         ${this.renderError(true)}
-        <ion-grid class="ion-no-padding">
-          <ion-row>
-            <ion-col size="12">
-              <ion-input data-testid="tables-floor-new-zone-name" mode="md" fill="outline" label-placement="floating" label=${t('ui.colZone')} placeholder=${t('ui.newZonePlaceholder')} .value=${this.newZoneName}
-                @ionInput=${(e: CustomEvent) => { this.newZoneName = (e.target as HTMLInputElement).value || ''; }}></ion-input>
-            </ion-col>
-            <ion-col size="12" class="ion-text-end">
-              <ion-button data-testid="tables-floor-new-zone-submit" fill="outline" ?disabled=${this.saving || !this.newZoneName.trim()} @click=${() => this.addZone()}>${t('ui.addZone')}</ion-button>
-            </ion-col>
-          </ion-row>
-          <ion-row class="ion-margin-top">
-            <ion-col size="12">
-              <ion-input data-testid="tables-floor-new-table-number" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldTableNumber')} placeholder=${t('ui.autoNumberPlaceholder')} .value=${this.newTableNumber}
-                @ionInput=${(e: CustomEvent) => { this.newTableNumber = (e.target as HTMLInputElement).value || ''; }}></ion-input>
-            </ion-col>
-            <ion-col size="12" class="ion-text-end">
-              <ion-button data-testid="tables-floor-new-table-submit" ?disabled=${this.saving || !this.zones.length} @click=${() => this.addTable()}>${t('ui.addTable')}</ion-button>
-            </ion-col>
-          </ion-row>
-        </ion-grid>
+        <ion-row>
+          <ion-col size="12">
+            <ion-input data-testid="tables-floor-new-zone-name" mode="md" fill="outline" label-placement="floating" label=${t('ui.colZone')} placeholder=${t('ui.newZonePlaceholder')} .value=${this.newZoneName}
+              @ionInput=${(e: CustomEvent) => { this.newZoneName = (e.target as HTMLInputElement).value || ''; }}></ion-input>
+          </ion-col>
+        </ion-row>
+        <ion-row class="ion-justify-content-end ion-margin-top">
+          <ion-button data-testid="tables-floor-new-zone-submit" fill="outline" ?disabled=${this.saving || !this.newZoneName.trim()} @click=${() => this.addZone()}>${t('ui.addZone')}</ion-button>
+        </ion-row>
+        <ion-row class="ion-margin-top ion-padding-top">
+          <ion-col size="12">
+            <ion-input data-testid="tables-floor-new-table-number" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldTableNumber')} placeholder=${t('ui.autoNumberPlaceholder')} .value=${this.newTableNumber}
+              @ionInput=${(e: CustomEvent) => { this.newTableNumber = (e.target as HTMLInputElement).value || ''; }}></ion-input>
+          </ion-col>
+        </ion-row>
+        <ion-row class="ion-justify-content-end ion-margin-top">
+          <ion-button data-testid="tables-floor-new-table-submit" ?disabled=${this.saving || !this.zones.length} @click=${() => this.addTable()}>${t('ui.addTable')}</ion-button>
+        </ion-row>
       </ion-content>`;
   }
 
@@ -950,41 +954,39 @@ export class ErpTablesCanvas extends LitElement {
         @click=${() => { this.edit = undefined; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>`)}
       <ion-content class="ion-padding" data-testid="tables-floor-table-sheet">
         ${this.renderError(true)}
-        <ion-grid class="ion-no-padding">
-          <ion-row>
-            <ion-col size="6">
-              <ion-input data-testid="tables-floor-table-number" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldNumber')} .value=${table.number} @ionInput=${(e: CustomEvent) => this.patchEdit({ number: (e.target as HTMLInputElement).value || '' })}></ion-input>
-            </ion-col>
-            <ion-col size="6">
-              <ion-input data-testid="tables-floor-table-capacity" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldCapacity')} type="number" min="1" .value=${String(table.capacity)} @ionInput=${(e: CustomEvent) => this.patchEdit({ capacity: Number((e.target as HTMLInputElement).value) || 1 })}></ion-input>
-            </ion-col>
-          </ion-row>
-          <ion-row>
-            <ion-col size="12">
-              <ion-input data-testid="tables-floor-table-name" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldNameOptional')} .value=${table.name} @ionInput=${(e: CustomEvent) => this.patchEdit({ name: (e.target as HTMLInputElement).value || '' })}></ion-input>
-            </ion-col>
-          </ion-row>
-          <ion-row>
-            <ion-col size="6">
-              <ion-select data-testid="tables-floor-table-shape" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldShape')} .value=${table.shape} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ shape: (e.detail as { value: string }).value })}>
-                ${SHAPES.map((sh) => html`<ion-select-option value=${sh}>${t(SHAPE_KEY[sh] ?? sh)}</ion-select-option>`)}
-              </ion-select>
-            </ion-col>
-            <ion-col size="6">
-              <ion-select data-testid="tables-floor-table-status" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldStatus')} .value=${table.status} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ status: (e.detail as { value: string }).value })}>
-                ${STATUSES.map((st) => html`<ion-select-option value=${st}>${t(STATUS_KEY[st] ?? st)}</ion-select-option>`)}
-              </ion-select>
-            </ion-col>
-          </ion-row>
-          <ion-row>
-            <ion-col size="12">
-              <ion-select data-testid="tables-floor-table-zone" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldZone')} .value=${table.zone_id ?? ''} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ zone_id: (e.detail as { value: string }).value || null })}>
-                <ion-select-option value="">${t('ui.noZone')}</ion-select-option>
-                ${this.zones.map((z) => html`<ion-select-option value=${z.id}>${z.name}</ion-select-option>`)}
-              </ion-select>
-            </ion-col>
-          </ion-row>
-        </ion-grid>
+        <ion-row class="ion-margin-bottom">
+          <ion-col size="6" style=${PAIR_START}>
+            <ion-input data-testid="tables-floor-table-number" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldNumber')} .value=${table.number} @ionInput=${(e: CustomEvent) => this.patchEdit({ number: (e.target as HTMLInputElement).value || '' })}></ion-input>
+          </ion-col>
+          <ion-col size="6" style=${PAIR_END}>
+            <ion-input data-testid="tables-floor-table-capacity" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldCapacity')} type="number" min="1" .value=${String(table.capacity)} @ionInput=${(e: CustomEvent) => this.patchEdit({ capacity: Number((e.target as HTMLInputElement).value) || 1 })}></ion-input>
+          </ion-col>
+        </ion-row>
+        <ion-row class="ion-margin-bottom">
+          <ion-col size="12">
+            <ion-input data-testid="tables-floor-table-name" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldNameOptional')} .value=${table.name} @ionInput=${(e: CustomEvent) => this.patchEdit({ name: (e.target as HTMLInputElement).value || '' })}></ion-input>
+          </ion-col>
+        </ion-row>
+        <ion-row class="ion-margin-bottom">
+          <ion-col size="6" style=${PAIR_START}>
+            <ion-select data-testid="tables-floor-table-shape" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldShape')} .value=${table.shape} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ shape: (e.detail as { value: string }).value })}>
+              ${SHAPES.map((sh) => html`<ion-select-option value=${sh}>${t(SHAPE_KEY[sh] ?? sh)}</ion-select-option>`)}
+            </ion-select>
+          </ion-col>
+          <ion-col size="6" style=${PAIR_END}>
+            <ion-select data-testid="tables-floor-table-status" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldStatus')} .value=${table.status} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ status: (e.detail as { value: string }).value })}>
+              ${STATUSES.map((st) => html`<ion-select-option value=${st}>${t(STATUS_KEY[st] ?? st)}</ion-select-option>`)}
+            </ion-select>
+          </ion-col>
+        </ion-row>
+        <ion-row>
+          <ion-col size="12">
+            <ion-select data-testid="tables-floor-table-zone" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldZone')} .value=${table.zone_id ?? ''} interface="popover" @ionChange=${(e: CustomEvent) => this.patchEdit({ zone_id: (e.detail as { value: string }).value || null })}>
+              <ion-select-option value="">${t('ui.noZone')}</ion-select-option>
+              ${this.zones.map((z) => html`<ion-select-option value=${z.id}>${z.name}</ion-select-option>`)}
+            </ion-select>
+          </ion-col>
+        </ion-row>
       </ion-content>
       ${this.renderSheetFoot(
         html`<ion-button data-testid="tables-floor-table-delete" fill="outline" style=${ionTone('outline', 'danger')} ?disabled=${this.saving} @click=${() => this.deleteTable()}>${t('ui.delete')}</ion-button>`,
@@ -995,9 +997,8 @@ export class ErpTablesCanvas extends LitElement {
   /** The foot of an edit sheet: the destructive action at the start, the save at the end — always
    *  on screen, however long the sheet (tables#88: SAVE must never fall off the visible box). */
   private renderSheetFoot(destructive: unknown, save: unknown) {
-    return html`<ion-footer><ion-toolbar>
-      <ion-buttons slot="start">${destructive}</ion-buttons>
-      <ion-buttons slot="end">${save}</ion-buttons>
+    return html`<ion-footer><ion-toolbar class="ion-padding-horizontal">
+      <ion-row class="ion-justify-content-between">${destructive}${save}</ion-row>
     </ion-toolbar></ion-footer>`;
   }
 
@@ -1007,18 +1008,16 @@ export class ErpTablesCanvas extends LitElement {
         @click=${() => { this.zoneEdit = undefined; }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>`)}
       <ion-content class="ion-padding" data-testid="tables-floor-zone-sheet">
         ${this.renderError(true)}
-        <ion-grid class="ion-no-padding">
-          <ion-row>
-            <ion-col size="12">
-              <ion-input data-testid="tables-floor-zone-name" mode="md" fill="outline" label-placement="floating" label=${t('ui.colName')} .value=${z.name} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, name: (e.target as HTMLInputElement).value || '' }; }}></ion-input>
-            </ion-col>
-          </ion-row>
-          <ion-row>
-            <ion-col size="12">
-              <ion-input data-testid="tables-floor-zone-description" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldDescriptionOptional')} .value=${z.description ?? ''} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, description: (e.target as HTMLInputElement).value || '' }; }}></ion-input>
-            </ion-col>
-          </ion-row>
-        </ion-grid>
+        <ion-row class="ion-margin-bottom">
+          <ion-col size="12">
+            <ion-input data-testid="tables-floor-zone-name" mode="md" fill="outline" label-placement="floating" label=${t('ui.colName')} .value=${z.name} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, name: (e.target as HTMLInputElement).value || '' }; }}></ion-input>
+          </ion-col>
+        </ion-row>
+        <ion-row>
+          <ion-col size="12">
+            <ion-input data-testid="tables-floor-zone-description" mode="md" fill="outline" label-placement="floating" label=${t('ui.fieldDescriptionOptional')} .value=${z.description ?? ''} @ionInput=${(e: CustomEvent) => { this.zoneEdit = { ...z, description: (e.target as HTMLInputElement).value || '' }; }}></ion-input>
+          </ion-col>
+        </ion-row>
       </ion-content>
       ${this.renderSheetFoot(
         html`<ion-button data-testid="tables-floor-zone-delete" fill="outline" style=${ionTone('outline', 'danger')} ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t('ui.deleteZone')}</ion-button>`,
