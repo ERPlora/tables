@@ -2175,6 +2175,30 @@ function sortNaturallyBy(rows3, pick, locale) {
   return [...rows3].sort((a3, b3) => compareNatural(pick(a3), pick(b3), locale));
 }
 
+// ui/lib/ion-tone.ts
+var PALETTE = {
+  danger: { base: "#c5000f", contrast: "#fff", shade: "#ad000d", tint: "#cb1a27" }
+};
+function ionTone(kind, tone) {
+  const p4 = PALETTE[tone];
+  const token = (suffix, fallback) => `var(--ion-color-${tone}${suffix}, ${fallback})`;
+  if (kind === "outline") {
+    return [
+      `--color: ${token("", p4.base)}`,
+      `--border-color: ${token("", p4.base)}`,
+      `--background-activated: ${token("", p4.base)}`,
+      `--background-focused: ${token("", p4.base)};`
+    ].join("; ");
+  }
+  return [
+    `--background: ${token("", p4.base)}`,
+    `--background-activated: ${token("-shade", p4.shade)}`,
+    `--background-focused: ${token("-shade", p4.shade)}`,
+    `--background-hover: ${token("-tint", p4.tint)}`,
+    `--color: ${token("-contrast", p4.contrast)};`
+  ].join("; ");
+}
+
 // ui/components/erp-tables-canvas/erp-tables-canvas.ts
 var CATALOG = { es: es_default, en: en_default };
 function hhmm(iso) {
@@ -2312,20 +2336,6 @@ var ErpTablesCanvas = class extends i3 {
       seg.classList.toggle("more-left", left > 1);
       seg.classList.toggle("more-right", left < hidden - 1);
     };
-    this.areaListening = false;
-    this.placeScrim = () => {
-      const scrim = this.shadowRoot?.querySelector(".scrim");
-      if (!scrim) return;
-      const area = this.closest("ion-content")?.getBoundingClientRect();
-      const top = Math.max(0, area?.top ?? 0);
-      const left = Math.max(0, area?.left ?? 0);
-      const bottom = Math.min(window.innerHeight, area?.bottom ?? window.innerHeight);
-      const right = Math.min(window.innerWidth, area?.right ?? window.innerWidth);
-      scrim.style.top = `${top}px`;
-      scrim.style.left = `${left}px`;
-      scrim.style.width = `${Math.max(0, right - left)}px`;
-      scrim.style.height = `${Math.max(0, bottom - top)}px`;
-    };
   }
   static {
     this.styles = i`
@@ -2387,43 +2397,6 @@ var ErpTablesCanvas = class extends i3 {
     .hint { color:#8b897f; font-size:.85rem; margin:.5rem 0 0; }
     .err { color:#d9480f; font-weight:600; }
     .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#8b897f; text-align:center; padding:1rem; }
-    /* Edit sheets (inside the shadow tree, so they keep their styles).
-       tables#88 - the scrim is laid over the VISIBLE module box, not the viewport: placeScrim()
-       sets its top/left/width/height to the shell's ion-content box (between the topbar and the
-       module tab bar), clipped to the screen. Centred over the whole viewport with a 90vh cap, the
-       foot of the sheet -- SAVE / DELETE -- landed on the tab bar on short screens, which ate the
-       tap and switched tab; no z-index can win it, the tab bar is not in this shadow tree. inset:0
-       is only the fallback outside a shell. The padding is the breathing room the old 90vh cap
-       left, and the sheet is capped by that box (100% minus its own 2rem of padding, it is
-       content-box), never by the viewport. */
-    .scrim { position:fixed; inset:0; box-sizing:border-box; padding:1rem; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:60; }
-    .sheet { background:var(--ion-background-color,#fff); border-radius: var(--ok-radius-lg, 16px); padding:1rem; width:min(94vw,26rem); max-height:calc(100% - 2rem); overflow:auto; box-shadow:0 12px 48px rgba(0,0,0,.35); }
-    .sheet-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; }
-    .sheet-h .t { font-size:1.2rem; font-weight:700; }
-    .sheet-h ion-button.x { --color:#8b897f; margin:0; }
-    .sheet ok-inline-feedback { display:block; margin-bottom:.8rem; }
-    .field { display:flex; flex-direction:column; gap:.25rem; margin-bottom:.7rem; min-width:0; }
-    /* tables#84: NO vertical basis here. A .field is a COLUMN flex box, so a flex-basis on its
-       control is its HEIGHT — the old "flex:1 1 11rem" (written for a row of fields that no longer
-       exists) handed every field 176 px for a ~56 px control, and that is the 100+ px of blank the
-       floor manager read as a broken screen. A control is as tall as its content, no more. */
-    .field ion-input, .field ion-select { width:100%; }
-    .row2 { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
-    .sheet-foot { display:flex; justify-content:space-between; gap:.5rem; margin-top:1rem; }
-    /* tables#83: each action of the «Add» sheet owns its field, so no control can promise
-       something another button will discard. */
-    .add-block + .add-block { margin-top:.9rem; padding-top:.9rem; border-top:1px solid var(--ion-border-color,#cfcabd); }
-    .add-act { display:flex; justify-content:flex-end; }
-    /* pm#392 — a danger outline/clear button paints from HERE, never from \`color="danger"\`:
-       Ionic resolves \`color=\` through a GLOBAL \`.ion-color-danger\` rule that does not reach
-       inside this shadow root, so it fell back to the primary blue. Custom properties do inherit
-       through the boundary, so the theme token still applies. */
-    ion-button.tone-danger[fill] {
-      --border-color: var(--ion-color-danger, #c5000f);
-      --color: var(--ion-color-danger, #c5000f);
-      --background-activated: var(--ion-color-danger, #c5000f);
-      --background-focused: var(--ion-color-danger, #c5000f);
-    }
   `;
   }
   async connectedCallback() {
@@ -2449,7 +2422,6 @@ var ErpTablesCanvas = class extends i3 {
     window.removeEventListener("erplora:locale-changed", this.onLocaleChange);
     this.unsub?.();
     if (this.timer) clearInterval(this.timer);
-    this.unwatchSheetArea();
     this.unwatchZoneStrip();
   }
   watchZoneStrip() {
@@ -2471,31 +2443,8 @@ var ErpTablesCanvas = class extends i3 {
     this.observedStrip = void 0;
     this.observedZones = void 0;
   }
-  /** tables#88 — while a sheet is open its scrim is laid over the box the person actually SEES:
-   *  the shell's ion-content (it ends where the module tab bar starts), clipped to the screen.
-   *  Neither the viewport (it includes the tab bar) nor this host (the shell floors its outlet at
-   *  480px, so on a short screen the module box is taller than what is visible) is that box. */
   updated() {
     this.watchZoneStrip();
-    if (!this.sheetOpen) {
-      this.unwatchSheetArea();
-      return;
-    }
-    this.placeScrim();
-    if (this.areaObserver || this.areaListening) return;
-    window.addEventListener("resize", this.placeScrim);
-    this.areaListening = true;
-    const area = this.closest("ion-content");
-    if (area && typeof ResizeObserver !== "undefined") {
-      this.areaObserver = new ResizeObserver(this.placeScrim);
-      this.areaObserver.observe(area);
-    }
-  }
-  unwatchSheetArea() {
-    if (this.areaListening) window.removeEventListener("resize", this.placeScrim);
-    this.areaListening = false;
-    this.areaObserver?.disconnect();
-    this.areaObserver = void 0;
   }
   async reload() {
     this.loading = true;
@@ -2682,15 +2631,15 @@ var ErpTablesCanvas = class extends i3 {
       if (!taken.some((t5) => seTapan(t5, candidate))) return { x: candidate.position_x, y: candidate.position_y };
     }
   }
-  /** tables#83 (review of tables#85) — the sheets are a fixed scrim over the whole view, so a
+  /** tables#83 (review of tables#85) — the sheets are a modal over the whole view, so a
    *  message painted underneath is a message nobody reads: the refusal of a taken number sat
    *  dimmed behind the overlay while the sheet stayed open as if nothing had happened. The ONE
    *  error slot follows the person: inside the open sheet, in the view when none is open. */
   get sheetOpen() {
     return this.addOpen || !!this.edit || !!this.zoneEdit;
   }
-  renderError() {
-    return this.error ? b2`<ok-inline-feedback data-testid="tables-floor-error" tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : A;
+  renderError(inSheet = false) {
+    return this.error ? b2`<ok-inline-feedback data-testid="tables-floor-error" class=${inSheet ? "ion-margin-bottom" : ""} tone="danger" icon="alert-circle-outline">${this.error}</ok-inline-feedback>` : A;
   }
   // ── Altas ───────────────────────────────────────────────────────────────────────────────────
   /** tables#83 — a number identifies a table to whoever carries the plates, so a zone cannot hand
@@ -2935,120 +2884,163 @@ var ErpTablesCanvas = class extends i3 {
       </div>
       <p class="hint">${t5("ui.canvasHint")}</p>
 
-      ${this.addOpen ? this.renderAddSheet() : A}
-      ${this.edit ? this.renderTableSheet(this.edit) : A}
-      ${this.zoneEdit ? this.renderZoneSheet(this.zoneEdit) : A}
+      <!-- tables#107 — the three sheets are the hub's standard window. The shell reparents an open
+           ion-modal to ion-app: it covers the whole screen (side menu and module tab bar included)
+           and is centred on it, which a position:fixed layer inside this shadow root never was
+           (an ancestor with transform/contain makes it relative to its own box). What moves with
+           the modal leaves this shadow root, so the sheets use Ionic's layout only: no class of
+           the static styles below reaches them. -->
+      <ion-modal data-testid="tables-floor-add-modal" .isOpen=${this.addOpen}
+        @ionModalDidDismiss=${(e5) => {
+      if (e5.target === e5.currentTarget) this.addOpen = false;
+    }}>
+        ${this.addOpen ? this.renderAddSheet() : A}
+      </ion-modal>
+      <ion-modal data-testid="tables-floor-table-modal" .isOpen=${!!this.edit}
+        @ionModalDidDismiss=${(e5) => {
+      if (e5.target === e5.currentTarget) this.edit = void 0;
+    }}>
+        ${this.edit ? this.renderTableSheet(this.edit) : A}
+      </ion-modal>
+      <ion-modal data-testid="tables-floor-zone-modal" .isOpen=${!!this.zoneEdit}
+        @ionModalDidDismiss=${(e5) => {
+      if (e5.target === e5.currentTarget) this.zoneEdit = void 0;
+    }}>
+        ${this.zoneEdit ? this.renderZoneSheet(this.zoneEdit) : A}
+      </ion-modal>
     `;
   }
-  /** tables#64 — the two configuration actions, out of the service header and behind the «+». */
+  /** The title bar of a sheet: its name and its close control (an icon with an accessible name,
+   *  written by each sheet so its data-testid stays a literal the QA suite can find — tables#86). */
+  renderSheetHeader(title, close) {
+    return b2`<ion-header class="ion-no-border"><ion-toolbar>
+      <ion-title>${title}</ion-title>
+      <ion-buttons slot="end">${close}</ion-buttons>
+    </ion-toolbar></ion-header>`;
+  }
+  /** tables#64 — the two configuration actions, out of the service header and behind the «+».
+   *  tables#83 — each action owns its field, so no control can promise something another button
+   *  will discard. */
   renderAddSheet() {
     const t5 = (k2, params) => erplora().t(CATALOG, k2, params);
-    return b2`<div class="scrim" @click=${(e5) => {
-      if (e5.target.classList.contains("scrim")) this.addOpen = false;
-    }}>
-      <div class="sheet" data-testid="tables-floor-add-sheet">
-        <div class="sheet-h">
-          <span class="t">${t5("ui.addTitle")}</span>
-          <ion-button data-testid="tables-floor-add-close" class="x" fill="clear" aria-label=${t5("ui.close")} @click=${() => {
+    return b2`${this.renderSheetHeader(t5("ui.addTitle"), b2`<ion-button data-testid="tables-floor-add-close" aria-label=${t5("ui.close")} title=${t5("ui.close")}
+        @click=${() => {
       this.addOpen = false;
-    }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
-        </div>
-        ${this.renderError()}
-        <div class="add-block">
-          <div class="field">
-            <ion-input data-testid="tables-floor-new-zone-name" mode="md" fill="outline" label-placement="floating" label=${t5("ui.colZone")} placeholder=${t5("ui.newZonePlaceholder")} .value=${this.newZoneName}
-              @ionInput=${(e5) => {
+    }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>`)}
+      <ion-content class="ion-padding" data-testid="tables-floor-add-sheet">
+        ${this.renderError(true)}
+        <ion-grid class="ion-no-padding">
+          <ion-row>
+            <ion-col size="12">
+              <ion-input data-testid="tables-floor-new-zone-name" mode="md" fill="outline" label-placement="floating" label=${t5("ui.colZone")} placeholder=${t5("ui.newZonePlaceholder")} .value=${this.newZoneName}
+                @ionInput=${(e5) => {
       this.newZoneName = e5.target.value || "";
     }}></ion-input>
-          </div>
-          <div class="add-act">
-            <ion-button data-testid="tables-floor-new-zone-submit" fill="outline" ?disabled=${this.saving || !this.newZoneName.trim()} @click=${() => this.addZone()}>${t5("ui.addZone")}</ion-button>
-          </div>
-        </div>
-        <div class="add-block">
-          <div class="field">
-            <ion-input data-testid="tables-floor-new-table-number" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldTableNumber")} placeholder=${t5("ui.autoNumberPlaceholder")} .value=${this.newTableNumber}
-              @ionInput=${(e5) => {
+            </ion-col>
+            <ion-col size="12" class="ion-text-end">
+              <ion-button data-testid="tables-floor-new-zone-submit" fill="outline" ?disabled=${this.saving || !this.newZoneName.trim()} @click=${() => this.addZone()}>${t5("ui.addZone")}</ion-button>
+            </ion-col>
+          </ion-row>
+          <ion-row class="ion-margin-top">
+            <ion-col size="12">
+              <ion-input data-testid="tables-floor-new-table-number" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldTableNumber")} placeholder=${t5("ui.autoNumberPlaceholder")} .value=${this.newTableNumber}
+                @ionInput=${(e5) => {
       this.newTableNumber = e5.target.value || "";
     }}></ion-input>
-          </div>
-          <div class="add-act">
-            <ion-button data-testid="tables-floor-new-table-submit" ?disabled=${this.saving || !this.zones.length} @click=${() => this.addTable()}>${t5("ui.addTable")}</ion-button>
-          </div>
-        </div>
-      </div>
-    </div>`;
+            </ion-col>
+            <ion-col size="12" class="ion-text-end">
+              <ion-button data-testid="tables-floor-new-table-submit" ?disabled=${this.saving || !this.zones.length} @click=${() => this.addTable()}>${t5("ui.addTable")}</ion-button>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
+      </ion-content>`;
   }
   renderTableSheet(table) {
     const t5 = (k2, params) => erplora().t(CATALOG, k2, params);
-    return b2`<div class="scrim" @click=${(e5) => {
-      if (e5.target.classList.contains("scrim")) this.edit = void 0;
-    }}>
-      <div class="sheet" data-testid="tables-floor-table-sheet">
-        <div class="sheet-h">
-          <span class="t">${t5("ui.editTable")}</span>
-          <ion-button data-testid="tables-floor-table-close" class="x" fill="clear" aria-label=${t5("ui.close")} @click=${() => {
+    return b2`${this.renderSheetHeader(t5("ui.editTable"), b2`<ion-button data-testid="tables-floor-table-close" aria-label=${t5("ui.close")} title=${t5("ui.close")}
+        @click=${() => {
       this.edit = void 0;
-    }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
-        </div>
-        ${this.renderError()}
-        <div class="row2">
-          <div class="field">
-            <ion-input data-testid="tables-floor-table-number" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldNumber")} .value=${table.number} @ionInput=${(e5) => this.patchEdit({ number: e5.target.value || "" })}></ion-input></div>
-          <div class="field">
-            <ion-input data-testid="tables-floor-table-capacity" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldCapacity")} type="number" min="1" .value=${String(table.capacity)} @ionInput=${(e5) => this.patchEdit({ capacity: Number(e5.target.value) || 1 })}></ion-input></div>
-        </div>
-        <div class="field">
-          <ion-input data-testid="tables-floor-table-name" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldNameOptional")} .value=${table.name} @ionInput=${(e5) => this.patchEdit({ name: e5.target.value || "" })}></ion-input></div>
-        <div class="row2">
-          <div class="field">
-            <ion-select data-testid="tables-floor-table-shape" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldShape")} .value=${table.shape} interface="popover" @ionChange=${(e5) => this.patchEdit({ shape: e5.detail.value })}>
-              ${SHAPES.map((s5) => b2`<ion-select-option value=${s5}>${t5(SHAPE_KEY[s5] ?? s5)}</ion-select-option>`)}
-            </ion-select></div>
-          <div class="field">
-            <ion-select data-testid="tables-floor-table-status" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldStatus")} .value=${table.status} interface="popover" @ionChange=${(e5) => this.patchEdit({ status: e5.detail.value })}>
-              ${STATUSES.map((s5) => b2`<ion-select-option value=${s5}>${t5(STATUS_KEY[s5] ?? s5)}</ion-select-option>`)}
-            </ion-select></div>
-        </div>
-        <div class="field">
-          <ion-select data-testid="tables-floor-table-zone" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldZone")} .value=${table.zone_id ?? ""} interface="popover" @ionChange=${(e5) => this.patchEdit({ zone_id: e5.detail.value || null })}>
-            <ion-select-option value="">${t5("ui.noZone")}</ion-select-option>
-            ${this.zones.map((z2) => b2`<ion-select-option value=${z2.id}>${z2.name}</ion-select-option>`)}
-          </ion-select></div>
-        <div class="sheet-foot">
-          <ion-button data-testid="tables-floor-table-delete" class="tone-danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteTable()}>${t5("ui.delete")}</ion-button>
-          <ion-button data-testid="tables-floor-table-save" ?disabled=${this.saving} @click=${() => this.saveTable()}>${this.saving ? t5("ui.saving") : t5("ui.save")}</ion-button>
-        </div>
-      </div>
-    </div>`;
+    }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>`)}
+      <ion-content class="ion-padding" data-testid="tables-floor-table-sheet">
+        ${this.renderError(true)}
+        <ion-grid class="ion-no-padding">
+          <ion-row>
+            <ion-col size="6">
+              <ion-input data-testid="tables-floor-table-number" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldNumber")} .value=${table.number} @ionInput=${(e5) => this.patchEdit({ number: e5.target.value || "" })}></ion-input>
+            </ion-col>
+            <ion-col size="6">
+              <ion-input data-testid="tables-floor-table-capacity" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldCapacity")} type="number" min="1" .value=${String(table.capacity)} @ionInput=${(e5) => this.patchEdit({ capacity: Number(e5.target.value) || 1 })}></ion-input>
+            </ion-col>
+          </ion-row>
+          <ion-row>
+            <ion-col size="12">
+              <ion-input data-testid="tables-floor-table-name" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldNameOptional")} .value=${table.name} @ionInput=${(e5) => this.patchEdit({ name: e5.target.value || "" })}></ion-input>
+            </ion-col>
+          </ion-row>
+          <ion-row>
+            <ion-col size="6">
+              <ion-select data-testid="tables-floor-table-shape" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldShape")} .value=${table.shape} interface="popover" @ionChange=${(e5) => this.patchEdit({ shape: e5.detail.value })}>
+                ${SHAPES.map((sh) => b2`<ion-select-option value=${sh}>${t5(SHAPE_KEY[sh] ?? sh)}</ion-select-option>`)}
+              </ion-select>
+            </ion-col>
+            <ion-col size="6">
+              <ion-select data-testid="tables-floor-table-status" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldStatus")} .value=${table.status} interface="popover" @ionChange=${(e5) => this.patchEdit({ status: e5.detail.value })}>
+                ${STATUSES.map((st) => b2`<ion-select-option value=${st}>${t5(STATUS_KEY[st] ?? st)}</ion-select-option>`)}
+              </ion-select>
+            </ion-col>
+          </ion-row>
+          <ion-row>
+            <ion-col size="12">
+              <ion-select data-testid="tables-floor-table-zone" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldZone")} .value=${table.zone_id ?? ""} interface="popover" @ionChange=${(e5) => this.patchEdit({ zone_id: e5.detail.value || null })}>
+                <ion-select-option value="">${t5("ui.noZone")}</ion-select-option>
+                ${this.zones.map((z2) => b2`<ion-select-option value=${z2.id}>${z2.name}</ion-select-option>`)}
+              </ion-select>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
+      </ion-content>
+      ${this.renderSheetFoot(
+      b2`<ion-button data-testid="tables-floor-table-delete" fill="outline" style=${ionTone("outline", "danger")} ?disabled=${this.saving} @click=${() => this.deleteTable()}>${t5("ui.delete")}</ion-button>`,
+      b2`<ion-button data-testid="tables-floor-table-save" fill="solid" ?disabled=${this.saving} @click=${() => this.saveTable()}>${this.saving ? t5("ui.saving") : t5("ui.save")}</ion-button>`
+    )}`;
+  }
+  /** The foot of an edit sheet: the destructive action at the start, the save at the end — always
+   *  on screen, however long the sheet (tables#88: SAVE must never fall off the visible box). */
+  renderSheetFoot(destructive, save) {
+    return b2`<ion-footer><ion-toolbar>
+      <ion-buttons slot="start">${destructive}</ion-buttons>
+      <ion-buttons slot="end">${save}</ion-buttons>
+    </ion-toolbar></ion-footer>`;
   }
   renderZoneSheet(z2) {
     const t5 = (k2, params) => erplora().t(CATALOG, k2, params);
-    return b2`<div class="scrim" @click=${(e5) => {
-      if (e5.target.classList.contains("scrim")) this.zoneEdit = void 0;
-    }}>
-      <div class="sheet" data-testid="tables-floor-zone-sheet">
-        <div class="sheet-h">
-          <span class="t">${t5("ui.editZone")}</span>
-          <ion-button data-testid="tables-floor-zone-close" class="x" fill="clear" aria-label=${t5("ui.close")} @click=${() => {
+    return b2`${this.renderSheetHeader(t5("ui.editZone"), b2`<ion-button data-testid="tables-floor-zone-close" aria-label=${t5("ui.close")} title=${t5("ui.close")}
+        @click=${() => {
       this.zoneEdit = void 0;
-    }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
-        </div>
-        ${this.renderError()}
-        <div class="field">
-          <ion-input data-testid="tables-floor-zone-name" mode="md" fill="outline" label-placement="floating" label=${t5("ui.colName")} .value=${z2.name} @ionInput=${(e5) => {
+    }}><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>`)}
+      <ion-content class="ion-padding" data-testid="tables-floor-zone-sheet">
+        ${this.renderError(true)}
+        <ion-grid class="ion-no-padding">
+          <ion-row>
+            <ion-col size="12">
+              <ion-input data-testid="tables-floor-zone-name" mode="md" fill="outline" label-placement="floating" label=${t5("ui.colName")} .value=${z2.name} @ionInput=${(e5) => {
       this.zoneEdit = { ...z2, name: e5.target.value || "" };
-    }}></ion-input></div>
-        <div class="field">
-          <ion-input data-testid="tables-floor-zone-description" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldDescriptionOptional")} .value=${z2.description ?? ""} @ionInput=${(e5) => {
+    }}></ion-input>
+            </ion-col>
+          </ion-row>
+          <ion-row>
+            <ion-col size="12">
+              <ion-input data-testid="tables-floor-zone-description" mode="md" fill="outline" label-placement="floating" label=${t5("ui.fieldDescriptionOptional")} .value=${z2.description ?? ""} @ionInput=${(e5) => {
       this.zoneEdit = { ...z2, description: e5.target.value || "" };
-    }}></ion-input></div>
-        <div class="sheet-foot">
-          <ion-button data-testid="tables-floor-zone-delete" class="tone-danger" fill="outline" ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t5("ui.deleteZone")}</ion-button>
-          <ion-button data-testid="tables-floor-zone-save" ?disabled=${this.saving} @click=${() => this.saveZone()}>${this.saving ? t5("ui.saving") : t5("ui.save")}</ion-button>
-        </div>
-      </div>
-    </div>`;
+    }}></ion-input>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
+      </ion-content>
+      ${this.renderSheetFoot(
+      b2`<ion-button data-testid="tables-floor-zone-delete" fill="outline" style=${ionTone("outline", "danger")} ?disabled=${this.saving} @click=${() => this.deleteZone()}>${t5("ui.deleteZone")}</ion-button>`,
+      b2`<ion-button data-testid="tables-floor-zone-save" fill="solid" ?disabled=${this.saving} @click=${() => this.saveZone()}>${this.saving ? t5("ui.saving") : t5("ui.save")}</ion-button>`
+    )}`;
   }
 };
 __decorateClass([
@@ -6514,22 +6506,6 @@ __decorateClass([
   r5()
 ], ErpTablesPosZones.prototype, "guestsPrompt", 2);
 define("erp-tables-pos-zones", ErpTablesPosZones);
-
-// ui/lib/ion-tone.ts
-var PALETTE = {
-  danger: { base: "#c5000f", contrast: "#fff", shade: "#ad000d", tint: "#cb1a27" }
-};
-function ionTone(_kind, tone) {
-  const p4 = PALETTE[tone];
-  const token = (suffix, fallback) => `var(--ion-color-${tone}${suffix}, ${fallback})`;
-  return [
-    `--background: ${token("", p4.base)}`,
-    `--background-activated: ${token("-shade", p4.shade)}`,
-    `--background-focused: ${token("-shade", p4.shade)}`,
-    `--background-hover: ${token("-tint", p4.tint)}`,
-    `--color: ${token("-contrast", p4.contrast)};`
-  ].join("; ");
-}
 
 // ui/components/erp-tables-sessions/erp-tables-sessions.ts
 var CATALOG4 = { es: es_default, en: en_default };
