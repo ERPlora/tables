@@ -30,6 +30,11 @@ beforeEach(() => {
   };
 });
 
+/** tables#107 — the window of the sheet that is on screen: each sheet lives in its own ion-modal. */
+function openWindow(el: { shadowRoot: ShadowRoot }): HTMLElement | null {
+  return [...el.shadowRoot.querySelectorAll<HTMLElement & { isOpen?: boolean }>('ion-modal')].find((m) => m.isOpen) ?? null;
+}
+
 async function montar() {
   await import('./erp-tables-canvas');
   const el = document.createElement('erp-tables-canvas');
@@ -308,7 +313,7 @@ describe('the plan is accessible: tables are buttons, controls are Ionic and ≥
     const mesa = el.shadowRoot.querySelector<HTMLElement>('.mesa')!;
     mesa.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await tick(el);
-    expect(el.shadowRoot.querySelector('.sheet'), 'Enter opens the table sheet').toBeTruthy();
+    expect(openWindow(el)?.querySelector('[data-testid="tables-floor-table-sheet"]'), 'Enter opens the table sheet').toBeTruthy();
   });
 
   it('arrow keys move the table one step and persist the position with tables.tables.move', async () => {
@@ -334,7 +339,7 @@ describe('the plan is accessible: tables are buttons, controls are Ionic and ≥
     expect(el.shadowRoot.querySelectorAll('button').length, 'native <button> outside Ionic').toBe(0);
     expect(el.shadowRoot.querySelectorAll('ion-button[size="small"]').length, 'size="small" targets (~27 px)').toBe(0);
     // the sheet close controls are Ionic buttons with an accessible name
-    const closes = [...el.shadowRoot.querySelectorAll('.sheet-h ion-button')];
+    const closes = [...el.shadowRoot.querySelectorAll('ion-modal ion-header ion-button')];
     expect(closes.length).toBe(2);
     for (const c of closes) expect(c.getAttribute('aria-label')).toBe('ui.close');
   });
@@ -594,7 +599,7 @@ describe('the plan fits on a phone: the header collapses (tables#64)', () => {
     expect(add, 'with no zones there is no way to create the first one').toBeTruthy();
     add!.click();
     await el.updateComplete;
-    const sheet = el.shadowRoot.querySelector('.sheet');
+    const sheet = openWindow(el);
     expect(sheet, 'the «add» control opens nothing').toBeTruthy();
     const labels = [...sheet!.querySelectorAll('ion-button')].map((b) => (b.textContent ?? '').trim());
     expect(labels).toContain('ui.addZone');
@@ -702,7 +707,7 @@ async function settle(el: Canvas) {
 async function openAddSheet(el: Canvas): Promise<HTMLElement> {
   el.shadowRoot.querySelector<HTMLElement>('ion-button[data-testid="tables-floor-add"]')!.click();
   await el.updateComplete;
-  const sheet = el.shadowRoot.querySelector<HTMLElement>('.sheet');
+  const sheet = openWindow(el);
   if (!sheet) throw new Error('the «add» control opened no sheet');
   return sheet;
 }
@@ -803,12 +808,13 @@ describe('the sheets read as a form, not as a broken screen (tables#84)', () => 
    *  A closed sheet is detached from the DOM and `getComputedStyle` goes blank on it, so every
    *  sheet is measured while it is on screen. */
   function assertFieldsAreContiguous(el: Canvas, which: string): number {
-    const fields = [...el.shadowRoot.querySelectorAll<HTMLElement>('.sheet .field')];
+    // tables#107 — the fields are Ionic grid columns inside the sheet's ion-modal now.
+    const fields = [...(openWindow(el)?.querySelectorAll<HTMLElement>('ion-col') ?? [])]
+      .filter((col) => col.querySelector('ion-input, ion-select'));
     expect(fields.length, `the «${which}» sheet painted no field — the check would be vacuous`).toBeGreaterThan(0);
     for (const field of fields) {
-      expect(getComputedStyle(field).flexDirection, `a field of «${which}» is not a column`).toBe('column');
       const controls = [...field.querySelectorAll<HTMLElement>('ion-input, ion-select')];
-      expect(controls.length, `a .field of «${which}» with no control in it`).toBeGreaterThan(0);
+      expect(controls.length, `a field of «${which}» with no control in it`).toBeGreaterThan(0);
       for (const control of controls) {
         const cs = getComputedStyle(control);
         const label = control.getAttribute('label') ?? control.tagName;
@@ -816,12 +822,13 @@ describe('the sheets read as a form, not as a broken screen (tables#84)', () => 
         // healthy answer here and a length is the defect. `flex: 1 1 11rem` reports '11rem'.
         expect(
           ['', 'auto', 'content'],
-          `«${label}» (${which}) claims «${cs.flexBasis}» of HEIGHT inside a column field`,
+          `«${label}» (${which}) claims «${cs.flexBasis}» of HEIGHT inside its field`,
         ).toContain(cs.flexBasis);
         expect(
           ['', '0'],
           `«${label}» (${which}) grows to «${cs.flexGrow}» and fills the height of its field`,
         ).toContain(cs.flexGrow);
+        expect(control.getAttribute('style') ?? '', `«${label}» (${which}) pins a size inline`).not.toMatch(/height|flex/);
       }
     }
     return fields.length;
@@ -923,13 +930,12 @@ describe('the floor plan refuses to hand out the same number twice (tables#83)',
 });
 
 // tables#83 (review of tables#85) — a refusal that lands BEHIND the sheet is a refusal nobody reads.
-// The sheets are a fixed scrim over the whole view (`.scrim { position:fixed; inset:0;
-// background:rgba(0,0,0,.45) }`), and the ONE error slot of the component was painted in the view
+// The sheets are a modal over the whole view (tables#107: an ion-modal), and the ONE error slot of the component was painted in the view
 // underneath. So tapping «Add table» with a taken number did nothing the person could see: the sheet
 // stayed open, the field kept its value, and the message sat dimmed under the overlay. The message
 // has to live INSIDE the open sheet — `shadowRoot.textContent` containing it is not enough.
 describe('a refused number is explained INSIDE the open sheet, not behind it (tables#83)', () => {
-  const openSheet = (el: Canvas) => el.shadowRoot.querySelector<HTMLElement>('.sheet');
+  const openSheet = (el: Canvas) => openWindow(el);
 
   it('the «Add» sheet says why the table was not created', async () => {
     stubHub([tableRow({ id: 't1', number: 'M1' })]);
@@ -978,7 +984,7 @@ describe('a sheet opens without the error another sheet earned (tables#83)', () 
 
     openTableEdit(el, 'M1');
     await el.updateComplete;
-    const open = el.shadowRoot.querySelector<HTMLElement>('.sheet');
+    const open = openWindow(el);
     expect(open, 'the edit sheet did not open').toBeTruthy();
     expect(open!.textContent ?? '', 'the refusal of the «Add» sheet leaked into «Edit table»')
       .not.toContain('ui.errTableNumberTaken');
