@@ -201,6 +201,24 @@ describe('the floor plan sheets open in the hub\'s standard window, over the WHO
     }
   });
 
+  // The shell's spacing utilities are 16px each (Ionic padding/margin CSS). «Add» holds two groups —
+  // a zone and a table, each a field with its action — and the gap that opens the table group must
+  // be wider than the one between a field and its own action, or the two groups read as one form.
+  const GAP_CLASSES = ['ion-margin-top', 'ion-padding-top'];
+  const gapBefore = (row: Element): number => {
+    const prev = row.previousElementSibling;
+    return GAP_CLASSES.filter((c) => row.classList.contains(c)).length + (prev?.classList.contains('ion-margin-bottom') ? 1 : 0);
+  };
+  it('«Add»: the table group is set further apart from the zone action than a field from its action', async () => {
+    const el = await mount();
+    await OPEN[0][2](el);
+    const zoneAction = byTestId(el, 'tables-floor-new-zone-submit')!.closest('ion-row')!;
+    const tableGroup = byTestId(el, 'tables-floor-new-table-number')!.closest('ion-row')!;
+    expect(zoneAction.nextElementSibling, 'the table group follows the zone action').toBe(tableGroup);
+    expect(gapBefore(zoneAction), 'a field glued to its action').toBeGreaterThan(0);
+    expect(gapBefore(tableGroup), 'the two groups read as one form').toBeGreaterThan(gapBefore(zoneAction));
+  });
+
   it.each([
     ['edit table', 1, ['tables-floor-table-delete', 'tables-floor-table-save']],
     ['edit zone', 2, ['tables-floor-zone-delete', 'tables-floor-zone-save']],
