@@ -625,3 +625,74 @@ describe('a closed check reads the BUSINESS clock, not the device one (tables#10
     });
   });
 });
+
+// ── tables#111 ────────────────────────────────────────────────────────────────────────────────
+//
+// Ionic 8 presents an inline modal by MOVING all its element children into a new
+// `div.ion-delegate-host` (unless its first child already is one) before teleporting it
+// (@ionic/core utils/framework-delegate.js, CoreDelegate.attachViewToDom). Lit's markers of a
+// conditional stay behind as comments of the ion-modal, so a detail rendered straight into the
+// modal is never removed on close: on the bench (hub:dev) opening T9 → T2 → T9 left three details
+// in the page, the newest on top. Same trap as the floor sheets (tables#109). happy-dom has no
+// Ionic, so the move is replayed here.
+describe('the session detail survives being presented by Ionic (tables#111)', () => {
+  const presentLikeIonic = (modal: Element): void => {
+    if (!modal.children.length || modal.children[0].classList.contains('ion-delegate-host')) return;
+    const host = document.createElement('div');
+    host.classList.add('ion-delegate-host', 'ion-page');
+    host.append(...modal.children);
+    modal.appendChild(host);
+  };
+  const settle = async (el: Wc) => {
+    await el.updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await el.updateComplete;
+  };
+  const detailModal = (el: Wc) => el.shadowRoot.querySelector('[data-testid="tables-sessions-detail"]')!;
+  const titles = (el: Wc) => [...detailModal(el).querySelectorAll('ion-title')].map((n) => n.textContent?.trim());
+  const openDetail = async (el: Wc, row: Record<string, unknown>) => {
+    await el.onRowAction(new CustomEvent('rowAction', { detail: { actionId: 'detail', row } }));
+    await settle(el);
+    presentLikeIonic(detailModal(el));
+  };
+
+  const CLOSES: [string, (el: Wc) => Promise<void>][] = [
+    ['dismissed by the backdrop', async (el) => {
+      detailModal(el).dispatchEvent(new CustomEvent('ionModalDidDismiss', { bubbles: true }));
+      await settle(el);
+    }],
+    ['closed with its «Close» button', async (el) => {
+      (detailModal(el).querySelector('[data-testid="tables-sessions-detail-close"]') as HTMLElement).click();
+      await settle(el);
+    }],
+  ];
+
+  it.each(CLOSES)('opened on ANOTHER session after being %s, it shows only that session', async (_n, close) => {
+    const el = await mount();
+    const rounds = [SESSIONS[0], SESSIONS[1], SESSIONS[0]];
+    for (const [i, row] of rounds.entries()) {
+      await openDetail(el, row);
+      expect(titles(el), `open #${i + 1}: a detail left over from an earlier open`).toEqual([`ui.tableLabel:${row.table_number}`]);
+      await close(el);
+      expect(titles(el), `close #${i + 1}: the detail outlived its window`).toEqual([]);
+    }
+  });
+
+  it('the detail lays out as an Ionic page: header and content inside an .ion-page', async () => {
+    const el = await mount();
+    await openDetail(el, SESSIONS[0]);
+    for (const part of ['ion-header', 'ion-content']) {
+      const parent = detailModal(el).querySelector(part)?.parentElement;
+      expect(parent?.classList.contains('ion-page'), `${part} outside an .ion-page: the content has no height`).toBe(true);
+    }
+  });
+
+  it('«Close session» from the detail leaves no detail behind', async () => {
+    const el = await mount();
+    await openDetail(el, SESSIONS[0]);
+    (detailModal(el).querySelector('[data-testid="tables-sessions-detail-close-session"]') as HTMLElement).click();
+    await settle(el);
+    expect(el.closeTarget?.id, 'the confirmation did not take the session').toBe('s1');
+    expect(titles(el), 'the detail stayed in the page under the confirmation').toEqual([]);
+  });
+});
