@@ -7233,9 +7233,11 @@ var ErpTablesSessions = class extends i3 {
         @filterChange=${(e5) => this.onFilterChange(e5.detail)}
       ></ok-data-table>
 
-      <!-- Detail. ion-modal reparents to <body>: Ionic classes only, no shadow CSS. -->
+      <!-- Detail. ion-modal reparents to <body>: Ionic classes only, no shadow CSS. The detail
+           sits in its own .ion-page: presenting, Ionic MOVES the modal's children into a wrapper
+           of its own, and a detail moved away from Lit's markers is never removed (tables#111). -->
       <ion-modal data-testid="tables-sessions-detail" .isOpen=${!!this.detail} @ionModalDidDismiss=${() => this.detail = null}>
-        ${this.detail ? this.renderDetail(this.detail, t5) : A}
+        <div class="ion-page">${this.detail ? this.renderDetail(this.detail, t5) : A}</div>
       </ion-modal>
 
       <!-- Close confirmation. -->

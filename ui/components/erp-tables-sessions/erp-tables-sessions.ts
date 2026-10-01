@@ -465,9 +465,11 @@ export class ErpTablesSessions extends LitElement {
         @filterChange=${(e: CustomEvent<{ col?: string; value?: unknown; filters?: Record<string, unknown> }>) => this.onFilterChange(e.detail)}
       ></ok-data-table>
 
-      <!-- Detail. ion-modal reparents to <body>: Ionic classes only, no shadow CSS. -->
+      <!-- Detail. ion-modal reparents to <body>: Ionic classes only, no shadow CSS. The detail
+           sits in its own .ion-page: presenting, Ionic MOVES the modal's children into a wrapper
+           of its own, and a detail moved away from Lit's markers is never removed (tables#111). -->
       <ion-modal data-testid="tables-sessions-detail" .isOpen=${!!this.detail} @ionModalDidDismiss=${() => (this.detail = null)}>
-        ${this.detail ? this.renderDetail(this.detail, t) : nothing}
+        <div class="ion-page">${this.detail ? this.renderDetail(this.detail, t) : nothing}</div>
       </ion-modal>
 
       <!-- Close confirmation. -->
