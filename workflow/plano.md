@@ -32,8 +32,7 @@ Pasos:
 Entra: número, y en la lista también aforo y zona.
 Sale: la mesa en uso (avisa: tables.table.created). Con una mesa en uso, el paso «Tus mesas» de la puesta en marcha queda hecho.
 Si falla: en el plano, número repetido en la zona (sin distinguir mayúsculas ni espacios): «Ya hay una mesa con ese número en esta zona». Zona borrada mientras tanto: «Esa zona no está disponible: no existe en este negocio o se ha eliminado.». Un empleado o un cajero recibe la petición del PIN de un responsable. Otro fallo: «No se pudo crear la mesa», dentro de la ventana o del panel.
-Implicados: REC_RESTAURANTE-F02
-Pendiente de enlazar: hub — el paso opcional «Tus mesas» de la puesta en marcha se da por hecho con una mesa en uso
+Implicados: REC_RESTAURANTE-F02, HUB-F35, HUB_SHELL-F31
 QA: R-01, qa-hub-restaurant §04
 
 ### TABLES-F03 Colocar las mesas en el plano
