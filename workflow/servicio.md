@@ -19,7 +19,7 @@ Pasos:
 Entra: las mesas, sus cuentas abiertas, sus retenciones y los nombres de las personas del hub.
 Sale: nada.
 Si falla: un fallo al cargar el plano o la ventana no se avisa: sale vacío. Si no se puede leer quién atiende, la baldosa no lo dice.
-Implicados: REC_RESTAURANTE-F05
+Implicados: REC_RESTAURANTE-F02, REC_RESTAURANTE-F05
 QA: R-01, qa-hub-restaurant §04
 
 ### TABLES-F10 Sentar a un grupo en una mesa libre o reservada

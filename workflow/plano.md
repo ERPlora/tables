@@ -63,7 +63,7 @@ Pasos:
 Entra: la mesa elegida.
 Sale: la mesa cambiada (avisa: tables.table.updated) o borrada (avisa: tables.table.deleted).
 Si falla: dentro de la ventana: «El número de mesa es obligatorio», «Ya hay una mesa con ese número en esta zona», «Esa mesa no existe en este negocio.»; borrar una mesa con cuenta abierta: «Esa mesa tiene una cuenta abierta. Ciérrala o trasládala antes de borrar la mesa.». Un responsable no puede borrar (lo rechaza el hub); un empleado o un cajero que guarda cambios recibe la petición del PIN de un responsable.
-Implicados: ninguno
+Implicados: REC_RESTAURANTE-F02
 QA: qa-hub-restaurant §04
 
 ### TABLES-F05 Sacar una mesa del servicio (bloquearla) y devolverla
