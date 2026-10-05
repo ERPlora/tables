@@ -20,10 +20,7 @@ Pasos:
 Entra: de Reservas, el cambio de estado de la reserva con su mesa, fecha, hora, duración, comensales y nombre.
 Sale: la retención de la mesa y la mesa Reservada. No avisa a nadie. Si la confirmación llega dos veces, sigue habiendo una sola retención.
 Si falla: una mesa borrada o desactivada no se retiene, sin aviso. Nada impide dos reservas en la misma mesa a la misma hora: las dos se retienen.
-Implicados: pendiente
-Pendiente de enlazar: reservations — RESERVATIONS-F07 confirma la reserva y Mesas retiene su mesa y la pinta reservada
-Pendiente de enlazar: reservations — RESERVATIONS-F04 una reserva que se confirma sola nace Confirmada y no retiene mesa
-Pendiente de enlazar: REC_WA_MESA — REC_WA_MESA-F06 la reserva se confirma, sola o a mano
+Implicados: RESERVATIONS-F04, RESERVATIONS-F07, REC_RESTAURANTE-F04, REC_WA_MESA-F06
 QA: R-02, qa-hub-restaurant §05
 
 ### TABLES-F26 Mover o soltar la retención cuando cambia la reserva
@@ -38,8 +35,7 @@ Pasos:
 Entra: de Reservas, el cambio de la reserva con los campos que cambiaron.
 Sale: la retención movida o soltada; las mesas repintadas. No avisa a nadie.
 Si falla: una mesa nueva borrada o desactivada no recibe la retención y la reserva sigue retenida en la vieja.
-Implicados: pendiente
-Pendiente de enlazar: reservations — RESERVATIONS-F08 cambiar la mesa de la reserva mueve o suelta la retención; cambiar la hora no
+Implicados: RESERVATIONS-F08, REC_RESTAURANTE-F04
 QA: qa-hub-restaurant §05 (discrepa)
 
 ### TABLES-F27 Soltar la mesa cuando la reserva se cancela, no se presenta o se borra
@@ -54,10 +50,7 @@ Pasos:
 Entra: de Reservas, el cambio de estado a cancelada o no presentada.
 Sale: la retención soltada y la mesa libre. No avisa a nadie.
 Si falla: si el aviso se repite, no cambia nada.
-Implicados: pendiente
-Pendiente de enlazar: reservations — RESERVATIONS-F09 cancelar la reserva suelta la mesa retenida
-Pendiente de enlazar: reservations — RESERVATIONS-F10 marcar no presentada suelta la mesa retenida
-Pendiente de enlazar: reservations — RESERVATIONS-F20 borrar la reserva no suelta su retención, que espera a caducar
+Implicados: RESERVATIONS-F09, RESERVATIONS-F10, RESERVATIONS-F20, REC_RESTAURANTE-F04
 QA: R-02, qa-hub-restaurant §05
 
 ### TABLES-F28 Gastar la retención al sentar a la reserva
@@ -71,9 +64,7 @@ Pasos:
 Entra: la mesa Reservada.
 Sale: la retención gastada, y con ella la de cualquier otra reserva retenida en esa mesa; la cuenta de mesa abierta (TABLES-F10).
 Si falla: los de TABLES-F10. Si nadie abre la mesa, la retención espera a caducar (TABLES-F29). «Sentar» o «Completar» en Reservas con la mesa Disponible la vuelven a pintar Reservada mientras la retención siga viva.
-Implicados: pendiente
-Pendiente de enlazar: reservations — RESERVATIONS-F11 «Sentar» en Reservas y abrir la mesa en Mesas son dos acciones sueltas; abrir la mesa gasta la retención
-Pendiente de enlazar: REC_WA_MESA — REC_WA_MESA-F10 llegan, se sientan y se van: abrir la mesa de la reserva gasta su retención
+Implicados: RESERVATIONS-F11, REC_RESTAURANTE-F05, REC_WA_MESA-F10
 QA: R-02, R-03, qa-hub-restaurant §06
 
 ### TABLES-F29 Caducar las retenciones vencidas
@@ -88,9 +79,7 @@ Pasos:
 Entra: la hora del servidor.
 Sale: las retenciones caducadas y las mesas libres (avisa: tables.table.hold_released, en cada repaso, aunque no caduque ninguna).
 Si falla: se reintenta en el siguiente repaso; si el hub estuvo parado, al volver hace un solo repaso.
-Implicados: pendiente
-Pendiente de enlazar: reservations — RESERVATIONS-F11 una reserva sentada sin abrir su mesa deja la retención hasta que caduca
-Pendiente de enlazar: reservations — RESERVATIONS-F20 la retención de una reserva borrada caduca sola al acabar su ventana
+Implicados: RESERVATIONS-F11, RESERVATIONS-F20, REC_RESTAURANTE-F04
 QA: R-02
 
 ### TABLES-F30 Retener o soltar una mesa a mano

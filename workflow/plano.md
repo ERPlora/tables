@@ -16,7 +16,7 @@ Pasos:
 Entra: el nombre que da el responsable.
 Sale: la zona (avisa: tables.zone.created).
 Si falla: sin nombre, el botón no se activa. Un empleado o un cajero no ve el «+» de Zonas; desde el plano, recibe la petición del PIN de un responsable. Otro fallo sale dentro del panel («No se pudo guardar la zona» o «No se pudo crear la zona»).
-Implicados: ninguno
+Implicados: REC_RESTAURANTE-F02
 QA: R-01, qa-hub-restaurant §04
 
 ### TABLES-F02 Añadir mesas
@@ -32,7 +32,7 @@ Pasos:
 Entra: número, y en la lista también aforo y zona.
 Sale: la mesa en uso (avisa: tables.table.created). Con una mesa en uso, el paso «Tus mesas» de la puesta en marcha queda hecho.
 Si falla: en el plano, número repetido en la zona (sin distinguir mayúsculas ni espacios): «Ya hay una mesa con ese número en esta zona». Zona borrada mientras tanto: «Esa zona no está disponible: no existe en este negocio o se ha eliminado.». Un empleado o un cajero recibe la petición del PIN de un responsable. Otro fallo: «No se pudo crear la mesa», dentro de la ventana o del panel.
-Implicados: pendiente
+Implicados: REC_RESTAURANTE-F02
 Pendiente de enlazar: hub — el paso opcional «Tus mesas» de la puesta en marcha se da por hecho con una mesa en uso
 QA: R-01, qa-hub-restaurant §04
 
@@ -48,7 +48,7 @@ Pasos:
 Entra: la posición nueva.
 Sale: la posición de la mesa (avisa: tables.table.updated).
 Si falla: «No se pudo guardar la posición» encima del plano; la mesa se queda donde se soltó en pantalla, pero al recargar vuelve a la última posición guardada. Un empleado o un cajero recibe la petición del PIN de un responsable.
-Implicados: ninguno
+Implicados: REC_RESTAURANTE-F02
 QA: qa-hub-restaurant §04
 
 ### TABLES-F04 Editar o borrar una mesa
@@ -78,7 +78,7 @@ Pasos:
 Entra: la mesa elegida.
 Sale: el estado de la mesa (avisa: tables.table.updated).
 Si falla: como en TABLES-F04. Si alguien intenta sentar en ella (teclado, o la bloquearon con la ventana abierta), sale el mismo motivo y el plano se relee.
-Implicados: ninguno
+Implicados: REC_RESTAURANTE-F02
 QA: qa-hub-restaurant §04
 
 ### TABLES-F06 Renombrar o borrar una zona
@@ -121,5 +121,5 @@ Pasos:
 Entra: los tres valores.
 Sale: los ajustes de sala del hub (avisa: tables.settings.updated); Sesiones los relee al momento y el TPV al abrir la ventana.
 Si falla: un valor fuera de rango no se guarda; quien no es administrador ve «Solo un administrador puede cambiar estos ajustes.». No se comprueba que el rojo sea mayor que el ámbar.
-Implicados: ninguno
+Implicados: REC_RESTAURANTE-F02
 QA: ninguno

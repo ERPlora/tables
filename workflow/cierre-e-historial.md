@@ -16,11 +16,8 @@ Pasos:
 Entra: de Ventas, cada venta cobrada (su pedido y su importe en céntimos) y el fin de la cuenta cuando se cobra entera.
 Sale: lo cobrado apuntado una sola vez por venta; la cuenta de mesa «Cerrada» con su hora; la mesa Disponible. El cierre que llega por el cobro no avisa a nadie; solo avisa (tables.session.closed) si lo hace antes el TPV que tenía la mesa delante (el orden entre los dos no está garantizado). Una venta sin mesa (barra, para llevar) no deja nada.
 Si falla: Mesas lo recibe por los avisos de Ventas, que se reintentan; nada se ve en pantalla. Una cuenta aparcada que se cobra se queda «Aparcada» (TABLES-F13); una mesa Bloqueada a mano sigue Bloqueada.
-Implicados: pendiente
-Pendiente de enlazar: sales — SALES-F01 al cobrar la cuenta entera, Mesas apunta lo cobrado, cierra la sesión y libera la mesa
-Pendiente de enlazar: sales — SALES-F22 un cobro parcial deja la mesa ocupada mientras queden líneas por cobrar
+Implicados: SALES-F01, SALES-F22, REC_RESTAURANTE-F11, REC_RESTAURANTE-F13
 Pendiente de enlazar: flows — el disparador de Automatizaciones de mesa cerrada (tables.session.closed) no salta cuando cierra el cobro
-Pendiente de enlazar: REC_RESTAURANTE — sentar, pedir, servir y cobrar en el día del restaurante
 QA: R-09, R-10, qa-hub-restaurant §09
 
 ### TABLES-F19 Anular un cobro de una mesa
@@ -34,8 +31,7 @@ Pasos:
 Entra: de Ventas, la venta anulada con su pedido.
 Sale: el cobro marcado como anulado; la cuenta de mesa cerrada y la mesa libre. No avisa a nadie.
 Si falla: como TABLES-F18. La cuenta que sigue abierta en Ventas se retoma desde **Cuentas abiertas**, sin mesa.
-Implicados: pendiente
-Pendiente de enlazar: sales — SALES-F30 al anular una venta Mesas deja de contar lo cobrado, cierra la sesión y libera la mesa, también si era un cobro parcial
+Implicados: SALES-F30, REC_RESTAURANTE-F15
 QA: R-11, qa-hub-restaurant §13
 
 ### TABLES-F20 Eliminar en Ventas la cuenta abierta de una mesa
@@ -49,8 +45,7 @@ Pasos:
 Entra: nada: Mesas no escucha la eliminación de una cuenta.
 Sale: nada.
 Si falla: no aplica.
-Implicados: pendiente
-Pendiente de enlazar: sales — SALES-F18 Mesas no se entera por el servidor de que la cuenta de una mesa se eliminó
+Implicados: SALES-F18, REC_RESTAURANTE-F14
 QA: qa-hub-restaurant §13
 
 ### TABLES-F21 Cerrar una mesa a mano
@@ -64,8 +59,7 @@ Pasos:
 Entra: la cuenta de mesa abierta.
 Sale: la cuenta de mesa «Cerrada» con su hora (avisa: tables.session.closed). En Ventas la cuenta, si la había, sigue abierta en **Cuentas abiertas** y ya no se reconoce como de esa mesa.
 Si falla: encima de la tabla, el motivo traducido o «No se pudo cerrar la sesión» (p. ej. ya la cerró otro).
-Implicados: pendiente
-Pendiente de enlazar: sales — SALES-F19 la cuenta de la mesa sigue abierta en Ventas y pierde su mesa
+Implicados: SALES-F19, REC_RESTAURANTE-F13
 Pendiente de enlazar: flows — el disparador de Automatizaciones de mesa cerrada (tables.session.closed)
 QA: R-10
 
@@ -81,7 +75,7 @@ Pasos:
 Entra: las cuentas de mesa, lo cobrado apuntado (TABLES-F18) y los nombres de las personas del hub.
 Sale: nada.
 Si falla: el error de la tabla con reintento. Una cuenta cerrada antes de que existiera el libro de cobrado sale con «—»; las devoluciones no restan del «Cobrado». El recorrido de una cuenta por varias mesas se guarda pero no se ve.
-Implicados: ninguno
+Implicados: REC_RESTAURANTE-F16
 QA: R-10
 
 ### TABLES-F23 Borrar una cuenta cerrada del historial

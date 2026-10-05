@@ -313,4 +313,4 @@ Contra `origin/main` v2.2.57 (05/10/2026). Una línea por discrepancia; manda el
 - **`qa-hub-restaurant` §06**: «asignar y cambiar camarero» y «restaurar cuenta»; no hay pantalla para ninguno (F10, F24).
 - **`qa-hub-restaurant` §09**: «revertir el split y volver a fusionar antes de pagar»; una división no se deshace y dos cuentas de la misma mesa no se pueden fusionar (F17).
 - **`qa-hub-restaurant` §04**: «unir/separar físicamente mesas» y «estado por limpiar»; no existen (dudas 2 y 3).
-- **`reservations` RESERVATIONS-F07**: Mesas pinta la mesa reservada «desde su hora»; la pinta desde la confirmación (F25). RESERVATIONS-F11 y F20: caduca «al acabar su ventana»; ver la línea de la caducidad (F29).
+- **`reservations` RESERVATIONS-F07, F11 y F20** decían que Mesas pinta la mesa reservada «desde su hora» y que la retención caduca «al acabar su ventana»; corregidos en la oleada 2 para que cuenten lo de F25, F28 y F29.
