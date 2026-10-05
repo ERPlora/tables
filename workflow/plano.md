@@ -52,7 +52,7 @@ Implicados: ninguno
 QA: qa-hub-restaurant §04
 
 ### TABLES-F04 Editar o borrar una mesa
-Estado: parcial — «Borrar» no pide confirmación; el campo «Estado» deja poner Ocupada o Disponible a mano sin abrir ni cerrar ninguna cuenta (una mesa con cuenta puesta Disponible admite una segunda cuenta encima)
+Estado: parcial — «Borrar» no pide confirmación; el campo «Estado» deja poner Ocupada o Disponible a mano sin abrir ni cerrar ninguna cuenta (una mesa con cuenta puesta Disponible admite una segunda cuenta encima); poner Reservada a mano no dura: el repaso de cada 15 minutos la devuelve a Disponible si no tiene reserva retenida ni cuenta
 Actor: responsable, administrador
 Pantalla: Plano de sala
 Pasos:
@@ -74,7 +74,7 @@ Pasos:
 1. En **Plano de sala**, toca la mesa y en «Estado» elige «Bloqueada»; pulsa «Guardar».
 2. La mesa sale Bloqueada (gris) en el plano y apagada en «Elegir mesa» del TPV, con el motivo «Mesa fuera de servicio: no se puede sentar hasta que se desbloquee.».
 3. Para devolverla, pon «Disponible» y guarda.
-4. Bloquear una mesa ocupada no toca su cuenta; al cobrarla, la mesa sigue Bloqueada. Una reserva confirmada no pinta Reservada una mesa Bloqueada.
+4. Bloquear una mesa ocupada no toca su cuenta; al cobrarla, la mesa sigue Bloqueada. Una reserva confirmada no pinta Reservada una mesa Bloqueada. Las demás opciones del mismo campo tienen los efectos de TABLES-F04 (Reservada a mano se deshace sola en el siguiente repaso de 15 minutos).
 Entra: la mesa elegida.
 Sale: el estado de la mesa (avisa: tables.table.updated).
 Si falla: como en TABLES-F04. Si alguien intenta sentar en ella (teclado, o la bloquearon con la ventana abierta), sale el mismo motivo y el plano se relee.
@@ -87,7 +87,7 @@ Actor: responsable, administrador
 Pantalla: Zonas
 Pasos:
 1. En **Mesas → Zonas**, toca la zona o «Editar»: cambia Nombre, Color, Orden o «Activa» y pulsa «Guardar cambios». En el **Plano de sala**, el lápiz («Editar zona») cambia Nombre y Descripción (opcional).
-2. Para borrarla (solo el administrador): «Borrar» en su fila abre «¿Borrar la zona?» con el número de mesas; si tiene mesas, «Borrar zona» sale apagado y dice «Una zona con mesas no se puede borrar: mueve o borra antes sus mesas.».
+2. Para borrarla (solo el administrador): «Borrar» en su fila abre «¿Borrar la zona?» con «N mesas en esta zona. Una zona con mesas no se puede borrar: mueve o borra antes sus mesas.» (la frase sale siempre, también con 0 mesas); si N es mayor que 0, «Borrar zona» sale apagado.
 3. Sin mesas en uso, «Borrar zona» la quita de la lista, del plano y del TPV. En el plano, «Borrar zona» del lápiz no pide confirmación.
 Entra: la zona elegida.
 Sale: la zona cambiada (avisa: tables.zone.updated) o borrada (avisa: tables.zone.deleted).

@@ -9,11 +9,11 @@ que pinta la mesa Reservada en el plano y en «Elegir mesa» con el nombre y la 
 ## Flujos
 
 ### TABLES-F25 Retener la mesa de una reserva confirmada
-Estado: parcial — solo retiene la reserva que ya tiene mesa y pasa a Confirmada después de nacer (una que nace Confirmada nunca retiene); pinta la mesa Reservada desde el momento de confirmar aunque la reserva sea para otro día; si la mesa estaba Ocupada al confirmar, al liberarse vuelve a Disponible y no a Reservada
+Estado: parcial — solo retiene la reserva que ya tiene mesa y pasa a Confirmada después de nacer (una que nace Confirmada nunca retiene); pinta la mesa Reservada desde el momento de confirmar aunque la reserva sea para otro día; si la mesa estaba Ocupada al confirmar, al liberarse vuelve a Disponible y no a Reservada; y desde las pantallas de Reservas no se puede poner mesa a una reserva: solo con el asistente
 Actor: sistema
 Pantalla: ninguna
 Pasos:
-1. En Reservas, una reserva con mesa pasa de Pendiente a Confirmada (su «Confirmar» o el asistente).
+1. En Reservas, una reserva con mesa pasa de Pendiente a Confirmada (su «Confirmar» o el asistente). La mesa se le pone a la reserva con el asistente: las pantallas de Reservas no tienen campo de mesa.
 2. Mesas aparta esa mesa para la reserva desde su fecha y hora hasta que acaba su duración (120 minutos si no trae), con sus comensales y su nombre.
 3. Si la mesa estaba Disponible, pasa al momento a Reservada en el plano y en «Elegir mesa», con «Ana · 21:00». Si estaba Ocupada o Bloqueada no se repinta, pero el nombre de la reserva sale igual sobre la mesa.
 4. Una mesa puede tener varias reservas retenidas; el plano enseña la más temprana.
@@ -77,13 +77,14 @@ Pendiente de enlazar: REC_WA_MESA — REC_WA_MESA-F10 llegan, se sientan y se va
 QA: R-02, R-03, qa-hub-restaurant §06
 
 ### TABLES-F29 Caducar las retenciones vencidas
-Estado: parcial — compara la hora de la reserva (la del negocio) con la del servidor en UTC, así que en España caduca una o dos horas tarde (leído en el código, sin ejecutar)
+Estado: parcial — compara la hora de la reserva (la del negocio) con la del servidor en UTC, así que en la península caduca 2 horas tarde en verano y 1 en invierno, más hasta 15 minutos del repaso (leído en el código, sin ejecutar)
 Actor: sistema
 Pantalla: ninguna
 Pasos:
 1. Cada 15 minutos, Mesas repasa las retenciones vivas cuya ventana (hora de la reserva más su duración) ya pasó.
 2. Las marca como caducadas (la reserva no llegó a sentarse en esa mesa).
-3. Cada mesa Reservada que se queda sin reserva retenida y sin gente sentada vuelve a Disponible.
+3. Cada mesa Reservada que se queda sin reserva retenida y sin gente sentada vuelve a Disponible (también la puesta Reservada a mano, TABLES-F04).
+4. Por qué caduca tarde (leído en el código, sin ejecutar): el final de la retención se guarda como hora de pared de la reserva, sin zona (p. ej. 23:00), y el repaso la compara como texto con la hora del servidor, que es UTC. Las 23:00 de la reserva solo quedan atrás cuando son las 23:00 en UTC: la 01:00 en Madrid en verano y las 00:00 en invierno. El hub entrega la zona del negocio, pero Mesas no la usa.
 Entra: la hora del servidor.
 Sale: las retenciones caducadas y las mesas libres (avisa: tables.table.hold_released, en cada repaso, aunque no caduque ninguna).
 Si falla: se reintenta en el siguiente repaso; si el hub estuvo parado, al volver hace un solo repaso.

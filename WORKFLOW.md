@@ -105,7 +105,8 @@ filtros por zona, camarero y estado. Por fila «Detalle» (ventana con zona, cam
 comensales, apertura, cierre, tiempo, cobrado y notas) y, en las abiertas, «Cerrar sesión», que pide
 confirmación (TABLES-F21). Las horas van en la hora del negocio. Vacía: «No hay sesiones. Sienta a un
 grupo desde el TPV y aparecerá aquí.». Error: el de la tabla con reintento; el de cerrar, encima de
-la tabla. Se refresca sola cuando se abre, cierra, mueve o corrige una cuenta.
+la tabla. Se refresca sola cuando se abre, se cierra a mano o desde el TPV, se mueve o se corrige una
+cuenta; no cuando la cierra un cobro o una anulación.
 
 ### Ajustes
 Menú **Mesas → Ajustes** (la pestaña la pone el hub). Título «Mesas» y tres campos: «Preguntar los
@@ -162,7 +163,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | TABLES-F15 | Pasar la cuenta a otra mesa (transferir) | parcial | [workflow/servicio.md](workflow/servicio.md) |
 | TABLES-F16 | Juntar las cuentas de dos mesas ocupadas (fusionar) | parcial | [workflow/servicio.md](workflow/servicio.md) |
 | TABLES-F17 | Dividir la cuenta de una mesa | parcial | [workflow/servicio.md](workflow/servicio.md) |
-| TABLES-F18 | Liberar la mesa al cobrar la cuenta entera | hecho | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
+| TABLES-F18 | Liberar la mesa al cobrar la cuenta entera | parcial | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
 | TABLES-F19 | Anular un cobro de una mesa | parcial | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
 | TABLES-F20 | Eliminar en Ventas la cuenta abierta de una mesa | no hecho | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
 | TABLES-F21 | Cerrar una mesa a mano | parcial | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
@@ -188,8 +189,9 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | Plano en vivo (cambia solo al sentar y cobrar) | no hecho: el plano solo se recarga al cambiar mesas o zonas | F09 |
 | Bloquear una mesa (fuera de servicio) | parcial: cambiando «Estado» a mano, que también acepta Ocupada o Disponible sin cuenta | F05 |
 | Pedir los comensales al sentar, con atajos | hecho | F10, F08 |
+| Dos TPV a la vez sobre la misma mesa: gana uno | parcial: si ya está ocupada se rechaza; en el mismo instante pueden entrar las dos (sin ejecutar) | F10 |
 | Superar el aforo avisa sin impedir | hecho | F10, F14 |
-| Varias cuentas en una mesa (dividir) | parcial: solo en la misma mesa, sin deshacer; tocar la mesa abre una de las dos sin elegir | F17 |
+| Varias cuentas en una mesa (dividir) | parcial: solo en la misma mesa, sin deshacer; tocar la mesa abre una de las dos sin elegir; cobrar la nueva puede cerrar la original o la de otra mesa (sin ejecutar) | F17 |
 | Transferir la cuenta a otra mesa | parcial: con la mesa dividida, la mesa de origen se libera | F15 |
 | Juntar las cuentas de dos mesas | parcial: las líneas las junta Ventas y su fallo no se ve | F16 |
 | Juntar mesas físicas para un grupo grande (aforo sumado) | no hecho (duda abierta 3) | — |
@@ -197,15 +199,15 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | Planos distintos por turno (comida / cena) | fuera del MVP | — |
 | Camarero de la cuenta visible | hecho (es quien la abre; no se cambia en pantalla) | F09, F22 |
 | Tiempo en mesa con color ámbar y rojo | hecho en Sesiones; en el plano, sin color | F08, F22 |
-| La mesa se libera sola al cobrar la cuenta entera | hecho | F18 |
+| La mesa se libera sola al cobrar la cuenta entera | parcial: tras dividir, cobrar entera la cuenta nueva libera también la mesa de la cuenta que el TPV recordaba (sin ejecutar) | F18, F17 |
 | Un cobro parcial no libera la mesa | hecho | F18 |
 | Anular un cobro no rompe la mesa | parcial: anular un cobro parcial libera la mesa con la cuenta abierta | F19 |
 | Eliminar la cuenta libera la mesa | no hecho | F20 |
 | Cuentas cerradas con su importe | hecho | F22 |
-| Reserva confirmada visible en su mesa | parcial: se pinta desde que se confirma, no cerca de su hora | F25 |
+| Reserva confirmada visible en su mesa | parcial: se pinta desde que se confirma, no cerca de su hora; la mesa solo se pone a la reserva con el asistente | F25 |
 | El estado de la mesa sigue a la reserva (mover, cancelar, no-show) | parcial: la hora y el borrado no se siguen | F26, F27 |
 | Sentar a la reserva gasta su mesa | parcial: lo gasta abrir la mesa en el TPV, y lo gasta cualquiera que se siente | F28 |
-| Una reserva que no llega no deja la mesa muerta | parcial: caduca tarde (sin ejecutar) | F29 |
+| Una reserva que no llega no deja la mesa muerta | parcial: caduca 1 o 2 horas tarde (sin ejecutar) | F29 |
 | Retener una mesa a mano | parcial: solo con el asistente | F30 |
 
 ## Datos: de quién es cada dato
@@ -217,7 +219,8 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
   ajustes de sala (uno por hub). Otros módulos los leen por sus consultas públicas.
 - **De Ventas**: qué cuenta (pedido) está en qué mesa se guarda como una referencia que Mesas no
   abre; lo cobrado llega por los avisos de venta cobrada y venta anulada (con su importe en céntimos)
-  y Mesas lo apunta en su propio libro. Nunca lee las tablas de Ventas.
+  y Mesas lo apunta en su propio libro; el aviso de pedido completado (cuenta cobrada entera) cierra
+  la cuenta de mesa. Nunca lee las tablas de Ventas.
 - **De Reservas**: la reserva llega por sus avisos de cambio de estado y de cambio de datos: mesa,
   fecha, hora, duración, comensales y nombre. Mesas guarda solo la referencia de la reserva, su
   ventana, sus comensales y el nombre que pinta.
@@ -230,16 +233,18 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
   - en las siete tablas (zonas, mesas, cuentas, recorrido, retenciones, libro de cobrado, ajustes):
     qué persona del hub creó y cambió cada fila;
   - copias fuera de Mesas: cada aviso que emite Mesas lleva lo que se mandó en la orden más la
-    persona del hub que la dio; así, el de cuenta abierta o dividida lleva las notas si se mandaron, y
-    el de mesa retenida a mano, el nombre de la retención.
+    persona del hub que la dio y la identidad fiscal del negocio (NIF, razón social y dirección, que en
+    un autónomo son datos personales); así, el de cuenta abierta o dividida lleva las notas si se
+    mandaron, y el de mesa retenida a mano, el nombre de la retención.
 
 ## Reglas que no se rompen
 
 - **Aislamiento**: toda lectura y escritura va con el hub; una mesa, una cuenta o una reserva de otro
-  hub nunca casa, tampoco al recibir los avisos de Ventas y Reservas.
+  hub nunca casa, tampoco al recibir los avisos de Ventas y Reservas. Excepción: volver a sentar una
+  cuenta aparcada no comprueba de quién es la mesa (TABLES-F24), aunque no toca la mesa ajena.
 - **Sentar solo donde se puede**: una cuenta nueva (abrir, transferir) solo entra en una mesa en uso,
-  no borrada y Disponible o Reservada; si dos TPV se adelantan en la misma mesa, gana uno y el otro
-  se rechaza. Dividir acepta además una mesa Ocupada. Volver a sentar una cuenta aparcada no pasa
+  no borrada y Disponible o Reservada; si un TPV pide una mesa que otro ya ocupó, se rechaza. Dos
+  peticiones en el mismo instante no las separa el servidor (TABLES-F10). Dividir acepta además una mesa Ocupada. Volver a sentar una cuenta aparcada no pasa
   por esta comprobación (TABLES-F24).
 - **Fusionar** exige que la mesa destino sea otra y tenga una cuenta abierta.
 - **Borrados con guarda**: una mesa con cuenta abierta no se borra; una zona con mesas en uso no se
@@ -289,8 +294,9 @@ Contra `origin/main` v2.2.57 (05/10/2026). Una línea por discrepancia; manda el
 
 - **`architecture/modules/tables.md`** (tabla de permisos y de comandos): transferir y fusionar piden `tables.change_tablesession`; piden `tables.transfer_tablesession` (tables#66). La tabla de permisos no lista el perfil cajero, que tiene los mismos permisos de sala que el empleado (F15, F16).
 - **`architecture/modules/tables.md`** y `docs/concepts.md`: «la reserva confirmada pinta la mesa reservada» durante su ventana; se pinta desde el momento de confirmar, sea cual sea la fecha (F25).
-- **`architecture/modules/tables.md`**, `docs/concepts.md`, `docs/limits.md`: la retención vence «en el siguiente repaso de 15 minutos» tras su ventana; el repaso compara la hora de la reserva (del negocio, sin zona) con la hora del servidor en UTC, así que en España caduca una o dos horas más tarde (leído en el código, sin ejecutar) (F29).
+- **`architecture/modules/tables.md`**, `docs/concepts.md`, `docs/limits.md`: la retención vence «en el siguiente repaso de 15 minutos» tras su ventana; el repaso compara la hora de la reserva (del negocio, sin zona) con la hora del servidor en UTC, así que en la península caduca 2 horas tarde en verano y 1 en invierno, más hasta 15 minutos del repaso (leído en el código, sin ejecutar) (F29).
 - **`architecture/modules/tables.md`** («Quién atiende la cuenta»): el camarero «viaja también en el aviso de cuenta abierta»; el aviso lleva lo que mandó el TPV (mesa y comensales) y quién dio la orden, no el camarero que resuelve Mesas (F10).
+- **`architecture/modules/tables.md`** («Dónde vive cada guarda»): la comprobación en la base de datos es «la red de la carrera de dos TPV»; la escritura no bloquea la mesa y la comprobación posterior pasa en las dos aperturas, así que dos peticiones simultáneas pueden entrar (leído en el código, sin ejecutar) (F10).
 - **`module.json`** (`tables.sessions.by_order`, descripción para el asistente): «la usa Cocina»; Cocina no la llama (F18).
 - **`module.json`** (`tables.sessions.close`, descripción para el asistente): «tras el pago»; cerrar no comprueba nada de Ventas (F21).
 - **`docs/limits.md`**: los rechazos se llaman `not_available`, `tables_attached`, `active_sessions`, `invalid_capacity`, `invalid_status`; hoy son `tables.table_not_available`, `tables.zone_has_tables`, `tables.table_has_active_session`, y aforo y estado los rechaza el esquema (F04, F06, F10).
@@ -302,7 +308,7 @@ Contra `origin/main` v2.2.57 (05/10/2026). Una línea por discrepancia; manda el
 - **Manual (`hand-book/modulos/tables.md`)**: la pestaña se llama «Plano» (es «Plano de sala»); se sienta «en el plano o en el TPV» (solo en el TPV); al sentar se indican «camarero y nota» (solo comensales); se crean mesas «en bloque», se «restaura» una cuenta y se suelta «manualmente» una retención (ninguna con pantalla); el botón es «Unir» (es «Fusionar») y hay que «completar la unión en el TPV» (es automática) (F07, F10, F16, F24, F30).
 - **Texto de ayuda del buscador de Mesas** («Buscar mesa o zona…»): no encuentra por zona, busca por número y nombre (pantalla Mesas).
 - **Texto del ajuste** «Desactivado: sentar una mesa libre abre la cuenta con el aforo de la mesa»: en una mesa reservada la abre con los comensales de la reserva (F08).
-- **Mensajes de «Transferir», «Fusionar», «Dividir cuenta» y «Comensales» en el TPV**: enseñan el texto del hub tal cual, sin traducir; puede salir en inglés o con el nombre técnico de la comprobación (texto sin confirmar) (F14, F15, F16, F17).
+- **Mensajes de «Transferir», «Fusionar», «Dividir cuenta» y «Comensales» en el TPV**: enseñan el texto del hub sin traducir: el de la orden rechazada sale en inglés, y el de una comprobación interna, con su nombre técnico (leído en el código, sin ejecutar; no comprobado si el shell lo traduce antes) (F14, F15, F16, F17).
 - **QA R-02 y `qa-hub-restaurant` §05**: «modificar fecha u hora libera la retención anterior»; cambiar la hora no la mueve (F26).
 - **`qa-hub-restaurant` §06**: «asignar y cambiar camarero» y «restaurar cuenta»; no hay pantalla para ninguno (F10, F24).
 - **`qa-hub-restaurant` §09**: «revertir el split y volver a fusionar antes de pagar»; una división no se deshace y dos cuentas de la misma mesa no se pueden fusionar (F17).
