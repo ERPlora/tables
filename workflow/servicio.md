@@ -35,8 +35,7 @@ Pasos:
 Entra: la mesa y los comensales; en una Reservada, sus comensales de la reserva.
 Sale: la cuenta de mesa abierta con sus comensales, la hora y quien la abre como camarero (avisa: tables.session.opened); la mesa Ocupada; las reservas retenidas en esa mesa, gastadas (TABLES-F28). Ventas recibe la mesa y su título; la cuenta impresa y la comanda de cocina llevan ese título.
 Si falla: si otro dispositivo ya la había ocupado, «Otro dispositivo acaba de ocupar esa mesa. Se ha actualizado el plano.», la mesa no se asigna y la ventana sigue abierta para elegir otra (el mismo texto sale con una mesa desactivada). Si los dos tocan en el mismo instante no hay garantía: la comprobación previa se hace fuera de la escritura y la escritura no bloquea la mesa, así que las dos aperturas pueden entrar (leído en el código, sin ejecutar). Una Bloqueada no se puede tocar. Otro fallo: el motivo traducido o «No se pudo ocupar la mesa».
-Implicados: RESERVATIONS-F11, SALES-F19, SALES-F20, REC_RESTAURANTE-F05, REC_WA_MESA-F10
-Pendiente de enlazar: flows — el disparador de Automatizaciones de mesa abierta (tables.session.opened)
+Implicados: FLOWS-F13, RESERVATIONS-F11, SALES-F19, SALES-F20, REC_RESTAURANTE-F05, REC_WA_MESA-F10
 QA: R-03, qa-hub-restaurant §06
 
 ### TABLES-F11 Volver a una mesa ocupada y cambiar de mesa en el TPV
@@ -113,8 +112,7 @@ Pasos:
 Entra: la mesa de origen, su cuenta y la mesa de destino.
 Sale: la cuenta de origen «Trasladada» y una cuenta nueva en el destino con el mismo pedido (avisa: tables.session.transferred); Ventas cambia la mesa de la cuenta.
 Si falla: «Esa mesa no tiene comanda abierta»; si el destino dejó de estar libre, el texto del hub sin traducir, en inglés o con el nombre técnico de la comprobación (leído en el código, sin ejecutar). Sin el permiso de trasladar (se puede quitar a un perfil), el «⋮» no ofrece «Transferir» ni «Fusionar».
-Implicados: SALES-F25, REC_RESTAURANTE-F10
-Pendiente de enlazar: flows — el disparador de Automatizaciones de mesa trasladada (tables.session.transferred)
+Implicados: FLOWS-F13, SALES-F25, REC_RESTAURANTE-F10
 QA: R-07, qa-hub-restaurant §09
 
 ### TABLES-F16 Juntar las cuentas de dos mesas ocupadas (fusionar)
@@ -129,8 +127,7 @@ Pasos:
 Entra: las dos mesas y sus cuentas.
 Sale: una sola cuenta abierta en la mesa que se queda (avisa: tables.session.merged); la mesa de origen Disponible.
 Si falla: «Esa mesa no tiene comanda abierta»; destino Reservado sin cuenta: el texto del hub sin traducir, en inglés o con el nombre técnico de la comprobación (leído en el código, sin ejecutar). Si Ventas falla al juntar las líneas, las mesas ya están fusionadas en Mesas y las cuentas siguen separadas en Ventas, sin aviso.
-Implicados: SALES-F24, REC_RESTAURANTE-F10
-Pendiente de enlazar: flows — el disparador de Automatizaciones de mesas fusionadas (tables.session.merged)
+Implicados: FLOWS-F13, SALES-F24, REC_RESTAURANTE-F10
 QA: R-07, qa-hub-restaurant §09
 
 ### TABLES-F17 Dividir la cuenta de una mesa
@@ -145,6 +142,5 @@ Pasos:
 Entra: la cuenta abierta de la mesa.
 Sale: dos cuentas de mesa abiertas en la misma mesa, la nueva colgando de la original (avisa: tables.session.split); Ventas engancha su cuenta nueva a la segunda.
 Si falla: «Esa mesa no tiene comanda abierta»; otro fallo, el texto del hub sin traducir (leído en el código, sin ejecutar). Si el fallo es de Ventas, Mesas ya abrió la segunda cuenta y la mesa se queda con una cuenta vacía de más.
-Implicados: SALES-F23, REC_RESTAURANTE-F10
-Pendiente de enlazar: flows — el disparador de Automatizaciones de cuenta dividida (tables.session.split)
+Implicados: FLOWS-F13, SALES-F23, REC_RESTAURANTE-F10
 QA: R-07, qa-hub-restaurant §09 (discrepa)

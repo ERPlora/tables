@@ -16,8 +16,7 @@ Pasos:
 Entra: de Ventas, cada venta cobrada (su pedido y su importe en céntimos) y el fin de la cuenta cuando se cobra entera.
 Sale: lo cobrado apuntado una sola vez por venta; la cuenta de mesa «Cerrada» con su hora; la mesa Disponible. El cierre que llega por el cobro no avisa a nadie; solo avisa (tables.session.closed) si lo hace antes el TPV que tenía la mesa delante (el orden entre los dos no está garantizado). Una venta sin mesa (barra, para llevar) no deja nada.
 Si falla: Mesas lo recibe por los avisos de Ventas, que se reintentan; nada se ve en pantalla. Una cuenta aparcada que se cobra se queda «Aparcada» (TABLES-F13); una mesa Bloqueada a mano sigue Bloqueada.
-Implicados: SALES-F01, SALES-F22, REC_RESTAURANTE-F11, REC_RESTAURANTE-F13
-Pendiente de enlazar: flows — el disparador de Automatizaciones de mesa cerrada (tables.session.closed) no salta cuando cierra el cobro
+Implicados: FLOWS-F13, SALES-F01, SALES-F22, REC_RESTAURANTE-F11, REC_RESTAURANTE-F13
 QA: R-09, R-10, qa-hub-restaurant §09
 
 ### TABLES-F19 Anular un cobro de una mesa
@@ -59,8 +58,7 @@ Pasos:
 Entra: la cuenta de mesa abierta.
 Sale: la cuenta de mesa «Cerrada» con su hora (avisa: tables.session.closed). En Ventas la cuenta, si la había, sigue abierta en **Cuentas abiertas** y ya no se reconoce como de esa mesa.
 Si falla: encima de la tabla, el motivo traducido o «No se pudo cerrar la sesión» (p. ej. ya la cerró otro).
-Implicados: SALES-F19, REC_RESTAURANTE-F13
-Pendiente de enlazar: flows — el disparador de Automatizaciones de mesa cerrada (tables.session.closed)
+Implicados: FLOWS-F13, SALES-F19, REC_RESTAURANTE-F13
 QA: R-10
 
 ### TABLES-F22 Consultar las cuentas de la sala (abiertas y cerradas)
