@@ -39,11 +39,11 @@ Implicados: FLOWS-F13, RESERVATIONS-F11, SALES-F19, SALES-F20, REC_RESTAURANTE-F
 QA: R-03, qa-hub-restaurant §06
 
 ### TABLES-F11 Volver a una mesa ocupada y cambiar de mesa en el TPV
-Estado: parcial — en una mesa con dos cuentas (dividida) se abre una de ellas sin poder elegir
+Estado: hecho
 Actor: empleado, cajero, responsable
 Pantalla: Elegir mesa (en el TPV)
 Pasos:
-1. En «Elegir mesa», toca una mesa Ocupada: se abre su cuenta con sus líneas, desde cualquier tablet (la misma cuenta, no otra).
+1. En «Elegir mesa», toca una mesa Ocupada: se abre su cuenta con sus líneas, desde cualquier tablet (la misma cuenta, no otra). Si la mesa está dividida (dos cuentas), pregunta primero cuál abrir.
 2. Tocar otra mesa cambia de cuenta: si la mesa que se deja no llegó a pedir nada, Mesas cierra su cuenta vacía y la libera; si tiene cuenta, se queda Ocupada con ella.
 3. «Dejar en la mesa» en Ventas suelta la cuenta de la pantalla; la mesa sigue Ocupada y se retoma tocándola.
 4. Al recargar el TPV, la cuenta que tenía delante recupera su mesa.
@@ -92,7 +92,7 @@ Pantalla: Elegir mesa (en el TPV)
 Pasos:
 1. En «Elegir mesa», toca el «⋮» de la mesa ocupada y pulsa «Comensales».
 2. Sale la pregunta con los comensales actuales; cámbialos con un atajo o con «−» / «+» y «Guardar».
-3. La mesa enseña los comensales nuevos. En una mesa dividida se corrige una de sus cuentas, sin elegir cuál.
+3. La mesa enseña los comensales nuevos. En una mesa dividida (dos cuentas) se pregunta primero cuál de sus cuentas se corrige (tables#122).
 Entra: la cuenta abierta de la mesa.
 Sale: los comensales de la cuenta (avisa: tables.session.updated).
 Si falla: «Esa mesa no tiene comanda abierta»; otro fallo sale con el texto del hub sin traducir, en inglés (leído en el código, sin ejecutar). Una cuenta ya cerrada, trasladada, fusionada o aparcada no se corrige.
@@ -100,7 +100,7 @@ Implicados: ninguno
 QA: qa-hub-restaurant §06
 
 ### TABLES-F15 Pasar la cuenta a otra mesa (transferir)
-Estado: parcial — si la mesa de origen tenía dos cuentas (dividida), se traslada una de las dos sin elegir cuál (leído en el código, sin ejecutar); los rechazos salen sin traducir
+Estado: parcial — los rechazos salen sin traducir (tables#137)
 Actor: empleado, cajero, responsable
 Pantalla: Elegir mesa (en el TPV)
 Pasos:
@@ -108,7 +108,7 @@ Pasos:
 2. El título pasa a «Transferir N a…» y sale «Elige una mesa libre»: solo las Disponibles y Reservadas se pueden tocar. «Cancelar» lo deshace.
 3. Toca la mesa de destino.
 4. La cuenta es la misma, ahora en la mesa de destino, con sus comensales, su camarero y sus notas; la de origen queda Disponible si no le queda otra cuenta, y la de destino, Ocupada (si estaba Reservada, gasta la reserva). Si el TPV tenía delante la mesa de origen, pasa a la de destino.
-5. Con la mesa de origen dividida (dos cuentas), el «⋮» traslada la cuenta que el TPV encuentra primero (la de identificador interno menor, no la que se mira; leído en el código, sin ejecutar), y la mesa de origen sigue Ocupada con la otra cuenta.
+5. Con la mesa de origen dividida (dos cuentas), el «⋮» pregunta primero qué cuenta se traslada (tables#122), y la mesa de origen sigue Ocupada con la otra cuenta.
 Entra: la mesa de origen, su cuenta y la mesa de destino.
 Sale: la cuenta de origen «Trasladada» y una cuenta nueva en el destino con el mismo pedido (avisa: tables.session.transferred); la mesa de origen Disponible si no le queda otra cuenta; Ventas cambia la mesa de la cuenta.
 Si falla: «Esa mesa no tiene comanda abierta»; si el destino dejó de estar libre, el texto del hub sin traducir, en inglés o con el nombre técnico de la comprobación (leído en el código, sin ejecutar). Sin el permiso de trasladar (se puede quitar a un perfil), el «⋮» no ofrece «Transferir» ni «Fusionar».
@@ -116,13 +116,13 @@ Implicados: FLOWS-F13, SALES-F25, REC_RESTAURANTE-F10
 QA: R-07, qa-hub-restaurant §09
 
 ### TABLES-F16 Juntar las cuentas de dos mesas ocupadas (fusionar)
-Estado: parcial — la ventana ofrece como destino mesas Reservadas sin cuenta, que el hub rechaza; si la mesa de origen tenía dos cuentas, se junta una de ellas sin elegir cuál (leído en el código, sin ejecutar); si Ventas no consigue juntar las líneas no se ve nada; dos cuentas de la misma mesa no se pueden fusionar
+Estado: parcial — la ventana ofrece como destino mesas Reservadas sin cuenta, que el hub rechaza (tables#138); si Ventas no consigue juntar las líneas no se ve nada; dos cuentas de la misma mesa no se pueden fusionar (tables#139)
 Actor: empleado, cajero, responsable
 Pantalla: Elegir mesa (en el TPV)
 Pasos:
 1. En «Elegir mesa», toca el «⋮» de la mesa que se va a juntar y pulsa «Fusionar».
 2. El título pasa a «Fusionar N con…» y sale «Elige una mesa ocupada». Se pueden tocar las Ocupadas y también las Reservadas (las Bloqueadas salen apagadas). Toca la mesa que se queda.
-3. La mesa de origen queda Disponible si no le queda otra cuenta, y su cuenta de mesa, «Fusionada». Con la mesa de origen dividida pasa lo mismo que al transferir (TABLES-F15): se fusiona la cuenta que el TPV encuentra primero y la mesa sigue Ocupada con la otra.
+3. La mesa de origen queda Disponible si no le queda otra cuenta, y su cuenta de mesa, «Fusionada». Con la mesa de origen dividida se pregunta primero qué cuenta se fusiona (como al transferir, TABLES-F15) y la mesa sigue Ocupada con la otra; si la mesa destino también está dividida, se pregunta cuál de sus cuentas absorbe (tables#122).
 4. Si solo una de las dos tenía cuenta en Ventas, esa pasa a ser la de la mesa que se queda; si las dos tenían, Ventas mueve las líneas a la de la mesa que se queda y anula la otra. El TPV sigue a la mesa que se queda.
 Entra: las dos mesas y sus cuentas.
 Sale: una sola cuenta abierta en la mesa que se queda (avisa: tables.session.merged); la mesa de origen Disponible si no le queda otra cuenta.
@@ -131,12 +131,12 @@ Implicados: FLOWS-F13, SALES-F24, REC_RESTAURANTE-F10
 QA: R-07, qa-hub-restaurant §09
 
 ### TABLES-F17 Dividir la cuenta de una mesa
-Estado: parcial — solo en la misma mesa, sin deshacer (dos cuentas de una mesa no se vuelven a juntar) y al tocar la mesa luego se abre una de las dos sin elegir
+Estado: parcial — solo en la misma mesa, sin deshacer (dos cuentas de una mesa no se vuelven a juntar, tables#139)
 Actor: empleado, cajero, responsable
 Pantalla: Elegir mesa (en el TPV)
 Pasos:
 1. En la cuenta de la mesa, marca las líneas que se van a la cuenta nueva (en Ventas).
-2. En «Elegir mesa», toca el «⋮» de la mesa y pulsa «Dividir cuenta».
+2. En «Elegir mesa», toca el «⋮» de la mesa y pulsa «Dividir cuenta». Si la mesa ya está dividida (dos cuentas), pregunta primero cuál se divide (tables#122).
 3. Mesas abre una segunda cuenta en la misma mesa (1 comensal); Ventas le pasa las líneas marcadas y la deja en pantalla para cobrarla. Sin nada marcado, nace vacía.
 4. La mesa que el TPV tiene delante pasa a ser la dividida, con la cuenta nueva (la que Ventas pone en pantalla), aunque antes tuviera otra mesa. Cobrarla entera cierra solo esa cuenta de mesa: la mesa sigue Ocupada con la original, y cualquier otra mesa sigue como estaba.
 Entra: la cuenta abierta de la mesa.

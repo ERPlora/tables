@@ -1531,3 +1531,352 @@ describe('the POS releases the account of the order that finished (tables#118)',
     expect(reads, 'the tables are listed again').toContain('tables.tables.list');
   });
 });
+
+// ── tables#122 — a split table asks WHICH check, like Toast's «Select a check» ────────────────
+//
+// A split table holds TWO live accounts under one tablecloth. Every act that "opened the table's
+// check" resolved it with a limit-1 lookup (the account with the lowest id), so touching the
+// table, transferring, merging, splitting or correcting the covers acted on the half the waiter
+// never chose. The market's answer (Toast «Select a check», Square «choose the check») is to ask
+// whenever there is more than one; with one account, nothing changes.
+describe('a split table asks WHICH check before acting on it (tables#122)', () => {
+  type Filler = HTMLElement & {
+    shadowRoot: ShadowRoot;
+    open: boolean;
+    selectedId?: string;
+    sessionId?: string;
+  };
+  type Cmd = { name: string; payload?: Record<string, unknown> };
+
+  // The room: M4 is the SPLIT table (two live checks, the plan shows the oldest's 3 covers),
+  // M5 is free and M2 is occupied with a single check.
+  const MESAS = [
+    { id: 'tbl-1', number: '4', zone_id: 'z1', capacity: 4, status: 'occupied', live_guests: 3 },
+    { id: 'tbl-2', number: '5', zone_id: 'z1', capacity: 2, status: 'available' },
+    { id: 'tbl-3', number: '2', zone_id: 'z1', capacity: 4, status: 'occupied', live_guests: 2 },
+  ];
+  const CUENTAS: Record<string, Array<Record<string, unknown>>> = {
+    'tbl-1': [
+      { id: 'ses-1', table_id: 'tbl-1', status: 'active', order_id: 'ord-1', guests_count: 3, opened_at: '2026-08-07T21:00:00Z' },
+      { id: 'ses-2', table_id: 'tbl-1', status: 'active', order_id: 'ord-2', guests_count: 1, opened_at: '2026-08-07T21:40:00Z' },
+    ],
+    'tbl-3': [
+      { id: 'ses-3', table_id: 'tbl-3', status: 'active', order_id: 'ord-3', guests_count: 2, opened_at: '2026-08-07T21:05:00Z' },
+    ],
+  };
+
+  /** Stubs the SDK with `cuentas` as the live accounts per table, records every command. */
+  function stub(commands: Cmd[], cuentas: Record<string, Array<Record<string, unknown>>> = CUENTAS) {
+    (globalThis as Record<string, unknown>).erplora = {
+      ...((globalThis as Record<string, unknown>).erplora as object),
+      query: async (name: string, params?: Record<string, unknown>) => {
+        if (name === 'tables.sessions.list') return cuentas[String(params?.f_table_id)] ?? [];
+        if (name === 'tables.settings.get') return [];
+        if (name.includes('zone')) return [ZONA];
+        if (name.includes('table')) return MESAS;
+        return [];
+      },
+      queryAll: async (name: string) => {
+        if (name.includes('zone')) return [ZONA];
+        if (name.includes('table')) return MESAS;
+        return [];
+      },
+      command: async (name: string, payload?: Record<string, unknown>) => {
+        commands.push({ name, payload });
+        return { new_ids: ['ses-new'] };
+      },
+      t: (_c: unknown, key: string, params?: Record<string, unknown>) =>
+        (params ? `${key}:${Object.values(params).join(',')}` : key),
+    };
+  }
+
+  async function abrir() {
+    const el = (await montar()) as Filler;
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await tick(el);
+    return el;
+  }
+
+  async function tick(el: Filler) {
+    for (let i = 0; i < 3; i++) {
+      await new Promise((r) => setTimeout(r, 0));
+      await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    }
+  }
+
+  const byTestId = (el: Filler, id: string) => el.shadowRoot.querySelector(`[data-testid="${id}"]`);
+
+  /** Opens the ⋮ of `table` and taps the actions bar button labelled `key`. */
+  async function accion(el: Filler, table: string, key: 'ui.transfer' | 'ui.merge' | 'ui.split' | 'ui.guests') {
+    byTestId(el, `tables-pos-actions-${table}`)!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+    const btn = [...el.shadowRoot.querySelectorAll<HTMLElement>('.actions ion-button')]
+      .find((b) => b.textContent?.includes(key));
+    expect(btn, `the ⋮ offers ${key}`).toBeTruthy();
+    btn!.click();
+    await tick(el);
+  }
+
+  const contextsOf = (el: Filler) => {
+    const seen: Array<Record<string, unknown>> = [];
+    el.addEventListener('erp:order-context', (e) => { seen.push((e as CustomEvent).detail as Record<string, unknown>); });
+    return seen;
+  };
+
+  it('touching a split table shows BOTH checks and opens only the chosen one', async () => {
+    const commands: Cmd[] = [];
+    stub(commands);
+    const el = await abrir();
+    const contexts = contextsOf(el);
+
+    byTestId(el, 'tables-pos-table-tbl-1')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    const prompt = byTestId(el, 'tables-pos-accounts-prompt');
+    expect(prompt, 'the split table asks WHICH check').toBeTruthy();
+    const rows = [...el.shadowRoot.querySelectorAll('[data-testid^="tables-pos-account-"]')];
+    expect(rows.length, 'both halves of the split table are offered').toBe(2);
+    expect(contexts, 'nothing is opened before the waiter chooses').toEqual([]);
+    expect(el.open, 'the picker keeps the sheet open').toBe(true);
+
+    byTestId(el, 'tables-pos-account-ses-2')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    expect(byTestId(el, 'tables-pos-accounts-prompt'), 'choosing dismisses the picker').toBeNull();
+    expect(contexts[0]?.table_id).toBe('tbl-1');
+    expect(contexts[0]?.order_id, 'the CHOSEN half opens, not the first by id').toBe('ord-2');
+    expect(el.open, 'and the sheet closes on the opened check').toBe(false);
+    expect(el.sessionId, 'the account in front is the chosen one').toBe('ses-2');
+  });
+
+  it('a table with ONE check opens it directly, without asking', async () => {
+    const commands: Cmd[] = [];
+    stub(commands);
+    const el = await abrir();
+    const contexts = contextsOf(el);
+
+    byTestId(el, 'tables-pos-table-tbl-3')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    expect(byTestId(el, 'tables-pos-accounts-prompt'), 'no picker for a single check').toBeNull();
+    expect(contexts[0]?.order_id).toBe('ord-3');
+    expect(el.sessionId).toBe('ses-3');
+  });
+
+  it('tapping the SELECTED split table again offers the other half', async () => {
+    const commands: Cmd[] = [];
+    stub(commands);
+    const el = await abrir();
+    const contexts = contextsOf(el);
+    el.selectedId = 'tbl-1';
+    el.sessionId = 'ses-1';
+
+    byTestId(el, 'tables-pos-table-tbl-1')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    expect(byTestId(el, 'tables-pos-accounts-prompt'), 'the table in front can be split too').toBeTruthy();
+    byTestId(el, 'tables-pos-account-ses-2')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    expect(contexts[0]?.order_id, 'the other half comes to the screen').toBe('ord-2');
+    expect(el.sessionId).toBe('ses-2');
+  });
+
+  it('Back from the picker returns to the plan and runs nothing', async () => {
+    const commands: Cmd[] = [];
+    stub(commands);
+    const el = await abrir();
+
+    byTestId(el, 'tables-pos-table-tbl-1')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+    expect(byTestId(el, 'tables-pos-accounts-prompt')).toBeTruthy();
+
+    byTestId(el, 'tables-pos-accounts-back')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    expect(byTestId(el, 'tables-pos-accounts-prompt'), 'the picker is gone').toBeNull();
+    expect(byTestId(el, 'tables-pos-table-tbl-2'), 'the plan is back').toBeTruthy();
+    expect(commands, 'no session command ran').toEqual([]);
+    expect(el.open, 'the sheet stays open for another pick').toBe(true);
+  });
+
+  it('⋮ Guests on a split table corrects the CHOSEN half, pre-filled with ITS covers', async () => {
+    const commands: Cmd[] = [];
+    stub(commands);
+    const el = await abrir();
+
+    await accion(el, 'tbl-1', 'ui.guests');
+    const prompt = byTestId(el, 'tables-pos-accounts-prompt');
+    expect(prompt, 'the ⋮ asks which half to correct').toBeTruthy();
+    expect(byTestId(el, 'tables-pos-guests-prompt'), 'no covers prompt before choosing').toBeNull();
+
+    byTestId(el, 'tables-pos-account-ses-2')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    // ses-2 has 1 cover; the plan's «3 pax» is the OLDEST check's. The prefill is the chosen one's.
+    expect(byTestId(el, 'tables-pos-guests-prompt'), 'the covers prompt opens on the chosen half').toBeTruthy();
+    expect(byTestId(el, 'tables-pos-guests-value')?.textContent?.trim(), 'prefilled with the chosen check\'s covers').toBe('1');
+
+    byTestId(el, 'tables-pos-guests-plus')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+    byTestId(el, 'tables-pos-guests-confirm')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    const set = commands.find((c) => c.name === 'tables.sessions.set_guests');
+    expect(set?.payload, 'corrects the chosen account, not the table\'s first').toEqual({ session_id: 'ses-2', guests_count: 2 });
+  });
+
+  it('⋮ Transfer moves the CHOSEN half and tells the POS its order', async () => {
+    const commands: Cmd[] = [];
+    stub(commands);
+    const el = await abrir();
+    let moved: Record<string, unknown> | undefined;
+    el.addEventListener('erp:order-transfer', (e) => { moved = (e as CustomEvent).detail as Record<string, unknown>; });
+
+    await accion(el, 'tbl-1', 'ui.transfer');
+    expect(byTestId(el, 'tables-pos-accounts-prompt'), 'transfer asks which half moves').toBeTruthy();
+
+    byTestId(el, 'tables-pos-account-ses-2')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    byTestId(el, 'tables-pos-table-tbl-2')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    const transfer = commands.find((c) => c.name === 'tables.sessions.transfer');
+    expect(transfer?.payload, 'the CHOSEN half is the one transferred').toEqual({ session_id: 'ses-2', target_table_id: 'tbl-2' });
+    expect(moved?.from_order_id, 'the POS moves the chosen half\'s order').toBe('ord-2');
+  });
+
+  it('⋮ Merge into a split DESTINATION asks which of its checks absorbs, and names it', async () => {
+    const commands: Cmd[] = [];
+    stub(commands);
+    const el = await abrir();
+    let merged: Record<string, unknown> | undefined;
+    el.addEventListener('erp:order-merge', (e) => { merged = (e as CustomEvent).detail as Record<string, unknown>; });
+
+    // The source is M2 (single check): no need to ask there. The DESTINATION is the split M4.
+    await accion(el, 'tbl-3', 'ui.merge');
+    byTestId(el, 'tables-pos-table-tbl-1')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    expect(byTestId(el, 'tables-pos-accounts-prompt'), 'the split destination asks which check absorbs').toBeTruthy();
+    expect(commands.some((c) => c.name === 'tables.sessions.merge'), 'nothing merged before choosing').toBe(false);
+
+    byTestId(el, 'tables-pos-account-ses-2')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    const merge = commands.find((c) => c.name === 'tables.sessions.merge');
+    expect(merge?.payload, 'the merge names the CHOSEN destination account').toEqual({
+      session_id: 'ses-3', target_table_id: 'tbl-1', target_session_id: 'ses-2',
+    });
+    expect(merged?.to_order_id, 'the POS combines into the chosen check\'s order').toBe('ord-2');
+    expect(el.open, 'the sheet closes once merged').toBe(false);
+  });
+
+  it('⋮ Split on an already-split table divides the CHOSEN half', async () => {
+    const commands: Cmd[] = [];
+    stub(commands);
+    const el = await abrir();
+    let split: Record<string, unknown> | undefined;
+    el.addEventListener('erp:order-split', (e) => { split = (e as CustomEvent).detail as Record<string, unknown>; });
+
+    await accion(el, 'tbl-1', 'ui.split');
+    expect(byTestId(el, 'tables-pos-accounts-prompt'), 'split asks which half divides').toBeTruthy();
+
+    byTestId(el, 'tables-pos-account-ses-2')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    const cmd = commands.find((c) => c.name === 'tables.sessions.split');
+    expect(cmd?.payload, 'the CHOSEN half is the one divided').toEqual({ session_id: 'ses-2' });
+    expect(split?.from_order_id, 'sales splits the chosen half\'s order').toBe('ord-2');
+  });
+
+  it('leaving a split table closes OUR empty half, not the sibling the lookup found', async () => {
+    // Our half (ses-2) never ordered; the sibling (ses-1) has the order. The old limit-1 lookup
+    // judged the SIBLING, so the empty half stayed open forever.
+    const commands: Cmd[] = [];
+    stub(commands, {
+      ...CUENTAS,
+      'tbl-1': [
+        { id: 'ses-1', table_id: 'tbl-1', status: 'active', order_id: 'ord-1', guests_count: 3 },
+        { id: 'ses-2', table_id: 'tbl-1', status: 'active', order_id: null, guests_count: 1 },
+      ],
+    });
+    const el = await abrir();
+    el.selectedId = 'tbl-1';
+    el.sessionId = 'ses-2';
+
+    byTestId(el, 'tables-pos-table-tbl-3')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    const closed = commands.filter((c) => c.name === 'tables.sessions.close').map((c) => c.payload?.session_id);
+    expect(closed, 'the EMPTY half in front is closed, not the sibling with the order').toEqual(['ses-2']);
+    expect(el.sessionId, 'the picked table\'s account comes to the screen').toBe('ses-3');
+  });
+
+  it('leaving a split table whose half HAS the order closes nothing', async () => {
+    const commands: Cmd[] = [];
+    stub(commands);
+    const el = await abrir();
+    el.selectedId = 'tbl-1';
+    el.sessionId = 'ses-1'; // our half holds ord-1
+
+    byTestId(el, 'tables-pos-table-tbl-3')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    expect(commands.some((c) => c.name === 'tables.sessions.close'), 'a check with an order stays open').toBe(false);
+  });
+
+  it('a ⋮ action on a table whose check cannot be read says so and runs nothing', async () => {
+    const commands: Cmd[] = [];
+    stub(commands, { ...CUENTAS, 'tbl-1': [] });
+    const el = await abrir();
+
+    await accion(el, 'tbl-1', 'ui.guests');
+
+    expect(byTestId(el, 'tables-pos-error')?.textContent?.trim() ?? '', 'the reason the ⋮ cannot act').toContain('ui.errNoActiveSession');
+    expect(byTestId(el, 'tables-pos-guests-prompt'), 'no covers prompt to confirm blind').toBeNull();
+    expect(commands, 'no session command ran').toEqual([]);
+  });
+
+  it('the picker strings exist in both catalogues', () => {
+    for (const k of ['accountPromptTitle', 'accountLabel']) {
+      expect((esCatalog as { ui: Record<string, string> }).ui[k], `es ${k}`).toBeTruthy();
+      expect((enCatalog as { ui: Record<string, string> }).ui[k], `en ${k}`).toBeTruthy();
+    }
+  });
+
+  // Review of tables#140: the bench captures read «Cuenta 11 pax · 22:56» — the label and its
+  // meta were glued together inside the button (a flex row drops the whitespace between them),
+  // so «Cuenta 1 · 1 pax» looked like check number ELEVEN. The meta sits at the row's end.
+  it('each check row keeps its label apart from its covers and hour (the meta sits at the end)', async () => {
+    const { ErpTablesPosZones } = await import('./erp-tables-pos-zones');
+    const sheets = ([] as unknown[]).concat((ErpTablesPosZones as unknown as { styles: unknown }).styles);
+    const css = sheets.map((x) => String((x as { cssText?: string }).cssText ?? x)).join('\n');
+    expect(css, 'the meta of a check row is pushed to the end of the row').toMatch(
+      /\.accounts\s+\.meta\s*\{[^}]*margin-inline-start:\s*auto/,
+    );
+  });
+
+  // Review of tables#140: ids are UUIDs, so «by id» is a coin toss — the ORIGINAL check of a
+  // split table came out as «Cuenta 2» on the bench. The rows follow the order the checks were
+  // opened, so «Cuenta 1» is always the one that was there first (Toast numbers checks the same way).
+  it('the checks are offered in the order they were opened, not by id', async () => {
+    const commands: Cmd[] = [];
+    stub(commands);
+    const asked: Array<Record<string, unknown> | undefined> = [];
+    const sdk = (globalThis as Record<string, unknown>).erplora as { query: (n: string, p?: Record<string, unknown>) => Promise<unknown> };
+    const inner = sdk.query;
+    sdk.query = (name, params) => { if (name === 'tables.sessions.list') asked.push(params); return inner(name, params); };
+    const el = await abrir();
+
+    byTestId(el, 'tables-pos-table-tbl-1')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    expect(byTestId(el, 'tables-pos-accounts-prompt')).toBeTruthy();
+    const q = asked.find((p) => p?.f_table_id === 'tbl-1' && p?.f_status === 'active');
+    expect(q, 'the picker lists the live checks of the table').toBeTruthy();
+    expect(q?.sort, 'ordered by when each check was opened').toBe('opened_at');
+    expect(q?.dir).toBe('asc');
+  });
+});

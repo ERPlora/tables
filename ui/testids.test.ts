@@ -121,6 +121,8 @@ const COVERED: Record<string, { prefix: string; contract: string[]; computed?: s
   'components/erp-tables-pos-zones/erp-tables-pos-zones.ts': {
     prefix: 'tables-pos-',
     contract: [
+      'tables-pos-accounts-back',
+      'tables-pos-accounts-prompt',
       'tables-pos-cancel',
       'tables-pos-close',
       'tables-pos-empty',
@@ -146,6 +148,7 @@ const COVERED: Record<string, { prefix: string; contract: string[]; computed?: s
       'tables-pos-zones',
     ],
     computed: [
+      'tables-pos-account-',
       'tables-pos-actions-',
       'tables-pos-guests-quick-',
       'tables-pos-table-',
