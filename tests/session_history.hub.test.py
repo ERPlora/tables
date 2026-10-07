@@ -343,6 +343,91 @@ def test_a_parked_account_holds_no_table_at_all(hub: Hub) -> None:
     )
 
 
+def split_table(hub: Hub, table_id: str) -> tuple[str, str]:
+    """Seats a party and splits its check: two ACTIVE accounts on the same table (tables#12).
+    Answers (original, new) — the ids the runtime minted, not a guess at which one is which."""
+    hub.run("tables.sessions.open", {"table_id": table_id})
+    original = session_on(hub, table_id)["id"]
+    out = hub.run("tables.sessions.split", {"session_id": original})
+    new = (out.get("new_ids") or [None])[0]
+    if not isinstance(new, str) or not new:
+        raise AssertionError(f"tables.sessions.split did not answer new_ids[0]: {out}")
+    return original, new
+
+
+def test_transferring_one_half_of_a_split_table_keeps_it_occupied(hub: Hub) -> None:
+    print(
+        "\n9 · tables#118: moving ONE account of a split table leaves the other one seated — "
+        "the source table stays occupied"
+    )
+    source = create_table(hub)
+    target = create_table(hub)
+    moved, stays = split_table(hub, source)
+
+    hub.run(
+        "tables.sessions.transfer", {"session_id": moved, "target_table_id": target}
+    )
+
+    hub.check(
+        "the source table is still occupied: the other account is sitting there",
+        table_status(hub, source),
+        "occupied",
+    )
+    hub.check(
+        "the account left behind is still open",
+        session_by_id(hub, stays).get("status"),
+        "active",
+    )
+    hub.check(
+        "the destination holds the moved account", table_status(hub, target), "occupied"
+    )
+
+
+def test_merging_one_half_of_a_split_table_keeps_it_occupied(hub: Hub) -> None:
+    print(
+        "\n10 · tables#118: merging ONE account of a split table into another table leaves the "
+        "other one seated — the source table stays occupied"
+    )
+    source = create_table(hub)
+    target = create_table(hub)
+    merged, stays = split_table(hub, source)
+    hub.run("tables.sessions.open", {"table_id": target})
+
+    hub.run("tables.sessions.merge", {"session_id": merged, "target_table_id": target})
+
+    hub.check(
+        "the source table is still occupied: the other account is sitting there",
+        table_status(hub, source),
+        "occupied",
+    )
+    hub.check(
+        "the account left behind is still open",
+        session_by_id(hub, stays).get("status"),
+        "active",
+    )
+    hub.check(
+        "the merged account is retired",
+        session_by_id(hub, merged).get("status"),
+        "merged",
+    )
+
+
+def test_moving_the_only_account_still_frees_the_table(hub: Hub) -> None:
+    print(
+        "\n11 · tables#118 control: merging the ONLY account of a table still frees it "
+        "(the new guard does not keep empty tables occupied)"
+    )
+    source = create_table(hub)
+    target = create_table(hub)
+    hub.run("tables.sessions.open", {"table_id": source})
+    sid = session_on(hub, source)["id"]
+    hub.run("tables.sessions.open", {"table_id": target})
+
+    hub.run("tables.sessions.merge", {"session_id": sid, "target_table_id": target})
+
+    hub.check("the emptied table is free again", table_status(hub, source), "available")
+
+
 def main() -> int:
     hub = Hub("session_history.hub")
     print(
@@ -358,6 +443,9 @@ def main() -> int:
     test_parking_frees_the_table_without_closing_the_account(hub)
     test_restoring_a_parked_check_occupies_its_new_table(hub)
     test_a_parked_account_holds_no_table_at_all(hub)
+    test_transferring_one_half_of_a_split_table_keeps_it_occupied(hub)
+    test_merging_one_half_of_a_split_table_keeps_it_occupied(hub)
+    test_moving_the_only_account_still_frees_the_table(hub)
     return hub.finish(
         "the open-check life cycle behaves as ADR-0146 promises, against the real kernel"
     )
