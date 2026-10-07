@@ -18,7 +18,7 @@ Pantalla: ninguna
 Pasos:
 1. En Reservas, una reserva con mesa pasa de Pendiente a Confirmada (su «Confirmar» o el asistente). La mesa se le pone a la reserva con el asistente: las pantallas de Reservas no tienen campo de mesa.
 2. Mesas aparta esa mesa para la reserva desde su fecha y hora hasta que acaba su duración (120 minutos si no trae), con sus comensales y su nombre.
-3. Si la mesa estaba Disponible, pasa al momento a Reservada en el plano y en «Elegir mesa», con «Ana · 21:00»; en «Elegir mesa» un nombre largo se recorta con «…» y la hora no se corta nunca. Si estaba Ocupada o Bloqueada no se repinta, pero el nombre de la reserva sale igual sobre la mesa.
+3. Si la mesa estaba Disponible, pasa al momento a Reservada en el plano y en «Elegir mesa», con «Ana · 21:00»; en los dos, un nombre largo se recorta con «…» y la hora no se corta nunca. Si estaba Ocupada o Bloqueada no se repinta, pero el nombre de la reserva sale igual sobre la mesa.
 4. Una mesa puede tener varias reservas retenidas; el plano enseña la más temprana.
 Entra: de Reservas, el cambio de estado de la reserva con su mesa, fecha, hora, duración, comensales y nombre.
 Sale: la retención de la mesa (con el nombre y la ficha de cliente de la reserva, si la tiene) y la mesa Reservada. No avisa a nadie. Si la confirmación llega dos veces, sigue habiendo una sola retención.

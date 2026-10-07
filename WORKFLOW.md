@@ -67,7 +67,9 @@ móvil y se difumina por el borde cuando hay más zonas), un «+» («Añadir zo
 estado escrito con su icono y color (Disponible, Ocupada, Reservada, Bloqueada), el aforo («4 pax»)
 o, si está ocupada, los comensales y los minutos que llevan («3 pax · 35 min») y quién la atiende; si
 tiene una reserva retenida, el nombre y la hora de la reserva («Cliente borrado» si se borraron
-los datos de esa clienta, TABLES-F31). Las mesas redondas se pintan
+los datos de esa clienta, TABLES-F31) en una línea: un nombre que no cabe se recorta con «…» y la
+hora se ve siempre entera («Maximiliana F… · 20:00»); el nombre completo va en el título de la
+mesa. Las mesas redondas se pintan
 redondas; la rectangular se pinta igual que la cuadrada. Debajo, la ayuda «Arrastra para colocar ·
 clic en una mesa para editarla o borrarla. Los cambios se guardan al momento.».
 Tocar una mesa abre **Editar mesa** (Número, Aforo, Nombre (opcional), Forma, Estado, Zona; pie con

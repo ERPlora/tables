@@ -12,7 +12,9 @@ The visual editor of the room. Tables are boxes on a canvas, grouped by zone tab
   that way. Swiping up or down on an **empty part of the plan** scrolls the page (only a table
   answers to dragging), so the help line under the plan can always be read.
 - **Add a zone** or **add a table** from here.
-- The plan shows each table's live status by colour, including tables **held** for a booking.
+- The plan shows each table's live status by colour, including tables **held** for a booking. A
+  held table adds the booking's name and time («Ana · 21:00»): a long name is cut with «…», the
+  time is always shown whole (tables#129); the full name is in the table's tooltip.
 
 Viewing needs `tables.view_table`; moving a table needs `tables.change_table`.
 
