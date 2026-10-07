@@ -6328,7 +6328,11 @@ var ErpTablesPosZones = class extends i3 {
         if (sid) void this.closeSession(sid);
         return;
       }
-      void this.releaseOrder(orderId, sid, "tables.sessions.close");
+      void this.releaseOrder(
+        orderId,
+        sid,
+        (sessionId) => erplora3().command("tables.sessions.close", { session_id: sessionId })
+      );
     };
     this.onPosState = (e5) => {
       const detail = e5.detail;
@@ -6358,7 +6362,11 @@ var ErpTablesPosZones = class extends i3 {
     this.onOrderParked = async (e5) => {
       const orderId = e5.detail?.order_id;
       if (!orderId) return;
-      await this.releaseOrder(orderId, this.sessionId, "tables.sessions.park");
+      await this.releaseOrder(
+        orderId,
+        this.sessionId,
+        (sessionId) => erplora3().command("tables.sessions.park", { session_id: sessionId })
+      );
     };
     /** El TPV reanudó un pedido tras recargar → recupera SU mesa desde la junction (ADR-0144).
      *
@@ -6504,10 +6512,11 @@ var ErpTablesPosZones = class extends i3 {
     }
   `;
   }
-  /** Applies `command` (close/park) to the active account of `orderId` and drops the selection if
+  /** Applies `release` (close/park) to the active account of `orderId` and drops the selection if
    *  that order was the selected table's. An order with no table account (bar, counter) touches
-   *  nothing: the selection is the table Ventas is about to open. */
-  async releaseOrder(orderId, selectedSid, command) {
+   *  nothing: the selection is the table Ventas is about to open. `release` is a thunk so the
+   *  command name stays a literal at the SDK call (ADR-0127 contracts). */
+  async releaseOrder(orderId, selectedSid, release) {
     let accounts = [];
     try {
       accounts = rows2(
@@ -6519,7 +6528,7 @@ var ErpTablesPosZones = class extends i3 {
     const live = accounts.find((a3) => a3.status === "active")?.session_id;
     if (!live) return;
     try {
-      await erplora3().command(command, { session_id: live });
+      await release(live);
     } catch {
     }
     void this.refreshTables();

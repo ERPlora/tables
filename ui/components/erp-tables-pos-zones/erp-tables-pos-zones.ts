@@ -248,15 +248,17 @@ export class ErpTablesPosZones extends LitElement {
       if (sid) void this.closeSession(sid);
       return;
     }
-    void this.releaseOrder(orderId, sid, 'tables.sessions.close');
+    void this.releaseOrder(orderId, sid,
+      (sessionId) => erplora().command('tables.sessions.close', { session_id: sessionId }));
   };
 
-  /** Applies `command` (close/park) to the active account of `orderId` and drops the selection if
+  /** Applies `release` (close/park) to the active account of `orderId` and drops the selection if
    *  that order was the selected table's. An order with no table account (bar, counter) touches
-   *  nothing: the selection is the table Ventas is about to open. */
+   *  nothing: the selection is the table Ventas is about to open. `release` is a thunk so the
+   *  command name stays a literal at the SDK call (ADR-0127 contracts). */
   private async releaseOrder(
     orderId: string, selectedSid: string | undefined,
-    command: 'tables.sessions.close' | 'tables.sessions.park',
+    release: (sessionId: string) => Promise<unknown>,
   ): Promise<void> {
     let accounts: Array<{ session_id?: string; status?: string }> = [];
     try {
@@ -266,7 +268,7 @@ export class ErpTablesPosZones extends LitElement {
     if (!selectedSid || accounts.some((a) => a.session_id === selectedSid)) this.dropSelection(selectedSid);
     const live = accounts.find((a) => a.status === 'active')?.session_id;
     if (!live) return;
-    try { await erplora().command(command, { session_id: live }); }
+    try { await release(live); }
     catch { /* already closed or charged by another flow; it must not break the sale */ }
     void this.refreshTables();
   }
@@ -379,7 +381,8 @@ export class ErpTablesPosZones extends LitElement {
   private readonly onOrderParked = async (e: Event): Promise<void> => {
     const orderId = (e as CustomEvent<{ order_id?: string }>).detail?.order_id;
     if (!orderId) return;
-    await this.releaseOrder(orderId, this.sessionId, 'tables.sessions.park');
+    await this.releaseOrder(orderId, this.sessionId,
+      (sessionId) => erplora().command('tables.sessions.park', { session_id: sessionId }));
   };
 
   /** El TPV reanudó un pedido tras recargar → recupera SU mesa desde la junction (ADR-0144).
