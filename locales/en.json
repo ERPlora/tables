@@ -102,6 +102,7 @@
     "statusOccupied": "Occupied",
     "statusReserved": "Reserved",
     "reservedFor": "Reserved for {name}",
+    "erasedCustomer": "Deleted customer",
     "servedBy": "Served by {name}",
     "statusBlocked": "Blocked",
     "shapeSquare": "Square",

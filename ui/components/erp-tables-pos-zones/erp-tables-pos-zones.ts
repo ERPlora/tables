@@ -8,6 +8,7 @@ import enLocale from '../../../locales/en.json';
 import { domainMessage, errorCode } from '../../lib/domain-error';
 import { sortNaturallyBy } from '../../lib/natural-order';
 import { can } from '../../lib/permissions';
+import { holdName } from '../../lib/hold-name';
 const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
 
 // erp-tables-pos-zones — selector de MESA inyectado en la pantalla de venta (ADR-0043). El módulo
@@ -28,6 +29,8 @@ interface Table {
   // tables#12: retención viva de la mesa (`tables.tables.list`). Sin nombre ni hora, «Reservada»
   // es solo un color y el encargado no sabe si le da tiempo a sentar a alguien antes.
   reserved_for?: string | null;
+  // pm#637: whose hold it is; with no name, the customer was erased («Deleted customer»).
+  reserved_customer_id?: string | null;
   reserved_from?: string | null;
   reserved_until?: string | null;
   reserved_party_size?: number | null;
@@ -78,12 +81,12 @@ function hhmm(iso?: string | null): string {
 
 /** Tooltip de una mesa retenida: quién, cuántos y en qué franja. Lo que no cabe pintado en la
  *  celda sigue estando a un hover/long-press de distancia. */
-function holdTitle(t: { reserved_for?: string | null; reserved_from?: string | null;
-  reserved_until?: string | null; reserved_party_size?: number | null; }): string {
-  if (!t.reserved_for) return '';
+function holdTitle(t: { reserved_from?: string | null; reserved_until?: string | null;
+  reserved_party_size?: number | null; }, name: string): string {
+  if (!name) return '';
   const span = [hhmm(t.reserved_from), hhmm(t.reserved_until)].filter(Boolean).join('–');
   const pax = t.reserved_party_size ? ` (${t.reserved_party_size})` : '';
-  return `${t.reserved_for}${pax}${span ? ` · ${span}` : ''}`;
+  return `${name}${pax}${span ? ` · ${span}` : ''}`;
 }
 
 function rows<T>(r: unknown): T[] {
@@ -844,6 +847,7 @@ export class ErpTablesPosZones extends LitElement {
             // dependía de la red. Toast la saca del servicio con su propio estado («Block Table»);
             // aquí se apaga la celda y el motivo va en el título, además del estado que ya pinta.
             const outOfService = tb.status === 'blocked';
+            const holder = holdName(tb, t('ui.erasedCustomer'));
             return html`
             <div class="mesa-wrap">
               ${showKebab
@@ -853,7 +857,7 @@ export class ErpTablesPosZones extends LitElement {
                 : nothing}
               <button data-testid=${`tables-pos-table-${tb.id}`} class="mesa ${validTarget ? 'target' : ''}" aria-pressed=${this.selectedId === tb.id}
                 ?disabled=${outOfService || (inAction && !validTarget)}
-                title=${(outOfService ? t('ui.blockedHint') : holdTitle(tb)) || nothing}
+                title=${(outOfService ? t('ui.blockedHint') : holdTitle(tb, holder)) || nothing}
                 style=${`border-color:${STATUS_COLOR[tb.status] ?? '#d9d6cf'}`} @click=${() => this.pick(tb)}>
                 <div class="n">${tb.number}</div>
                 <div class="c">${t('ui.paxCount', { count: tb.capacity })}</div>
@@ -861,8 +865,8 @@ export class ErpTablesPosZones extends LitElement {
                   ? html`<div class="live"><ion-icon name="people-outline"></ion-icon>${t('ui.liveGuests', { count: tb.live_guests })}</div>`
                   : nothing}
                 <div class="s" style=${`color:${STATUS_COLOR[tb.status] ?? '#868e96'}`}>${t(STATUS_KEY[tb.status] ?? tb.status)}</div>
-                ${tb.reserved_for
-                  ? html`<div class="hold">${tb.reserved_for}${tb.reserved_from ? html` · ${hhmm(tb.reserved_from)}` : nothing}</div>`
+                ${holder
+                  ? html`<div class="hold">${holder}${tb.reserved_from ? html` · ${hhmm(tb.reserved_from)}` : nothing}</div>`
                   : nothing}
               </button>
             </div>`;

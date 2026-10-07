@@ -10,6 +10,7 @@ import enLocale from '../../../locales/en.json';
 import { domainMessage } from '../../lib/domain-error';
 import { sortNaturallyBy } from '../../lib/natural-order';
 import { ionTone } from '../../lib/ion-tone';
+import { holdName } from '../../lib/hold-name';
 const CATALOG: Record<string, unknown> = { es: esLocale, en: enLocale };
 
 // erp-tables-canvas — editor visual del PLANO DE SALA (la "estructura de la terraza"). Pantalla
@@ -30,6 +31,8 @@ interface Table {
   // «Reservada» existía desde el principio pero nunca se alcanzaba porque nadie escribía el estado;
   // ahora que se pinta, el plano dice además DE QUIÉN es y a qué hora.
   reserved_for?: string | null;
+  // pm#637: whose hold it is; with no name, the customer was erased («Deleted customer»).
+  reserved_customer_id?: string | null;
   reserved_from?: string | null;
   reserved_until?: string | null;
   reserved_party_size?: number | null;
@@ -597,6 +600,7 @@ export class ErpTablesCanvas extends LitElement {
   private tableName(tb: Table, t: (k: string, p?: Record<string, unknown>) => string): string {
     const zone = this.zones.find((z) => z.id === tb.zone_id)?.name;
     const waiter = this.waiterName(tb);
+    const holder = holdName(tb, t('ui.erasedCustomer'));
     return [
       t('ui.tableLabel', { number: tb.number }),
       zone,
@@ -604,7 +608,7 @@ export class ErpTablesCanvas extends LitElement {
       STATUS_KEY[tb.status] ? t(STATUS_KEY[tb.status]) : tb.status,
       this.liveLine(tb, t),
       waiter ? t('ui.servedBy', { name: waiter }) : '',
-      tb.reserved_for ? t('ui.reservedFor', { name: tb.reserved_for }) : '',
+      holder ? t('ui.reservedFor', { name: holder }) : '',
     ].filter(Boolean).join(' · ');
   }
 
@@ -855,6 +859,7 @@ export class ErpTablesCanvas extends LitElement {
           const statusLabel = STATUS_KEY[tb.status] ? t(STATUS_KEY[tb.status]) : tb.status;
           const live = this.liveLine(tb, t, true);
           const waiter = this.waiterName(tb);
+          const holder = holdName(tb, t('ui.erasedCustomer'));
           return html`
           <div class=${`mesa ${tb.shape === 'round' ? 'round' : ''} ${tb.id === this.dragId && this.dragMoved ? 'dragging' : ''}`}
             data-testid=${`tables-floor-tile-${tb.id}`}
@@ -866,16 +871,16 @@ export class ErpTablesCanvas extends LitElement {
               t('ui.tableTooltip', { status: statusLabel, count: tb.capacity }),
               live,
               waiter ? t('ui.servedBy', { name: waiter }) : '',
-              tb.reserved_for
-                ? `${t('ui.reservedFor', { name: tb.reserved_for })} ${[hhmm(tb.reserved_from), hhmm(tb.reserved_until)].filter(Boolean).join('–')}`.trim()
+              holder
+                ? `${t('ui.reservedFor', { name: holder })} ${[hhmm(tb.reserved_from), hhmm(tb.reserved_until)].filter(Boolean).join('–')}`.trim()
                 : '',
             ].filter(Boolean).join(' · ')}
             @pointerdown=${(e: PointerEvent) => this.onPointerDown(tb, e)}>
             <div class="n">${tb.number}</div>
             <div class="c">${live || t('ui.paxCount', { count: tb.capacity })}</div>
             ${waiter ? html`<div class="w">${waiter}</div>` : nothing}
-            ${tb.reserved_for
-              ? html`<div class="hold">${tb.reserved_for}${tb.reserved_from ? ` · ${hhmm(tb.reserved_from)}` : ''}</div>`
+            ${holder
+              ? html`<div class="hold">${holder}${tb.reserved_from ? ` · ${hhmm(tb.reserved_from)}` : ''}</div>`
               : nothing}
             <div class="s" style=${`color:${STATUS_COLOR[tb.status] ?? '#868e96'}`}>
               <ion-icon name=${STATUS_ICON[tb.status]?.icon ?? 'help-circle-outline'} aria-hidden="true"></ion-icon>${statusLabel}
