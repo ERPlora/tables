@@ -2401,10 +2401,14 @@ var ErpTablesCanvas = class extends i3 {
     .mesa .s { display:inline-flex; align-items:center; justify-content:center; gap:.12rem;
       font-size:.55rem; font-weight:700; }
     .mesa .s ion-icon { font-size:.7rem; flex:none; }
-    /* Nombre y hora de la reserva. Es lo que convierte el color ambar en informacion util:
-       sin esto el encargado ve «reservada» y no sabe si le da tiempo a sentar a alguien. */
-    .mesa .hold { font-size:.62rem; color:var(--ion-color-warning,#f08c00); font-weight:600;
-      max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    /* Name and time of the reservation: what turns the amber colour into useful information —
+       without it the manager sees «reserved» and not whether there is time to seat someone.
+       tables#129 (as «Choose table», tables#126): one row, truncated title + fixed tail (as
+       ok-data-table's card head) — a long name shrinks with an ellipsis, the time never does. */
+    .mesa .hold { display:flex; justify-content:center; gap:.2em; min-width:0; max-width:100%;
+      font-size:.62rem; color:var(--ion-color-warning,#f08c00); font-weight:600; white-space:nowrap; }
+    .mesa .hold-name { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+    .mesa .hold-time { flex:none; }
     .hint { color:#8b897f; font-size:.85rem; margin:.5rem 0 0; }
     .err { color:#d9480f; font-weight:600; }
     .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#8b897f; text-align:center; padding:1rem; }
@@ -2885,7 +2889,7 @@ var ErpTablesCanvas = class extends i3 {
             <div class="n">${tb.number}</div>
             <div class="c">${live || t5("ui.paxCount", { count: tb.capacity })}</div>
             ${waiter ? b2`<div class="w">${waiter}</div>` : A}
-            ${holder ? b2`<div class="hold">${holder}${tb.reserved_from ? ` \xB7 ${hhmm(tb.reserved_from)}` : ""}</div>` : A}
+            ${holder ? b2`<div class="hold"><span class="hold-name">${holder}</span>${tb.reserved_from ? b2` <span class="hold-time">· ${hhmm(tb.reserved_from)}</span>` : A}</div>` : A}
             <div class="s" style=${`color:${STATUS_COLOR[tb.status] ?? "#868e96"}`}>
               <ion-icon name=${STATUS_ICON[tb.status]?.icon ?? "help-circle-outline"} aria-hidden="true"></ion-icon>${statusLabel}
             </div>
