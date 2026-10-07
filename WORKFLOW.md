@@ -113,9 +113,9 @@ cuenta; no cuando la cierra un cobro o una anulación.
 
 ### Ajustes
 Menú **Mesas → Ajustes** (la pestaña la pone el hub). Título «Mesas» y tres campos: «Preguntar los
-comensales al sentar una mesa», «Aviso ámbar (minutos)» y «Aviso rojo (minutos)», y «Guardar». Solo el
-administrador puede cambiarlos; los demás los ven y leen «Solo un administrador puede cambiar estos
-ajustes.».
+comensales al sentar una mesa», «Aviso ámbar (minutos)» y «Aviso rojo (minutos)», y «Guardar». Solo la ve
+quien tiene el permiso de cambiarlos (`tables.manage_settings`; de fábrica, solo el administrador):
+a los demás el hub no les enseña la pestaña (HUB_SHELL-F43, hub#2588).
 
 ### Elegir mesa (en el TPV)
 En **Ventas → Vender**, el botón de mesa de la cabecera de la cuenta («Asignar mesa»; se colorea

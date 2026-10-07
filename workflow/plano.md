@@ -119,6 +119,6 @@ Pasos:
 4. Desmarcado, en «Elegir mesa» del TPV tocar una mesa libre la abre de un toque con su aforo (con los comensales de la reserva si estaba Reservada). En **Sesiones**, el tiempo de una cuenta abierta se pone ámbar y rojo a partir de esos minutos. Sin guardar nunca: se pregunta, 60 y 90 minutos.
 Entra: los tres valores.
 Sale: los ajustes de sala del hub (avisa: tables.settings.updated); Sesiones los relee al momento y el TPV al abrir la ventana.
-Si falla: un valor fuera de rango no se guarda; quien no es administrador ve «Solo un administrador puede cambiar estos ajustes.». No se comprueba que el rojo sea mayor que el ámbar.
+Si falla: un valor fuera de rango no se guarda; sin el permiso de ajustes (de fábrica, solo el administrador lo tiene) el hub no enseña la pestaña (HUB_SHELL-F43, hub#2588). No se comprueba que el rojo sea mayor que el ámbar.
 Implicados: REC_RESTAURANTE-F02
 QA: ninguno
