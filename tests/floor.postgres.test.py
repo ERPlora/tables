@@ -587,6 +587,69 @@ def test_transfer_repoints_the_order():
     check("table 5 is free at last", "available", table_status("t5"))
 
 
+
+def test_another_hubs_account_never_holds_our_table():
+    """tables#118 tenancy: «does another account still sit at this table?» is asked of THIS hub
+    only. A foreign hub's live row naming our table id (corrupt or hostile data) must not keep our
+    table occupied after its only account moves out — by transfer or by merge."""
+    print("\n== 2b. tables#118: another hub's account never holds our table ==")
+    for tid, number in [("t30", "30"), ("t31", "31"), ("t32", "32")]:
+        psql(
+            [
+                "-c",
+                (
+                    f"INSERT INTO tables_table (id, hub_id, zone_id, number, name, capacity, shape, "
+                    f"status, is_active, position_x, position_y, width, height, is_deleted, created_at) "
+                    f"VALUES ('{tid}', '{HUB}', 'z1', '{number}', '', 4, 'square', 'available', 1, "
+                    f"0, 0, 10, 10, 0, '2026-08-07T09:00:00+00:00')"
+                ),
+            ],
+            db=DB,
+        )
+    for sid, tid in [("s-foreign-30", "t30"), ("s-foreign-31", "t31")]:
+        psql(
+            [
+                "-c",
+                (
+                    f"INSERT INTO tables_session (id, hub_id, table_id, opened_at, guests_count, "
+                    f"status, notes, is_deleted, created_at) VALUES ('{sid}', 'hub-other', "
+                    f"'{tid}', '2026-08-07T12:00:00+00:00', 2, 'active', '', 0, "
+                    f"'2026-08-07T12:00:00+00:00')"
+                ),
+            ],
+            db=DB,
+        )
+
+    command_ok(
+        "our party sits at table 30",
+        "tables._session_open",
+        {"session_id": "s30", "table_id": "t30", "guests_count": 2, "waiter_id": None,
+         "notes": "", "order_id": "O30"},
+        "2026-08-07T13:00:00+00:00",
+    )
+    command_ok(
+        "and moves to table 32",
+        "tables._session_transfer",
+        {"session_id": "s30", "target_table_id": "t32", "new_session_id": "s32"},
+        "2026-08-07T13:10:00+00:00",
+    )
+    check("table 30 is free: the foreign row does not count", "available", table_status("t30"))
+
+    command_ok(
+        "our party sits at table 31",
+        "tables._session_open",
+        {"session_id": "s31", "table_id": "t31", "guests_count": 2, "waiter_id": None,
+         "notes": "", "order_id": "O31"},
+        "2026-08-07T13:20:00+00:00",
+    )
+    command_ok(
+        "and joins table 32",
+        "tables._session_merge",
+        {"session_id": "s31", "target_table_id": "t32"},
+        "2026-08-07T13:30:00+00:00",
+    )
+    check("table 31 is free: the foreign row does not count", "available", table_status("t31"))
+
 # ── 3. Splitting and merging exist and keep the check ────────────────────────────────────
 
 
@@ -1074,6 +1137,7 @@ def main() -> int:
 
         test_reservation_marks_the_table()
         test_transfer_repoints_the_order()
+        test_another_hubs_account_never_holds_our_table()
         test_split_and_merge_keep_the_check()
         test_guests_count_is_visible_and_correctable()
         test_plan_projects_who_serves_and_since_when()

@@ -27,8 +27,8 @@ Tables owns the room; `sales` owns the lines and the money. So the work is divid
 
 | Action | Tables does | Sales does |
 |---|---|---|
-| **Split** | Opens the second live session, linked to the first, **with no order** | Creates the new order and attaches it to that session |
-| **Merge, one order** | Frees the source table; the survivor **adopts** the order | Nothing |
+| **Split** | Opens the second live session, linked to the first, **with no order**; the POS keeps the new one in front, and charging or deleting a check closes only its own session | Creates the new order and attaches it to that session |
+| **Merge, one order** | Frees the source table (unless another check is still seated there); the survivor **adopts** the order | Nothing |
 | **Merge, both have orders** | Frees the room and reports **both** order references | Moves the lines from one order to the other |
 
 Tables cannot merge two orders because it does not know the lines. This is not a limitation to work

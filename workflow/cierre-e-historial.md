@@ -5,13 +5,13 @@ Prefijo: TABLES
 ## Flujos
 
 ### TABLES-F18 Liberar la mesa al cobrar la cuenta entera
-Estado: parcial — con la mesa dividida, cobrar entera desde el TPV la cuenta nueva cierra también la cuenta de mesa que el TPV recordaba y libera esa mesa con la otra cuenta todavía abierta en Ventas (TABLES-F17, leído en el código, sin ejecutar)
+Estado: hecho
 Actor: sistema
 Pantalla: Ventas: Cobro
 Pasos:
 1. En Ventas se cobra la cuenta de una mesa.
 2. Mesas apunta lo cobrado en esa cuenta de mesa (sale en «Cobrado» de **Sesiones**), también en cada cobro parcial.
-3. Si se cobró la cuenta entera, Mesas cierra su cuenta de mesa y deja la mesa Disponible si no le queda otra cuenta abierta. El TPV que cobra también pide cerrar la cuenta de mesa que recordaba como «de delante»; en una mesa sin dividir es la misma, pero tras dividir puede ser otra (la original o la de otra mesa) y entonces se cierra también, y su mesa se libera con su cuenta abierta en Ventas (TABLES-F17).
+3. Si se cobró la cuenta entera, Mesas cierra su cuenta de mesa y deja la mesa Disponible si no le queda otra cuenta abierta. El TPV que cobra pide también cerrar la cuenta de mesa de ese mismo pedido, nunca otra: en una mesa dividida la otra cuenta sigue sentada y la mesa, Ocupada (TABLES-F17).
 4. Con un cobro parcial la cuenta sigue abierta y la mesa, Ocupada.
 Entra: de Ventas, cada venta cobrada (su pedido y su importe en céntimos) y el fin de la cuenta cuando se cobra entera.
 Sale: lo cobrado apuntado una sola vez por venta; la cuenta de mesa «Cerrada» con su hora; la mesa Disponible. El cierre que llega por el cobro no avisa a nadie; solo avisa (tables.session.closed) si lo hace antes el TPV que tenía la mesa delante (el orden entre los dos no está garantizado). Una venta sin mesa (barra, para llevar) no deja nada.

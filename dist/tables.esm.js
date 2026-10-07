@@ -6313,19 +6313,30 @@ var ErpTablesPosZones = class extends i3 {
      *  seating a free table opens the check with the capacity in ONE tap (Lightspeed "Cover count
      *  prompt", Square "Track seating" are toggles too). Default on. */
     this.promptGuests = true;
-    // Tras cobrar, el POS dispara este reset: la mesa queda pagada → cerramos su sesión (la libera).
+    /** Ventas charged the check in full or deleted it → close the account of THAT order (frees its
+     *  table if nothing else sits there). tables#118: never the remembered `sessionId` — after a split
+     *  Ventas shows the new check, and with a bar check in front the selection is the table being
+     *  opened; closing the remembered one freed a table with people sitting. */
     this.onReset = () => {
       const sid = this.sessionId;
-      this.selectedId = void 0;
-      this.selectedLabel = "";
-      this.sessionId = void 0;
+      const orderId = this.frontOrderId;
       this.mode = "select";
       this.actionSource = void 0;
       this.guestsPrompt = void 0;
-      if (sid) void this.closeSession(sid);
+      if (!orderId) {
+        this.dropSelection(sid);
+        if (sid) void this.closeSession(sid);
+        return;
+      }
+      void this.releaseOrder(
+        orderId,
+        sid,
+        (sessionId) => erplora3().command("tables.sessions.close", { session_id: sessionId })
+      );
     };
     this.onPosState = (e5) => {
       const detail = e5.detail;
+      this.frontOrderId = detail?.order_id || void 0;
       const value = Number(detail?.pending_count ?? 0);
       this.pendingCount = Number.isFinite(value) ? Math.max(0, value) : 0;
       this.kitchenEnabled = detail?.kitchen_enabled === true;
@@ -6339,10 +6350,6 @@ var ErpTablesPosZones = class extends i3 {
     // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template se re-evalúan
     // con el nuevo `erplora.locale`.
     this.onLocaleChange = () => this.requestUpdate();
-    /** El TPV aparcó la cuenta → esta mesa se suelta, pero la cuenta sigue viva (ADR-0146).
-     *
-     *  La sesión pasa a `parked` conservando comensales, camarero y desde cuándo se atiende; su tramo
-     *  de historial se cierra con motivo `parked`, y la mesa queda libre para otros. */
     /** El TPV suelta la cuenta DE LA PANTALLA («Dejar en la mesa»): se limpia SOLO la selección
      *  local — ni park ni close. La mesa sigue ocupada con su cuenta, recuperable tocándola. */
     this.onOrderDetached = () => {
@@ -6350,17 +6357,16 @@ var ErpTablesPosZones = class extends i3 {
       this.selectedId = void 0;
       this.selectedLabel = "";
     };
-    this.onOrderParked = async () => {
-      if (!this.sessionId) return;
-      const sid = this.sessionId;
-      this.sessionId = void 0;
-      this.selectedId = void 0;
-      this.selectedLabel = "";
-      try {
-        await erplora3().command("tables.sessions.park", { session_id: sid });
-      } catch {
-      }
-      void this.refreshTables();
+    /** Ventas parked a check → park the account of THAT order (tables#118: not the remembered one;
+     *  a parked bar check leaves the table being opened alone). Parking must not break the sale. */
+    this.onOrderParked = async (e5) => {
+      const orderId = e5.detail?.order_id;
+      if (!orderId) return;
+      await this.releaseOrder(
+        orderId,
+        this.sessionId,
+        (sessionId) => erplora3().command("tables.sessions.park", { session_id: sessionId })
+      );
     };
     /** El TPV reanudó un pedido tras recargar → recupera SU mesa desde la junction (ADR-0144).
      *
@@ -6505,6 +6511,34 @@ var ErpTablesPosZones = class extends i3 {
       --background-focused: var(--ion-color-danger, #c5000f);
     }
   `;
+  }
+  /** Applies `release` (close/park) to the active account of `orderId` and drops the selection if
+   *  that order was the selected table's. An order with no table account (bar, counter) touches
+   *  nothing: the selection is the table Ventas is about to open. `release` is a thunk so the
+   *  command name stays a literal at the SDK call (ADR-0127 contracts). */
+  async releaseOrder(orderId, selectedSid, release) {
+    let accounts = [];
+    try {
+      accounts = rows2(
+        await erplora3().query("tables.sessions.by_order", { order_id: orderId })
+      );
+    } catch {
+    }
+    if (!selectedSid || accounts.some((a3) => a3.session_id === selectedSid)) this.dropSelection(selectedSid);
+    const live = accounts.find((a3) => a3.status === "active")?.session_id;
+    if (!live) return;
+    try {
+      await release(live);
+    } catch {
+    }
+    void this.refreshTables();
+  }
+  /** Forgets the selected table, unless another one was selected meanwhile. */
+  dropSelection(sid) {
+    if (this.sessionId !== sid) return;
+    this.sessionId = void 0;
+    this.selectedId = void 0;
+    this.selectedLabel = "";
   }
   /** With kitchen on, the check cannot change table until its order is sent (sales only shares
    *  the count, never the lines). */
@@ -6768,6 +6802,12 @@ var ErpTablesPosZones = class extends i3 {
         bubbles: true,
         composed: true
       }));
+      const newSid = res?.new_ids?.[0];
+      if (newSid) {
+        this.sessionId = newSid;
+        this.selectedId = src.id;
+        this.selectedLabel = erplora3().t(CATALOG3, "ui.tableLabel", { number: src.number });
+      }
       this.mode = "select";
       this.actionSource = void 0;
       this.open = false;
