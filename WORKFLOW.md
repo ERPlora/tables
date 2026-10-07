@@ -139,8 +139,8 @@ dentro de la ventana, en rojo; un fallo al cargar no se avisa y la rejilla sale 
 | Pieza compartida | Flujos que la usan |
 |---|---|
 | Sentar gasta la retención de la mesa (cualquier reserva retenida en esa mesa) | TABLES-F10, TABLES-F15, TABLES-F17, TABLES-F24, TABLES-F28 |
-| Liberar la mesa solo si no le queda ninguna cuenta abierta | TABLES-F13, TABLES-F15, TABLES-F16, TABLES-F18, TABLES-F19, TABLES-F21 |
-| Cerrar las cuentas de un pedido por su pedido (cobro entero y anulación de un cobro) | TABLES-F18, TABLES-F19 |
+| Liberar la mesa solo si no le queda ninguna cuenta abierta | TABLES-F13, TABLES-F15, TABLES-F16, TABLES-F18, TABLES-F21 |
+| Cerrar las cuentas de un pedido por su pedido (solo al cobrarlo entero; anular un cobro no cierra nada) | TABLES-F18, TABLES-F19 |
 | La ventana «Elegir mesa» y su bloqueo por productos sin enviar | TABLES-F10, TABLES-F11, TABLES-F12, TABLES-F13 |
 | La cuenta de mesa del pedido que Ventas suelta (se cierra al cobrarlo entero o eliminarlo, se aparca al aparcarlo; nunca otra) | TABLES-F11, TABLES-F13, TABLES-F17, TABLES-F18 |
 | Devolver al plano una mesa Reservada sin reserva viva ni gente | TABLES-F26, TABLES-F27, TABLES-F29, TABLES-F30 |
@@ -170,7 +170,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | TABLES-F16 | Juntar las cuentas de dos mesas ocupadas (fusionar) | parcial | [workflow/servicio.md](workflow/servicio.md) |
 | TABLES-F17 | Dividir la cuenta de una mesa | parcial | [workflow/servicio.md](workflow/servicio.md) |
 | TABLES-F18 | Liberar la mesa al cobrar la cuenta entera | hecho | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
-| TABLES-F19 | Anular un cobro de una mesa | parcial | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
+| TABLES-F19 | Anular un cobro de una mesa | hecho | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
 | TABLES-F20 | Eliminar en Ventas la cuenta abierta de una mesa | no hecho | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
 | TABLES-F21 | Cerrar una mesa a mano | parcial | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
 | TABLES-F22 | Consultar las cuentas de la sala (abiertas y cerradas) | hecho | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
@@ -208,7 +208,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | Tiempo en mesa con color ámbar y rojo | hecho en Sesiones; en el plano, sin color | F08, F22 |
 | La mesa se libera sola al cobrar la cuenta entera | hecho (con la mesa dividida, solo cuando se cobra la última cuenta) | F18, F17 |
 | Un cobro parcial no libera la mesa | hecho | F18 |
-| Anular un cobro no rompe la mesa | parcial: anular un cobro parcial libera la mesa con la cuenta abierta | F19 |
+| Anular un cobro no rompe la mesa | hecho | F19 |
 | Eliminar la cuenta libera la mesa | no hecho | F20 |
 | Cuentas cerradas con su importe | hecho | F22 |
 | Reserva confirmada visible en su mesa | parcial: se pinta desde que se confirma, no cerca de su hora; la mesa solo se pone a la reserva con el asistente | F25 |
@@ -319,7 +319,7 @@ Contra `origin/main` v2.2.57 (05/10/2026). Una línea por discrepancia; manda el
 - **`docs/limits.md`** y `docs/concepts.md`: «si las dos mesas tenían pedido, termina la unión en el TPV»; el TPV junta las líneas solo (F16).
 - **`docs/screens.md`**: Zonas «ordenada por nombre» (va por Orden); «crear mesa» en Mesas con nombre y forma (el panel solo pide Número, Aforo y Zona); dividir «en la misma mesa o en otra» (la pantalla solo en la misma) (F01, F02, F17).
 - **`docs/screens.md`** y `docs/limits.md`: el empleado «restaura, retiene y suelta» mesas; no hay pantalla para nada de eso (F24, F30).
-- **`docs/overview.md`**: la tabla de avisos que escucha omite el cobro de una venta y los dos avisos de Reservas (F18, F25).
+- **`docs/overview.md`**: la tabla de avisos que escucha omite los dos avisos de Reservas (F25).
 - **Manual (`hand-book/modulos/tables.md`)**: la pestaña se llama «Plano» (es «Plano de sala»); se sienta «en el plano o en el TPV» (solo en el TPV); al sentar se indican «camarero y nota» (solo comensales); se crean mesas «en bloque», se «restaura» una cuenta y se suelta «manualmente» una retención (ninguna con pantalla); el botón es «Unir» (es «Fusionar») y hay que «completar la unión en el TPV» (es automática) (F07, F10, F16, F24, F30).
 - **Texto de ayuda del buscador de Mesas** («Buscar mesa o zona…»): no encuentra por zona, busca por número y nombre (pantalla Mesas).
 - **Texto del ajuste** «Desactivado: sentar una mesa libre abre la cuenta con el aforo de la mesa»: en una mesa reservada la abre con los comensales de la reserva (F08).

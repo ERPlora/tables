@@ -34,7 +34,7 @@ versión instalada y cita la de TU versión, no la de la última publicada. En i
 | command | `tables.sessions.close` / `.split` (WASM) · `.park` / `.restore` | `change_tablesession` |
 | command | `tables.sessions.transfer` / `.merge` (WASM) | `transfer_tablesession` (tables#66) |
 | command | `tables.tables.hold` / `.release_hold` / `.expire_holds` | `change_tablesession` |
-| escucha | `order.completed` · `sale.voided` → `_session_close_by_order` | — |
+| escucha | `order.completed` → `_session_close_by_order` · `sale.completed` → `_order_record_sale` · `sale.voided` → `_order_sale_voided` (solo deja de contar el cobro; no cierra la cuenta, tables#121) | — |
 | tarea | `expire_table_holds` — `*/15 * * * *` (un no-show no mata la mesa) | — |
 | slot | `sales.pos.assign` → `erp-tables-pos-zones` (prioridad 100) | `view_table` |
 

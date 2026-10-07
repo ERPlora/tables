@@ -1,10 +1,12 @@
--- ADR-0146: cierra la sesión enlazada a un pedido que acaba de terminar (cobrado o anulado).
+-- ADR-0146: closes the session linked to an order that has just been charged in full
+-- (`order.completed`).
 --
--- Antes alguien tenía que acordarse de cerrar la sesión a mano y, cuando no lo hacía, la mesa se
--- quedaba ocupada para siempre. Ahora lo dispara el propio pedido: `tables` escucha el fin del
--- PEDIDO —no el de la venta, que también ocurre en un cobro parcial— y suelta lo suyo.
+-- Before, somebody had to remember to close the session by hand and, when nobody did, the table
+-- stayed occupied forever. Now the order itself triggers it: `tables` listens for the end of the
+-- ORDER —not of a sale, which also happens on a partial charge— and lets go of what is its own.
+-- tables#121: voiding a sale does not run this either; the void leaves the order open in `sales`.
 --
--- Idempotente: el relay puede reentregar; si la sesión ya está cerrada, no toca ninguna fila.
+-- Idempotent: the relay can redeliver; if the session is already closed, no row is touched.
 UPDATE tables_session SET
     status     = 'closed',
     closed_at  = :now,

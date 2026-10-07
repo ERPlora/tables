@@ -173,17 +173,103 @@ def test_a_check_says_what_it_charged():
     check("the CLOSED check still says what it charged", 3850, paid("sa"))
 
 
+def open_segments(session_id: str) -> str:
+    """How many history segments of the check are still open — the seated party's own record."""
+    return harness.q(
+        f"SELECT count(*) FROM tables_session_assignment WHERE hub_id = '{HUB}' "
+        f"AND session_id = '{session_id}' AND released_at IS NULL AND is_deleted = 0"
+    )
+
+
 def test_a_voided_sale_is_not_charged():
-    print("\n== an annulled sale stops counting (sale.voided) ==")
+    print(
+        "\n== an annulled PARTIAL charge stops counting and the party stays seated (tables#121) =="
+    )
     seat(HUB, "sb", "t2a", "o-b")
     sale_completed(HUB, "sale-3", "o-b", 900, "a partial charge")
-    sale_completed(HUB, "sale-4", "o-b", 1100, "the rest")
+    sale_completed(HUB, "sale-4", "o-b", 1100, "another partial charge")
+    # No `order.completed`: the order is still open in sales, the rest is still to be charged.
     sale_voided(HUB, "sale-4", "o-b", 1100, "the second sale is voided")
     check("the voided sale no longer counts", 900, paid("sb"))
     sale_voided(HUB, "sale-4", "o-b", 1100, "the relay redelivers the void")
     check("a redelivered void is applied once", 900, paid("sb"))
-    # The void chain keeps doing what `sale.voided` always did here (ADR-0146): end the check.
-    check("voiding still closes the check", "closed", harness.session_status("sb"))
+    # tables#121: a void does not end the order (sales leaves it open), so it cannot end the check.
+    check("the check is still open", "active", harness.session_status("sb"))
+    check("its table is still occupied", "occupied", harness.table_status("t2a"))
+    check("its history segment is still open", "1", open_segments("sb"))
+
+    sale_completed(HUB, "sale-11", "o-b", 1100, "the rest is charged again")
+    command_ok(
+        "the order ends: the check closes",
+        listener("order.completed"),
+        {"hub_id": HUB, "sender": "sales", "order_id": "o-b"},
+        AT,
+    )
+    check("now the check is closed", "closed", harness.session_status("sb"))
+    check("and its table is free", "available", harness.table_status("t2a"))
+    check("the closed check says what it really charged", 2000, paid("sb"))
+
+
+def test_voiding_a_sale_of_a_finished_check_leaves_the_next_party_alone():
+    print(
+        "\n== voiding the sale of a check already closed touches no seated party (tables#121) =="
+    )
+    seat(HUB, "sd", "t2a", "o-d")
+    sale_completed(HUB, "sale-12", "o-d", 1800, "half of the check is charged")
+    sale_completed(HUB, "sale-13", "o-d", 700, "the rest of the check is charged")
+    command_ok(
+        "the order ends: the check closes",
+        listener("order.completed"),
+        {"hub_id": HUB, "sender": "sales", "order_id": "o-d"},
+        AT,
+    )
+    seat(HUB, "se", "t2a", "o-e")
+    sale_voided(HUB, "sale-12", "o-d", 1800, "the old check's sale is voided")
+    check("the old closed check no longer counts it", 700, paid("sd"))
+    check("the old check stays closed", "closed", harness.session_status("sd"))
+    check("the new party's check is still open", "active", harness.session_status("se"))
+    check(
+        "the table stays occupied by the new party",
+        "occupied",
+        harness.table_status("t2a"),
+    )
+    check("the new party's history segment is still open", "1", open_segments("se"))
+    command_ok(
+        "the new party pays and leaves",
+        listener("order.completed"),
+        {"hub_id": HUB, "sender": "sales", "order_id": "o-e"},
+        AT,
+    )
+
+    # TABLES-F05: the manager can mark a table Occupied by hand, with no check on it. A void of a
+    # check that ended long ago is not the floor's business: it must not free that table either.
+    def mark_table(status: str) -> None:
+        command_ok(
+            f"the manager marks t2a {status} by hand",
+            "tables.tables.update",
+            {
+                "hub_id": HUB,
+                "table_id": "t2a",
+                "number": "2",
+                "name": "",
+                "capacity": 4,
+                "zone_id": "za",
+                "shape": "square",
+                "status": status,
+                "is_active": 1,
+            },
+            AT,
+        )
+
+    mark_table("occupied")
+    sale_voided(HUB, "sale-13", "o-d", 700, "the old check's other sale is voided")
+    check("nothing live is left on the old check", None, paid("sd"))
+    check(
+        "the table the manager marked Occupied stays occupied",
+        "occupied",
+        harness.table_status("t2a"),
+    )
+    mark_table("available")
 
 
 def test_sales_that_are_not_a_table_check_leave_no_trace():
@@ -263,7 +349,7 @@ def test_the_owner_can_sort_checks_by_amount():
     )
     check(
         "closed and open checks with a charge, biggest first",
-        [("sc", 4000), ("sa", 3850), ("sb", 900)],
+        [("sc", 4000), ("sa", 3850), ("sb", 2000)],
         [(r["id"], r["paid_total"]) for r in rows],
     )
 
@@ -291,6 +377,7 @@ def main() -> int:
 
         test_a_check_says_what_it_charged()
         test_a_voided_sale_is_not_charged()
+        test_voiding_a_sale_of_a_finished_check_leaves_the_next_party_alone()
         test_sales_that_are_not_a_table_check_leave_no_trace()
         test_one_hub_never_sees_the_money_of_another()
         test_the_owner_can_sort_checks_by_amount()

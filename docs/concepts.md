@@ -49,7 +49,9 @@ The table is freed when the **order** completes, not when money is taken. A part
 the order open, so no `order.completed` is emitted and the party keeps its table. That is the correct
 behaviour, and it is why the split-bill flow does not eject people who paid first.
 
-Voiding a sale also closes the session and frees the table.
+Voiding a sale does **not** close the session nor free the table: the void leaves the order open in
+`sales`, so after voiding a partial charge the party is still seated with the rest to pay. The
+voided amount stops counting on the check, and the check closes when the order is charged in full.
 
 ## What a check charged comes from `sales`' events
 

@@ -785,7 +785,7 @@
         "commands/_table_free_by_order.sql"
       ],
       "ai": {
-        "description": "Internal: closes the table session (and its history segment) when its order ends — paid or voided (ADR-0146). Listener target, not called directly."
+        "description": "Internal: closes the table session (and its history segment) when its order is charged in full (order.completed, ADR-0146). Voiding a sale does not run it (tables#121). Listener target, not called directly."
       }
     },
     "tables._order_record_sale": {
@@ -802,13 +802,10 @@
       "permission": "tables.change_tablesession",
       "transaction": true,
       "sql": [
-        "commands/_order_void_sale.sql",
-        "commands/_session_close_by_order.sql",
-        "commands/_assignment_release_by_order.sql",
-        "commands/_table_free_by_order.sql"
+        "commands/_order_void_sale.sql"
       ],
       "ai": {
-        "description": "Internal: an annulled sale stops counting on its check and, as before, the check linked to its order closes and frees its table (ADR-0146, tables#96). Listener target of sale.voided, not called directly."
+        "description": "Internal: an annulled sale stops counting on its check (tables#96). It never closes the check nor frees its table: a void leaves the order open in sales, so after voiding a partial charge the party is still seated with the rest to pay; the check closes when its order is charged in full (order.completed, tables#121). Listener target of sale.voided, not called directly."
       }
     },
     "tables.sessions.park": {

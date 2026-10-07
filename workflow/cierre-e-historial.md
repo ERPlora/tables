@@ -20,16 +20,16 @@ Implicados: FLOWS-F13, SALES-F01, SALES-F22, REC_RESTAURANTE-F10, REC_RESTAURANT
 QA: R-09, R-10, qa-hub-restaurant §09
 
 ### TABLES-F19 Anular un cobro de una mesa
-Estado: parcial — anular un cobro parcial cierra la cuenta de mesa y libera la mesa aunque la cuenta siga abierta en Ventas, que se queda sin mesa
+Estado: hecho
 Actor: sistema
 Pantalla: Ventas: Ventas
 Pasos:
 1. En Ventas, un responsable anula una venta cobrada que era de una mesa.
 2. Mesas deja de contarla en «Cobrado».
-3. Si la cuenta de mesa de ese pedido seguía abierta (era un cobro parcial), Mesas la cierra y deja la mesa Disponible si no le queda otra cuenta, aunque en Ventas la cuenta siga abierta con lo que falta por cobrar.
+3. La cuenta de mesa y la mesa no cambian: anular una venta no termina la cuenta en Ventas. Si era un cobro parcial, la cuenta sigue abierta en su mesa, la mesa sigue Ocupada y la cuenta se retoma tocando la mesa en «Elegir mesa»; se cierra cuando se cobra entera (TABLES-F18). Si la cuenta ya se había cobrado entera, ya estaba cerrada y sigue cerrada, y la mesa no se toca aunque ya haya otro grupo sentado.
 Entra: de Ventas, la venta anulada con su pedido.
-Sale: el cobro marcado como anulado; la cuenta de mesa cerrada y la mesa libre. No avisa a nadie.
-Si falla: como TABLES-F18. La cuenta que sigue abierta en Ventas se retoma desde **Cuentas abiertas**, sin mesa.
+Sale: el cobro marcado como anulado («Cobrado» baja, o sale «—» si no queda ningún cobro vivo). No avisa a nadie.
+Si falla: como TABLES-F18.
 Implicados: SALES-F30, REC_RESTAURANTE-F15
 QA: R-11, qa-hub-restaurant §13
 

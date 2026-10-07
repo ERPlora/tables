@@ -46,11 +46,13 @@ be installed without dragging anything with it.
 | Event | Runs | Effect |
 |---|---|---|
 | `order.completed` (from `sales`) | `tables._session_close_by_order` | Closes the session and frees the table |
-| `sale.voided` (from `sales`) | `tables._session_close_by_order` | Same, when the sale is cancelled |
+| `sale.completed` (from `sales`) | `tables._order_record_sale` | Records what the sale charged on its check |
+| `sale.voided` (from `sales`) | `tables._order_sale_voided` | The voided sale stops counting on its check; the check stays open and the table occupied, because the order is still open in `sales` |
 | `customer.anonymized` (from `customers`) | `tables._on_customer_anonymized` | Empties the guest name of every hold of that customer; the table stays reserved |
 
 Both work through the opaque order reference. Note that **charging part of a bill does not emit
-`order.completed`**, so a partial payment correctly leaves the table occupied.
+`order.completed`**, so a partial payment correctly leaves the table occupied — and so does voiding
+that partial payment: the rest of the check is still sitting there.
 
 **It fills a slot in the till.** The sell screen gets a **table selector** — a modal with a tab per
 zone. Pick a table and the check is associated with it; when the check materialises, the order id is
