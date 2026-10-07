@@ -225,23 +225,63 @@ export class ErpTablesPosZones extends LitElement {
    *  prompt", Square "Track seating" are toggles too). Default on. */
   private promptGuests = true;
 
-  /** Sesión activa de la mesa seleccionada (la abrimos al ocupar, o la reanudamos si ya estaba). */
+  /** Active account of the selected table (opened when seating, or resumed if it was already there). */
   private sessionId?: string;
 
-  // Tras cobrar, el POS dispara este reset: la mesa queda pagada → cerramos su sesión (la libera).
-  private readonly onReset = () => {
+  /** tables#118: the order Ventas has in front, from the last `erp:pos-state`. Ventas fires the
+   *  reset/park synchronously, before it re-renders, so this still names the order that finished. */
+  private frontOrderId?: string;
+
+  /** Ventas charged the check in full or deleted it → close the account of THAT order (frees its
+   *  table if nothing else sits there). tables#118: never the remembered `sessionId` — after a split
+   *  Ventas shows the new check, and with a bar check in front the selection is the table being
+   *  opened; closing the remembered one freed a table with people sitting. */
+  private readonly onReset = (): void => {
     const sid = this.sessionId;
-    this.selectedId = undefined;
-    this.selectedLabel = '';
-    this.sessionId = undefined;
+    const orderId = this.frontOrderId;
     this.mode = 'select';
     this.actionSource = undefined;
     this.guestsPrompt = undefined;
-    if (sid) void this.closeSession(sid);
+    if (!orderId) {
+      // No order in front: the remembered account never got one, so it is the one being dropped.
+      this.dropSelection(sid);
+      if (sid) void this.closeSession(sid);
+      return;
+    }
+    void this.releaseOrder(orderId, sid, 'tables.sessions.close');
   };
 
+  /** Applies `command` (close/park) to the active account of `orderId` and drops the selection if
+   *  that order was the selected table's. An order with no table account (bar, counter) touches
+   *  nothing: the selection is the table Ventas is about to open. */
+  private async releaseOrder(
+    orderId: string, selectedSid: string | undefined,
+    command: 'tables.sessions.close' | 'tables.sessions.park',
+  ): Promise<void> {
+    let accounts: Array<{ session_id?: string; status?: string }> = [];
+    try {
+      accounts = rows<{ session_id?: string; status?: string }>(
+        await erplora().query('tables.sessions.by_order', { order_id: orderId }));
+    } catch { /* unreadable: touch nothing rather than release the wrong table */ }
+    if (!selectedSid || accounts.some((a) => a.session_id === selectedSid)) this.dropSelection(selectedSid);
+    const live = accounts.find((a) => a.status === 'active')?.session_id;
+    if (!live) return;
+    try { await erplora().command(command, { session_id: live }); }
+    catch { /* already closed or charged by another flow; it must not break the sale */ }
+    void this.refreshTables();
+  }
+
+  /** Forgets the selected table, unless another one was selected meanwhile. */
+  private dropSelection(sid: string | undefined): void {
+    if (this.sessionId !== sid) return;
+    this.sessionId = undefined;
+    this.selectedId = undefined;
+    this.selectedLabel = '';
+  }
+
   private readonly onPosState = (e: Event): void => {
-    const detail = (e as CustomEvent<{ pending_count?: number; kitchen_enabled?: boolean }>).detail;
+    const detail = (e as CustomEvent<{ order_id?: string | null; pending_count?: number; kitchen_enabled?: boolean }>).detail;
+    this.frontOrderId = detail?.order_id || undefined;
     const value = Number(detail?.pending_count ?? 0);
     this.pendingCount = Number.isFinite(value) ? Math.max(0, value) : 0;
     this.kitchenEnabled = detail?.kitchen_enabled === true;
@@ -326,10 +366,6 @@ export class ErpTablesPosZones extends LitElement {
     }));
   }
 
-  /** El TPV aparcó la cuenta → esta mesa se suelta, pero la cuenta sigue viva (ADR-0146).
-   *
-   *  La sesión pasa a `parked` conservando comensales, camarero y desde cuándo se atiende; su tramo
-   *  de historial se cierra con motivo `parked`, y la mesa queda libre para otros. */
   /** El TPV suelta la cuenta DE LA PANTALLA («Dejar en la mesa»): se limpia SOLO la selección
    *  local — ni park ni close. La mesa sigue ocupada con su cuenta, recuperable tocándola. */
   private readonly onOrderDetached = (): void => {
@@ -338,16 +374,12 @@ export class ErpTablesPosZones extends LitElement {
     this.selectedLabel = '';
   };
 
-  private readonly onOrderParked = async (): Promise<void> => {
-    if (!this.sessionId) return;
-    const sid = this.sessionId;
-    this.sessionId = undefined;
-    this.selectedId = undefined;
-    this.selectedLabel = '';
-    try {
-      await erplora().command('tables.sessions.park', { session_id: sid });
-    } catch { /* aparcar no puede romper la venta: la cuenta sigue abierta igualmente */ }
-    void this.refreshTables();
+  /** Ventas parked a check → park the account of THAT order (tables#118: not the remembered one;
+   *  a parked bar check leaves the table being opened alone). Parking must not break the sale. */
+  private readonly onOrderParked = async (e: Event): Promise<void> => {
+    const orderId = (e as CustomEvent<{ order_id?: string }>).detail?.order_id;
+    if (!orderId) return;
+    await this.releaseOrder(orderId, this.sessionId, 'tables.sessions.park');
   };
 
   /** El TPV reanudó un pedido tras recargar → recupera SU mesa desde la junction (ADR-0144).
@@ -626,6 +658,14 @@ export class ErpTablesPosZones extends LitElement {
         },
         bubbles: true, composed: true,
       }));
+      // tables#118: Ventas puts the NEW check in front, so the account in front is the new one —
+      // otherwise the remembered account (the original, or another table's) stayed «in front».
+      const newSid = res?.new_ids?.[0];
+      if (newSid) {
+        this.sessionId = newSid;
+        this.selectedId = src.id;
+        this.selectedLabel = erplora().t(CATALOG, 'ui.tableLabel', { number: src.number });
+      }
       this.mode = 'select';
       this.actionSource = undefined;
       this.open = false;
