@@ -1480,5 +1480,54 @@ describe('the POS releases the account of the order that finished (tables#118)',
 
     expect(el.sessionId, 'the account in front is the new one').toBe('ses-2');
     expect(el.selectedId, 'on the split table').toBe('tbl-1');
+    expect(el.selectedLabel, 'the trigger names the split table').toBe('ui.tableLabel');
+  });
+
+  it('once Ventas has no order in front, deleting the empty check closes the table it opened', async () => {
+    const commands: Cmd[] = [];
+    stub({ 'ord-4': [{ session_id: 'ses-4', order_id: 'ord-4', table_id: 'tbl-4', status: 'closed' }] }, commands);
+    const el = await withFront('tbl-6', 'ses-6', 'ord-4');
+    // The previous check was charged: Ventas now shows nothing (a table seated with no order yet).
+    el.dispatchEvent(new CustomEvent('erp:pos-state', { detail: { order_id: null, pending_count: 0 } }));
+
+    el.dispatchEvent(new CustomEvent('erp:order-context-reset'));
+    await settle(el);
+
+    expect(commands.filter((c) => c.name === 'tables.sessions.close').map((c) => c.payload?.session_id),
+      'the order that finished earlier is not looked at again').toEqual(['ses-6']);
+    expect(el.selectedId).toBeUndefined();
+  });
+
+  it('when the account of the finished order cannot be read, no table is released', async () => {
+    const commands: Cmd[] = [];
+    stub({}, commands);
+    const base = (globalThis as Record<string, unknown>).erplora as { query: (n: string, p?: unknown) => Promise<unknown> };
+    const query = base.query;
+    base.query = async (name: string, params?: unknown) => {
+      if (name === 'tables.sessions.by_order') throw new Error('offline');
+      return query(name, params);
+    };
+    const el = await withFront('tbl-4', 'ses-4', 'ord-4');
+
+    el.dispatchEvent(new CustomEvent('erp:order-context-reset'));
+    await settle(el);
+
+    expect(commands.map((c) => c.name), 'better keep a table than free the wrong one').not.toContain('tables.sessions.close');
+    expect(el.selectedId).toBe('tbl-4');
+  });
+
+  it('the plan is re-read after the account is released, so the table shows its new state', async () => {
+    const commands: Cmd[] = [];
+    stub({ 'ord-4': [{ session_id: 'ses-4', order_id: 'ord-4', table_id: 'tbl-4', status: 'active' }] }, commands);
+    const el = await withFront('tbl-4', 'ses-4', 'ord-4');
+    const api = (globalThis as Record<string, unknown>).erplora as { queryAll: (n: string, p?: unknown) => Promise<unknown> };
+    const queryAll = api.queryAll;
+    const reads: string[] = [];
+    api.queryAll = async (name: string, params?: unknown) => { reads.push(name); return queryAll(name, params); };
+
+    el.dispatchEvent(new CustomEvent('erp:order-context-reset'));
+    await settle(el);
+
+    expect(reads, 'the tables are listed again').toContain('tables.tables.list');
   });
 });
