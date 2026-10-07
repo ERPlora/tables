@@ -1419,6 +1419,42 @@ describe('the POS releases the account of the order that finished (tables#118)',
     expect(el.selectedId).toBeUndefined();
   });
 
+  it('only the ACTIVE account of the order is closed, not an older one it went through', async () => {
+    const commands: Cmd[] = [];
+    stub({ 'ord-7': [
+      { session_id: 'ses-7-parked', order_id: 'ord-7', table_id: null, status: 'parked' },
+      { session_id: 'ses-7', order_id: 'ord-7', table_id: 'tbl-7', status: 'active' },
+    ] }, commands);
+    const el = await withFront('tbl-7', 'ses-7', 'ord-7');
+
+    el.dispatchEvent(new CustomEvent('erp:order-context-reset'));
+    await settle(el);
+
+    expect(commands.filter((c) => c.name === 'tables.sessions.close').map((c) => c.payload?.session_id)).toEqual(['ses-7']);
+  });
+
+  it('a table picked while the finished order is being resolved stays selected', async () => {
+    const commands: Cmd[] = [];
+    let answer: (v: unknown) => void = () => undefined;
+    (globalThis as Record<string, unknown>).erplora = {
+      ...((globalThis as Record<string, unknown>).erplora as object),
+      query: (name: string) => (name === 'tables.sessions.by_order'
+        ? new Promise((r) => { answer = r; })
+        : Promise.resolve([])),
+      command: async (name: string, payload?: Record<string, unknown>) => { commands.push({ name, payload }); return {}; },
+    };
+    const el = await withFront('tbl-4', 'ses-4', 'ord-4');
+
+    el.dispatchEvent(new CustomEvent('erp:order-context-reset'));
+    el.selectedId = 'tbl-9';
+    el.sessionId = 'ses-9';
+    answer([{ session_id: 'ses-4', order_id: 'ord-4', table_id: 'tbl-4', status: 'active' }]);
+    await settle(el);
+
+    expect(el.selectedId, 'the table picked meanwhile is not dropped').toBe('tbl-9');
+    expect(el.sessionId).toBe('ses-9');
+  });
+
   it('splitting puts the NEW account in front, on its table (Ventas shows the new check)', async () => {
     const live = [{ id: 'ses-1', table_id: 'tbl-1', status: 'active', order_id: 'ord-1' }];
     (globalThis as Record<string, unknown>).erplora = {
