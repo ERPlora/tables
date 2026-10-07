@@ -36,6 +36,9 @@ SELECT t.id, t.number, t.name, t.capacity, t.shape, t.status, t.is_active,
            '0*([0-9]{12})', '\1', 'g'
        ) AS number_sort,
        h.label      AS reserved_for,
+       -- pm#637: whose hold it is. An erased customer's hold keeps its id and loses its name, and
+       -- the screen says «Deleted customer» for it instead of hiding the reservation.
+       h.customer_id AS reserved_customer_id,
        h.held_from  AS reserved_from,
        h.held_until AS reserved_until,
        h.party_size AS reserved_party_size,
@@ -52,7 +55,7 @@ SELECT t.id, t.number, t.name, t.capacity, t.shape, t.status, t.is_active,
 FROM tables_table t
 LEFT JOIN tables_zone z ON z.id = t.zone_id AND z.is_deleted = 0 AND z.hub_id = :hub_id
 LEFT JOIN LATERAL (
-    SELECT hh.label, hh.held_from, hh.held_until, hh.party_size
+    SELECT hh.label, hh.customer_id, hh.held_from, hh.held_until, hh.party_size
     FROM tables_table_hold hh
     WHERE hh.hub_id = t.hub_id AND hh.table_id = t.id
       AND hh.status = 'held' AND hh.is_deleted = 0

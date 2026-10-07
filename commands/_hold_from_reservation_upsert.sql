@@ -1,7 +1,7 @@
 -- reservations#13, listener 1/4: a reservation just got CONFIRMED with a table → hold it.
 --
 -- Payload = the event `reservations.reservation.status_changed`, enriched by `reservations` from
--- its own row (`table_id, date, time, duration_minutes, party_size, guest_name, status`). This is
+-- its own row (`table_id, date, time, duration_minutes, party_size, guest_name, customer_id, status`). This is
 -- the door `tables` already uses for `order.completed`: the runtime forbids `reservations` from
 -- calling `tables.tables.hold` directly, so it announces the fact and `tables` holds its own table.
 --
@@ -15,7 +15,7 @@
 -- against `:now` (`YYYY-MM-DDTHH:MM:SS…`).
 INSERT INTO tables_table_hold (
     id, hub_id, table_id, source, source_ref, held_from, held_until,
-    party_size, label, status, is_deleted, created_by, updated_by, created_at, updated_at
+    party_size, label, customer_id, status, is_deleted, created_by, updated_by, created_at, updated_at
 )
 SELECT
     :new_id, :hub_id, t.id, 'reservations', CAST(:reservation_id AS TEXT),
@@ -23,7 +23,9 @@ SELECT
     -- `expire_holds` compares with `:now` (`YYYY-MM-DDTHH:MI:SS…`). No `to_char` (not portable).
     replace(CAST(w.starts_at AS TEXT), ' ', 'T'),
     replace(CAST(w.ends_at AS TEXT), ' ', 'T'),
-    COALESCE(CAST(:party_size AS INTEGER), 0), COALESCE(CAST(:guest_name AS TEXT), ''), 'held',
+    COALESCE(CAST(:party_size AS INTEGER), 0), COALESCE(CAST(:guest_name AS TEXT), ''),
+    -- pm#637: whose name it is, so `customer.anonymized` can find it ('' = no sheet).
+    COALESCE(CAST(:customer_id AS TEXT), ''), 'held',
     0, :current_user_id, :current_user_id, :now, :now
 FROM tables_table t
 CROSS JOIN (
@@ -40,6 +42,7 @@ ON CONFLICT (hub_id, source, source_ref) DO UPDATE SET
     held_until = EXCLUDED.held_until,
     party_size = EXCLUDED.party_size,
     label      = EXCLUDED.label,
+    customer_id = EXCLUDED.customer_id,
     status     = 'held',
     is_deleted = 0,
     updated_by = EXCLUDED.updated_by,

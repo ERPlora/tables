@@ -5,6 +5,9 @@ Prefijo: TABLES
 Una **retención** es una mesa apartada para una reserva: nadie se ha sentado todavía, no es una
 cuenta. Mesas no lee el libro de Reservas: se entera por sus avisos y guarda su propia retención,
 que pinta la mesa Reservada en el plano y en «Elegir mesa» con el nombre y la hora de la reserva.
+La retención guarda también de qué ficha de cliente es, para poder olvidar su nombre si se borran
+sus datos (TABLES-F31), y una retención que termina (gastada, soltada o caducada) deja de guardar
+el nombre: ninguna pantalla la vuelve a pintar.
 
 ## Flujos
 
@@ -18,7 +21,7 @@ Pasos:
 3. Si la mesa estaba Disponible, pasa al momento a Reservada en el plano y en «Elegir mesa», con «Ana · 21:00». Si estaba Ocupada o Bloqueada no se repinta, pero el nombre de la reserva sale igual sobre la mesa.
 4. Una mesa puede tener varias reservas retenidas; el plano enseña la más temprana.
 Entra: de Reservas, el cambio de estado de la reserva con su mesa, fecha, hora, duración, comensales y nombre.
-Sale: la retención de la mesa y la mesa Reservada. No avisa a nadie. Si la confirmación llega dos veces, sigue habiendo una sola retención.
+Sale: la retención de la mesa (con el nombre y la ficha de cliente de la reserva, si la tiene) y la mesa Reservada. No avisa a nadie. Si la confirmación llega dos veces, sigue habiendo una sola retención.
 Si falla: una mesa borrada o desactivada no se retiene, sin aviso. Nada impide dos reservas en la misma mesa a la misma hora: las dos se retienen.
 Implicados: RESERVATIONS-F04, RESERVATIONS-F07, REC_RESTAURANTE-F04, REC_WA_MESA-F06
 QA: R-02, qa-hub-restaurant §05
@@ -33,7 +36,7 @@ Pasos:
 3. Si a la reserva se le quita la mesa, Mesas suelta la retención y devuelve la mesa.
 4. Si cambian la fecha, la hora, la duración, los comensales o el nombre, la retención se queda como estaba.
 Entra: de Reservas, el cambio de la reserva con los campos que cambiaron.
-Sale: la retención movida o soltada; las mesas repintadas. No avisa a nadie.
+Sale: la retención movida (con su nombre) o soltada (sin nombre); las mesas repintadas. No avisa a nadie.
 Si falla: una mesa nueva borrada o desactivada no recibe la retención y la reserva sigue retenida en la vieja.
 Implicados: RESERVATIONS-F08, REC_RESTAURANTE-F04
 QA: qa-hub-restaurant §05 (discrepa)
@@ -48,7 +51,7 @@ Pasos:
 3. Una retención que ya se gastó (la gente se sentó) no se toca.
 4. Si la reserva se borra, Mesas no se entera y la mesa sigue Reservada.
 Entra: de Reservas, el cambio de estado a cancelada o no presentada.
-Sale: la retención soltada y la mesa libre. No avisa a nadie.
+Sale: la retención soltada, ya sin el nombre, y la mesa libre. No avisa a nadie.
 Si falla: si el aviso se repite, no cambia nada.
 Implicados: RESERVATIONS-F09, RESERVATIONS-F10, RESERVATIONS-F20, REC_RESTAURANTE-F04
 QA: R-02, qa-hub-restaurant §05
@@ -62,7 +65,7 @@ Pasos:
 2. En **Ventas → Vender**, «Elegir mesa», toca la mesa Reservada: la pregunta de comensales viene con los de la reserva. Pulsa «Sentar N» (TABLES-F10).
 3. La mesa pasa a Ocupada y su retención queda gastada (la reserva cumplió). Trasladar o dividir una cuenta a esa mesa, o volver a sentar allí una aparcada, también la gasta.
 Entra: la mesa Reservada.
-Sale: la retención gastada, y con ella la de cualquier otra reserva retenida en esa mesa; la cuenta de mesa abierta (TABLES-F10).
+Sale: la retención gastada, y con ella la de cualquier otra reserva retenida en esa mesa, todas ya sin nombre; la cuenta de mesa abierta (TABLES-F10).
 Si falla: los de TABLES-F10. Si nadie abre la mesa, la retención espera a caducar (TABLES-F29). «Sentar» o «Completar» en Reservas con la mesa Disponible la vuelven a pintar Reservada mientras la retención siga viva.
 Implicados: RESERVATIONS-F11, REC_RESTAURANTE-F05, REC_WA_MESA-F10
 QA: R-02, R-03, qa-hub-restaurant §06
@@ -77,7 +80,7 @@ Pasos:
 3. Cada mesa Reservada que se queda sin reserva retenida y sin gente sentada vuelve a Disponible (también la puesta Reservada a mano, TABLES-F04).
 4. Por qué caduca tarde (leído en el código, sin ejecutar): el final de la retención se guarda como hora de pared de la reserva, sin zona (p. ej. 23:00), y el repaso la compara como texto con la hora del servidor, que es UTC. Las 23:00 de la reserva solo quedan atrás cuando son las 23:00 en UTC: la 01:00 en Madrid en verano y las 00:00 en invierno. El hub entrega la zona del negocio, pero Mesas no la usa.
 Entra: la hora del servidor.
-Sale: las retenciones caducadas y las mesas libres (avisa: tables.table.hold_released, en cada repaso, aunque no caduque ninguna).
+Sale: las retenciones caducadas, ya sin nombre, y las mesas libres (avisa: tables.table.hold_released, en cada repaso, aunque no caduque ninguna).
 Si falla: se reintenta en el siguiente repaso; si el hub estuvo parado, al volver hace un solo repaso.
 Implicados: RESERVATIONS-F11, RESERVATIONS-F20, REC_RESTAURANTE-F04
 QA: R-02
@@ -91,7 +94,31 @@ Pasos:
 2. La mesa pasa a Reservada si estaba Disponible, con el nombre y la hora; pedirlo otra vez con la misma referencia cambia la misma retención.
 3. Para soltarla, pide soltarla con la misma referencia: la mesa vuelve a Disponible si no le queda otra reserva ni gente.
 Entra: mesa, origen y referencia, desde, hasta, comensales y nombre.
-Sale: la retención (avisa: tables.table.held) o su liberación (avisa: tables.table.hold_released).
+Sale: la retención, sin ficha de cliente (avisa: tables.table.held), o su liberación, que borra el nombre (avisa: tables.table.hold_released).
 Si falla: «Esa mesa no existe en este negocio.»; soltar una retención que ya no está: «Esa retención ya no está: se soltó, ha vencido, o esa reserva nunca llegó a retener una mesa.».
 Implicados: ninguno
+QA: ninguno
+
+### TABLES-F31 Olvidar el nombre de un cliente cuyos datos se borran (RGPD)
+Estado: parcial — una retención sin ficha (reserva apuntada a mano sin cliente, o retenida a mano con el asistente) y las que ya estaban vivas antes de esta versión no se encuentran por cliente: guardan el nombre hasta que terminan (gastada, soltada o caducada); al fusionar dos fichas en Clientes la retención sigue apuntando a la ficha absorbida (tables#127)
+Actor: sistema
+Pantalla: Plano de sala, Elegir mesa (en el TPV)
+Pasos:
+1. En **Clientes** el administrador borra los datos personales de una ficha.
+2. Todas las retenciones de mesa de esa clienta en este negocio, vivas o terminadas y también las
+   borradas, se quedan sin su nombre.
+3. La mesa sigue Reservada a su hora: en el **Plano de sala** y en «Elegir mesa», donde estaba el
+   nombre se lee «Cliente borrado · 21:00»; el título y el nombre accesible de la mesa dicen
+   «Reservada para Cliente borrado».
+Entra: el aviso de borrado de la ficha (`customer.anonymized`) con su identificador.
+Sale: retenciones sin el nombre de la clienta. Se quedan la mesa, la hora de inicio y fin, los
+comensales, el estado, la referencia de la reserva y el enlace a la ficha (que ya no tiene datos):
+el plano sigue sabiendo que la mesa está apartada. No avisa a nadie y no suelta ninguna mesa.
+Si falla: no hay nada que ver en pantalla; el hub reintenta el aviso hasta que entra, y repetirlo no
+cambia nada más. Una ficha de otro negocio con el mismo identificador no se toca, y un aviso sin
+identificador no toca las retenciones sin ficha.
+Implicados: pendiente
+Pendiente de enlazar: customers — CUSTOMERS-F16 (borrar los datos personales de un cliente: emite el aviso que Mesas escucha)
+Pendiente de enlazar: reservations — RESERVATIONS-F22 (su borrado dice que la etiqueta de la mesa la vacía Mesas)
+Pendiente de enlazar: hub — HUB-F250 (lo que le toca a cada app al recibir el aviso de borrado; se actualiza al cerrar la familia pm#637)
 QA: ninguno

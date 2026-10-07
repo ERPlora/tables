@@ -47,6 +47,7 @@ be installed without dragging anything with it.
 |---|---|---|
 | `order.completed` (from `sales`) | `tables._session_close_by_order` | Closes the session and frees the table |
 | `sale.voided` (from `sales`) | `tables._session_close_by_order` | Same, when the sale is cancelled |
+| `customer.anonymized` (from `customers`) | `tables._on_customer_anonymized` | Empties the guest name of every hold of that customer; the table stays reserved |
 
 Both work through the opaque order reference. Note that **charging part of a bill does not emit
 `order.completed`**, so a partial payment correctly leaves the table occupied.

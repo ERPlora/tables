@@ -5,6 +5,8 @@
 -- to the plan at once, without waiting for the 15-minute sweep.
 UPDATE tables_table_hold SET
     status     = 'released',
+    -- pm#637: a hold that is over keeps no name — no screen reads it any more.
+    label      = '',
     updated_by = :current_user_id,
     updated_at = :now
 WHERE hub_id = :hub_id AND source = 'reservations' AND source_ref = CAST(:reservation_id AS TEXT)

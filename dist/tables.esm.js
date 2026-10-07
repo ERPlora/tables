@@ -1842,6 +1842,7 @@ var es_default = {
     statusOccupied: "Ocupada",
     statusReserved: "Reservada",
     reservedFor: "Reservada para {name}",
+    erasedCustomer: "Cliente borrado",
     servedBy: "Atiende {name}",
     statusBlocked: "Bloqueada",
     shapeSquare: "Cuadrada",
@@ -2036,6 +2037,7 @@ var en_default = {
     statusOccupied: "Occupied",
     statusReserved: "Reserved",
     reservedFor: "Reserved for {name}",
+    erasedCustomer: "Deleted customer",
     servedBy: "Served by {name}",
     statusBlocked: "Blocked",
     shapeSquare: "Square",
@@ -2197,6 +2199,13 @@ function ionTone(kind, tone) {
     `--background-hover: ${token("-tint", p4.tint)}`,
     `--color: ${token("-contrast", p4.contrast)};`
   ].join("; ");
+}
+
+// ui/lib/hold-name.ts
+function holdName(row, erasedLabel) {
+  const name = (row.reserved_for ?? "").trim();
+  if (name) return name;
+  return row.reserved_customer_id ? erasedLabel : "";
 }
 
 // ui/components/erp-tables-canvas/erp-tables-canvas.ts
@@ -2609,6 +2618,7 @@ var ErpTablesCanvas = class extends i3 {
   tableName(tb, t5) {
     const zone = this.zones.find((z2) => z2.id === tb.zone_id)?.name;
     const waiter = this.waiterName(tb);
+    const holder = holdName(tb, t5("ui.erasedCustomer"));
     return [
       t5("ui.tableLabel", { number: tb.number }),
       zone,
@@ -2616,7 +2626,7 @@ var ErpTablesCanvas = class extends i3 {
       STATUS_KEY[tb.status] ? t5(STATUS_KEY[tb.status]) : tb.status,
       this.liveLine(tb, t5),
       waiter ? t5("ui.servedBy", { name: waiter }) : "",
-      tb.reserved_for ? t5("ui.reservedFor", { name: tb.reserved_for }) : ""
+      holder ? t5("ui.reservedFor", { name: holder }) : ""
     ].filter(Boolean).join(" \xB7 ");
   }
   /** Primera celda de la rejilla de esta zona que no tapa a ninguna mesa ya colocada. */
@@ -2857,6 +2867,7 @@ var ErpTablesCanvas = class extends i3 {
       const statusLabel = STATUS_KEY[tb.status] ? t5(STATUS_KEY[tb.status]) : tb.status;
       const live = this.liveLine(tb, t5, true);
       const waiter = this.waiterName(tb);
+      const holder = holdName(tb, t5("ui.erasedCustomer"));
       return b2`
           <div class=${`mesa ${tb.shape === "round" ? "round" : ""} ${tb.id === this.dragId && this.dragMoved ? "dragging" : ""}`}
             data-testid=${`tables-floor-tile-${tb.id}`}
@@ -2868,13 +2879,13 @@ var ErpTablesCanvas = class extends i3 {
         t5("ui.tableTooltip", { status: statusLabel, count: tb.capacity }),
         live,
         waiter ? t5("ui.servedBy", { name: waiter }) : "",
-        tb.reserved_for ? `${t5("ui.reservedFor", { name: tb.reserved_for })} ${[hhmm(tb.reserved_from), hhmm(tb.reserved_until)].filter(Boolean).join("\u2013")}`.trim() : ""
+        holder ? `${t5("ui.reservedFor", { name: holder })} ${[hhmm(tb.reserved_from), hhmm(tb.reserved_until)].filter(Boolean).join("\u2013")}`.trim() : ""
       ].filter(Boolean).join(" \xB7 ")}
             @pointerdown=${(e5) => this.onPointerDown(tb, e5)}>
             <div class="n">${tb.number}</div>
             <div class="c">${live || t5("ui.paxCount", { count: tb.capacity })}</div>
             ${waiter ? b2`<div class="w">${waiter}</div>` : A}
-            ${tb.reserved_for ? b2`<div class="hold">${tb.reserved_for}${tb.reserved_from ? ` \xB7 ${hhmm(tb.reserved_from)}` : ""}</div>` : A}
+            ${holder ? b2`<div class="hold">${holder}${tb.reserved_from ? ` \xB7 ${hhmm(tb.reserved_from)}` : ""}</div>` : A}
             <div class="s" style=${`color:${STATUS_COLOR[tb.status] ?? "#868e96"}`}>
               <ion-icon name=${STATUS_ICON[tb.status]?.icon ?? "help-circle-outline"} aria-hidden="true"></ion-icon>${statusLabel}
             </div>
@@ -6282,11 +6293,11 @@ function hhmm2(iso) {
   if (Number.isNaN(d3.getTime())) return "";
   return `${String(d3.getHours()).padStart(2, "0")}:${String(d3.getMinutes()).padStart(2, "0")}`;
 }
-function holdTitle(t5) {
-  if (!t5.reserved_for) return "";
+function holdTitle(t5, name) {
+  if (!name) return "";
   const span = [hhmm2(t5.reserved_from), hhmm2(t5.reserved_until)].filter(Boolean).join("\u2013");
   const pax = t5.reserved_party_size ? ` (${t5.reserved_party_size})` : "";
-  return `${t5.reserved_for}${pax}${span ? ` \xB7 ${span}` : ""}`;
+  return `${name}${pax}${span ? ` \xB7 ${span}` : ""}`;
 }
 function rows2(r6) {
   if (Array.isArray(r6)) return r6;
@@ -6961,6 +6972,7 @@ var ErpTablesPosZones = class extends i3 {
       const validTarget = inAction && this.isValidTarget(tb);
       const showKebab = !inAction && tb.status === "occupied";
       const outOfService = tb.status === "blocked";
+      const holder = holdName(tb, t5("ui.erasedCustomer"));
       return b2`
             <div class="mesa-wrap">
               ${showKebab ? b2`<ion-button data-testid=${`tables-pos-actions-${tb.id}`} class="kebab" fill="clear" aria-label=${t5("ui.tableActions")} @click=${(e5) => this.openActions(tb, e5)}>
@@ -6968,13 +6980,13 @@ var ErpTablesPosZones = class extends i3 {
                   </ion-button>` : A}
               <button data-testid=${`tables-pos-table-${tb.id}`} class="mesa ${validTarget ? "target" : ""}" aria-pressed=${this.selectedId === tb.id}
                 ?disabled=${outOfService || inAction && !validTarget}
-                title=${(outOfService ? t5("ui.blockedHint") : holdTitle(tb)) || A}
+                title=${(outOfService ? t5("ui.blockedHint") : holdTitle(tb, holder)) || A}
                 style=${`border-color:${STATUS_COLOR2[tb.status] ?? "#d9d6cf"}`} @click=${() => this.pick(tb)}>
                 <div class="n">${tb.number}</div>
                 <div class="c">${t5("ui.paxCount", { count: tb.capacity })}</div>
                 ${tb.live_guests ? b2`<div class="live"><ion-icon name="people-outline"></ion-icon>${t5("ui.liveGuests", { count: tb.live_guests })}</div>` : A}
                 <div class="s" style=${`color:${STATUS_COLOR2[tb.status] ?? "#868e96"}`}>${t5(STATUS_KEY3[tb.status] ?? tb.status)}</div>
-                ${tb.reserved_for ? b2`<div class="hold">${tb.reserved_for}${tb.reserved_from ? b2` · ${hhmm2(tb.reserved_from)}` : A}</div>` : A}
+                ${holder ? b2`<div class="hold">${holder}${tb.reserved_from ? b2` · ${hhmm2(tb.reserved_from)}` : A}</div>` : A}
               </button>
             </div>`;
     })}

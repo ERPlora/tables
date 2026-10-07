@@ -8,6 +8,8 @@
 -- que se acabó el tiempo. Sin la distinción, no hay forma de contar los no-shows.
 UPDATE tables_table_hold SET
     status     = 'expired',
+    -- pm#637: a hold that is over keeps no name — no screen reads it any more.
+    label      = '',
     updated_by = :current_user_id,
     updated_at = :now
 WHERE hub_id = :hub_id AND status = 'held' AND is_deleted = 0

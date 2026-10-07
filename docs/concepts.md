@@ -86,6 +86,21 @@ reference**, and Tables decides what the plan shows.
 That reference is also the idempotency key, so a repeated handoff cannot create two holds for one
 booking.
 
+## A hold keeps a name only while it is live
+
+A hold copies the guest's name from the booking so the plan can say who the table is for, and the
+customer it belongs to (empty for a walk-in or a hold made by hand). Two things follow:
+
+- **When a hold ends** (consumed, released, unassigned or expired) its name is emptied: no screen
+  shows a finished hold, so there is no reason to keep it.
+- **When a customer's personal data is erased** in Customers (`customer.anonymized`), every hold of
+  that customer loses its name — live, finished and deleted ones alike. The table stays reserved,
+  with its time and party size, and the plan reads **"Deleted customer"** where the name was.
+
+A hold without a customer (and a live one made before this rule) cannot be found by customer: it
+keeps its name until it ends. After two customer records are merged, a live hold still
+points to the absorbed record, so erasing the surviving one leaves its name until it ends.
+
 ## Capacity is a warning, not a rule
 
 Seating six people at a table for four is allowed and always was. The screen tells you; nothing
