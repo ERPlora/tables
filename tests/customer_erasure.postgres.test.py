@@ -212,6 +212,22 @@ def test_hold_keeps_its_customer():
     )
     check("no sheet → empty customer id", "", by_ref("r-walk").get("customer_id"))
 
+    # The walk-in is linked to a sheet afterwards and confirmed again: the same hold (same
+    # reservation) has to learn whose it is, or her erasure would never find it.
+    command_ok(
+        "the walk-in is linked to a sheet and confirmed again",
+        listener,
+        status_event(
+            "confirmed", "t5", "r-walk", guest_name="Pepe", customer_id="cust-pepe"
+        ),
+        "2026-10-07T09:02:00+00:00",
+    )
+    check(
+        "a repeated confirmation re-points the hold to the sheet",
+        "cust-pepe",
+        by_ref("r-walk").get("customer_id"),
+    )
+
     plan = plan_row("t2")
     check("the plan paints her name", "Ana García", plan.get("reserved_for"))
     check(
@@ -237,7 +253,9 @@ def test_erasure():
     hold("h-nosheet", HUB, "", "Walk-in Pepe")
     hold("h-hub-b", OTHER_HUB, ERASED, "Ana García (B)")
     # The hold that the plan paints on table 1 (the only one on that table).
-    q(f"UPDATE tables_table SET status = 'reserved' WHERE id = 't1' AND hub_id = '{HUB}'")
+    q(
+        f"UPDATE tables_table SET status = 'reserved' WHERE id = 't1' AND hub_id = '{HUB}'"
+    )
 
     print("\n== 5a. an event with an empty id touches nothing ==")
     erase("")
