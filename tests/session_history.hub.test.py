@@ -261,6 +261,77 @@ def test_a_partial_charge_leaves_the_table_occupied(hub: Hub, cash: str) -> None
     hub.check("the partial charge is on the still-open check", charged, 250)
 
 
+def test_voiding_a_partial_charge_keeps_the_party_seated(hub: Hub, cash: str) -> None:
+    print(
+        "\n5b · voiding a PARTIAL charge leaves the table occupied with its check (tables#121)"
+    )
+    tid = create_table(hub)
+    hub.run("tables.sessions.open", {"table_id": tid})
+    sid = session_on(hub, tid)["id"]
+
+    order_out = hub.run(
+        "sales.order.open",
+        {
+            "items": [
+                {"product_name": "Caña", "price": 250, "quantity": ONE},
+                {"product_name": "Ración", "price": 800, "quantity": ONE},
+            ]
+        },
+    )
+    oid = order_out["new_ids"][0]
+    hub.run("tables.sessions.link_order", {"table_id": tid, "order_id": oid})
+
+    sale_out = hub.run(
+        "sales.complete_sale",
+        {
+            "idempotency_key": key("partial-to-void"),
+            # Like the till: the charge names the line it covers (ADR-0146 stage 5).
+            "line_ids": [
+                r["id"]
+                for r in hub.query("sales.order.lines", {"order_id": oid})
+                if r.get("product_name") == "Caña"
+            ],
+            "payment_method_id": cash,
+            "order_id": oid,
+            "keep_order_open": True,
+            "amount_tendered": 250,
+            "tax_included": True,
+            "items": [
+                {
+                    "product_name": "Caña",
+                    "price": 250,
+                    "quantity": ONE,
+                    "tax_rate": 21.0,
+                }
+            ],
+        },
+    )
+    sale_id = sale_out["new_ids"][0]
+    charged = wait_until(
+        lambda: session_by_id(hub, sid).get("paid_total"), accept=lambda v: v == 250
+    )
+    hub.check("the partial charge is on the open check", charged, 250)
+
+    hub.run("sales.void", {"sale_id": sale_id, "reason": "tables#121 battery"})
+
+    # The void's listener drops the charge from the ledger in ONE transaction: once the amount is
+    # gone, the listener has run, so what it did to the check and the table is already visible.
+    uncharged = wait_until(
+        lambda: session_by_id(hub, sid).get("paid_total"), accept=lambda v: v is None
+    )
+    hub.check("the voided charge no longer counts on the check", uncharged, None)
+    hub.check(
+        "the check is still open: the order is still open in sales",
+        session_by_id(hub, sid).get("status"),
+        "active",
+    )
+    hub.check(
+        "the table stays occupied: the party is still sitting there",
+        table_status(hub, tid),
+        "occupied",
+    )
+
+
 def test_parking_frees_the_table_without_closing_the_account(hub: Hub) -> None:
     print("\n6 · parking frees the table WITHOUT closing the account (ADR-0146)")
     tid = create_table(hub)
@@ -440,6 +511,7 @@ def main() -> int:
     test_transferring_moves_the_occupation_not_doubles_it(hub)
     test_charging_the_order_in_full_frees_the_table(hub, cash)
     test_a_partial_charge_leaves_the_table_occupied(hub, cash)
+    test_voiding_a_partial_charge_keeps_the_party_seated(hub, cash)
     test_parking_frees_the_table_without_closing_the_account(hub)
     test_restoring_a_parked_check_occupies_its_new_table(hub)
     test_a_parked_account_holds_no_table_at_all(hub)
