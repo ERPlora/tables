@@ -164,7 +164,9 @@ The sell screen shows a table button contributed by this module (requires `table
 
 1. Press it. A modal opens with a tab per zone. Each table shows its number, seats and its status
    written on one line (Available, Occupied, Reserved, Blocked); on a narrow phone the word gets a
-   touch smaller instead of breaking in two (tables#98).
+   touch smaller instead of breaking in two (tables#98). A reserved table adds the booking's name
+   and time («Ana · 21:00»): a long name is cut with «…», the time is always shown whole
+   (tables#126); the full name is in the table's tooltip.
 2. Pick a table. The check now carries it, and the sell screen shows the label.
 3. **Quitar mesa** (remove table) lives inside the same selector.
 
