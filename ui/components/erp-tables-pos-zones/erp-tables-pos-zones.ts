@@ -196,7 +196,9 @@ export class ErpTablesPosZones extends LitElement {
        left-aligned like a list, the back button alone at the foot. */
     .accounts { display:flex; flex-direction:column; gap:.5rem; padding:.4rem 0; }
     .accounts ion-button { --justify-content: flex-start; }
-    .accounts .meta { font-size:.8rem; color:#8b897f; }
+    /* The meta sits at the END of the row, apart from the label: glued together the row read
+       «Cuenta 11 pax» (check ELEVEN) instead of «Cuenta 1 · 1 pax». */
+    .accounts .meta { font-size:.8rem; color:#8b897f; margin-inline-start:auto; padding-inline-start:.75rem; }
     .accounts .cta { display:flex; justify-content:flex-start; }
     .mesa .live { font-size:.75rem; font-weight:700; color:var(--ion-color-danger,#d9480f);
       display:flex; align-items:center; justify-content:center; gap:.2rem; }
@@ -490,11 +492,12 @@ export class ErpTablesPosZones extends LitElement {
 
   /** tables#122: TODAS las cuentas vivas de una mesa (una dividida guarda dos bajo un mismo
    *  mantel). Quien necesite «la cuenta de la mesa» pregunta cuando hay varias — nunca deja que
-   *  un limit-1 elija la mitad por él. */
+   *  un limit-1 elija la mitad por él. In the order they were opened: ids are UUIDs, so «by id»
+   *  would number the ORIGINAL check as «Cuenta 2» half of the time. */
   private async activeAccounts(tableId: string): Promise<AccountRow[]> {
     try {
       const r = await erplora().query('tables.sessions.list', {
-        f_table_id: tableId, f_status: 'active', sort: 'id', dir: 'asc', limit: 50,
+        f_table_id: tableId, f_status: 'active', sort: 'opened_at', dir: 'asc', limit: 50,
       });
       return rows<AccountRow>(r);
     } catch { return []; }

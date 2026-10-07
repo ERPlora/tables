@@ -1845,4 +1845,38 @@ describe('a split table asks WHICH check before acting on it (tables#122)', () =
       expect((enCatalog as { ui: Record<string, string> }).ui[k], `en ${k}`).toBeTruthy();
     }
   });
+
+  // Review of tables#140: the bench captures read «Cuenta 11 pax · 22:56» — the label and its
+  // meta were glued together inside the button (a flex row drops the whitespace between them),
+  // so «Cuenta 1 · 1 pax» looked like check number ELEVEN. The meta sits at the row's end.
+  it('each check row keeps its label apart from its covers and hour (the meta sits at the end)', async () => {
+    const { ErpTablesPosZones } = await import('./erp-tables-pos-zones');
+    const sheets = ([] as unknown[]).concat((ErpTablesPosZones as unknown as { styles: unknown }).styles);
+    const css = sheets.map((x) => String((x as { cssText?: string }).cssText ?? x)).join('\n');
+    expect(css, 'the meta of a check row is pushed to the end of the row').toMatch(
+      /\.accounts\s+\.meta\s*\{[^}]*margin-inline-start:\s*auto/,
+    );
+  });
+
+  // Review of tables#140: ids are UUIDs, so «by id» is a coin toss — the ORIGINAL check of a
+  // split table came out as «Cuenta 2» on the bench. The rows follow the order the checks were
+  // opened, so «Cuenta 1» is always the one that was there first (Toast numbers checks the same way).
+  it('the checks are offered in the order they were opened, not by id', async () => {
+    const commands: Cmd[] = [];
+    stub(commands);
+    const asked: Array<Record<string, unknown> | undefined> = [];
+    const sdk = (globalThis as Record<string, unknown>).erplora as { query: (n: string, p?: Record<string, unknown>) => Promise<unknown> };
+    const inner = sdk.query;
+    sdk.query = (name, params) => { if (name === 'tables.sessions.list') asked.push(params); return inner(name, params); };
+    const el = await abrir();
+
+    byTestId(el, 'tables-pos-table-tbl-1')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await tick(el);
+
+    expect(byTestId(el, 'tables-pos-accounts-prompt')).toBeTruthy();
+    const q = asked.find((p) => p?.f_table_id === 'tbl-1' && p?.f_status === 'active');
+    expect(q, 'the picker lists the live checks of the table').toBeTruthy();
+    expect(q?.sort, 'ordered by when each check was opened').toBe('opened_at');
+    expect(q?.dir).toBe('asc');
+  });
 });

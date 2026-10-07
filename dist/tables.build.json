@@ -1,7 +1,7 @@
 {
   "file": "dist/tables.esm.js",
-  "sources_sha256": "b71d3a2ac7d8cb9cd3bd92ab4a20fc193488a6042da77a0792d6ea8063115233",
+  "sources_sha256": "3cf3501f0d2cfa0cd466315e7f735fb5b7467dc93b0f45e873ac3806ad99baf4",
   "locales_sha256": "9246bb150d62cfef71c3d1000e92d16be0af1ece6713003677d42d9111c27afb",
-  "bundle_sha256": "30f736cd9239f8966678bbae8670eba6a430d47c461f03700ddb4bf1cebc05a2",
-  "built_at": "2026-10-07T20:03:03.353Z"
+  "bundle_sha256": "2027449f2e69954c64514e448a756aad6a71ce1dc343059c213e9c5b148b4d43",
+  "built_at": "2026-10-07T21:48:25.415Z"
 }
