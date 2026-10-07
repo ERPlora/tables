@@ -100,7 +100,7 @@ Implicados: ninguno
 QA: ninguno
 
 ### TABLES-F31 Olvidar el nombre de un cliente cuyos datos se borran (RGPD)
-Estado: parcial — una retención sin ficha (reserva apuntada a mano sin cliente, o retenida a mano con el asistente) y las que ya estaban vivas antes de esta versión no se encuentran por cliente: guardan el nombre hasta que terminan (gastada, soltada o caducada); al fusionar dos fichas en Clientes la retención sigue apuntando a la ficha absorbida
+Estado: parcial — una retención sin ficha (reserva apuntada a mano sin cliente, o retenida a mano con el asistente) y las que ya estaban vivas antes de esta versión no se encuentran por cliente: guardan el nombre hasta que terminan (gastada, soltada o caducada); al fusionar dos fichas en Clientes la retención sigue apuntando a la ficha absorbida (tables#127)
 Actor: sistema
 Pantalla: Plano de sala, Elegir mesa (en el TPV)
 Pasos:
