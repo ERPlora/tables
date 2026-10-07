@@ -133,10 +133,10 @@ dentro de la ventana, en rojo; un fallo al cargar no se avisa y la rejilla sale 
 | Pieza compartida | Flujos que la usan |
 |---|---|
 | Sentar gasta la retención de la mesa (cualquier reserva retenida en esa mesa) | TABLES-F10, TABLES-F15, TABLES-F17, TABLES-F24, TABLES-F28 |
-| Liberar la mesa solo si no le queda ninguna cuenta abierta | TABLES-F13, TABLES-F18, TABLES-F19, TABLES-F21 (no la usan TABLES-F15 ni TABLES-F16) |
+| Liberar la mesa solo si no le queda ninguna cuenta abierta | TABLES-F13, TABLES-F15, TABLES-F16, TABLES-F18, TABLES-F19, TABLES-F21 |
 | Cerrar las cuentas de un pedido por su pedido (cobro entero y anulación de un cobro) | TABLES-F18, TABLES-F19 |
 | La ventana «Elegir mesa» y su bloqueo por productos sin enviar | TABLES-F10, TABLES-F11, TABLES-F12, TABLES-F13 |
-| La cuenta que el TPV tiene «delante» (la que cierra al cobrar) | TABLES-F11, TABLES-F17, TABLES-F18 |
+| La cuenta de mesa del pedido que Ventas suelta (se cierra al cobrarlo entero o eliminarlo, se aparca al aparcarlo; nunca otra) | TABLES-F11, TABLES-F13, TABLES-F17, TABLES-F18 |
 | Devolver al plano una mesa Reservada sin reserva viva ni gente | TABLES-F26, TABLES-F27, TABLES-F29, TABLES-F30 |
 
 ## Flujos
@@ -163,7 +163,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | TABLES-F15 | Pasar la cuenta a otra mesa (transferir) | parcial | [workflow/servicio.md](workflow/servicio.md) |
 | TABLES-F16 | Juntar las cuentas de dos mesas ocupadas (fusionar) | parcial | [workflow/servicio.md](workflow/servicio.md) |
 | TABLES-F17 | Dividir la cuenta de una mesa | parcial | [workflow/servicio.md](workflow/servicio.md) |
-| TABLES-F18 | Liberar la mesa al cobrar la cuenta entera | parcial | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
+| TABLES-F18 | Liberar la mesa al cobrar la cuenta entera | hecho | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
 | TABLES-F19 | Anular un cobro de una mesa | parcial | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
 | TABLES-F20 | Eliminar en Ventas la cuenta abierta de una mesa | no hecho | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
 | TABLES-F21 | Cerrar una mesa a mano | parcial | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
@@ -191,15 +191,15 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | Pedir los comensales al sentar, con atajos | hecho | F10, F08 |
 | Dos TPV a la vez sobre la misma mesa: gana uno | parcial: si ya está ocupada se rechaza; en el mismo instante pueden entrar las dos (sin ejecutar) | F10 |
 | Superar el aforo avisa sin impedir | hecho | F10, F14 |
-| Varias cuentas en una mesa (dividir) | parcial: solo en la misma mesa, sin deshacer; tocar la mesa abre una de las dos sin elegir; cobrar la nueva puede cerrar la original o la de otra mesa (sin ejecutar) | F17 |
-| Transferir la cuenta a otra mesa | parcial: con la mesa dividida, la mesa de origen se libera | F15 |
+| Varias cuentas en una mesa (dividir) | parcial: solo en la misma mesa, sin deshacer; tocar la mesa abre una de las dos sin elegir | F17 |
+| Transferir la cuenta a otra mesa | parcial: con la mesa dividida se traslada una de sus dos cuentas sin elegir cuál | F15 |
 | Juntar las cuentas de dos mesas | parcial: las líneas las junta Ventas y su fallo no se ve | F16 |
 | Juntar mesas físicas para un grupo grande (aforo sumado) | no hecho (duda abierta 3) | — |
 | Mesa «por limpiar» tras irse el grupo | no hecho (duda abierta 2) | — |
 | Planos distintos por turno (comida / cena) | fuera del MVP | — |
 | Camarero de la cuenta visible | hecho (es quien la abre; no se cambia en pantalla) | F09, F22 |
 | Tiempo en mesa con color ámbar y rojo | hecho en Sesiones; en el plano, sin color | F08, F22 |
-| La mesa se libera sola al cobrar la cuenta entera | parcial: tras dividir, cobrar entera la cuenta nueva libera también la mesa de la cuenta que el TPV recordaba (sin ejecutar) | F18, F17 |
+| La mesa se libera sola al cobrar la cuenta entera | hecho (con la mesa dividida, solo cuando se cobra la última cuenta) | F18, F17 |
 | Un cobro parcial no libera la mesa | hecho | F18 |
 | Anular un cobro no rompe la mesa | parcial: anular un cobro parcial libera la mesa con la cuenta abierta | F19 |
 | Eliminar la cuenta libera la mesa | no hecho | F20 |
