@@ -1296,3 +1296,153 @@ describe('the status word of each table tile reads whole on a phone (tables#98)'
     expect(s?.textContent?.trim()).toBe('ui.statusAvailable');
   });
 });
+
+// ── tables#118 — the POS frees the table of the order that FINISHED, never the remembered one ──
+//
+// Charging or deleting a check in Ventas fires `erp:order-context-reset`, and parking it fires
+// `erp:order-parked {order_id}`. The filler used to act on `sessionId` — the account it
+// REMEMBERED — and not on the order that finished: after a split (Ventas puts the NEW check in
+// front) charging the new check closed the original account, or the account of ANOTHER table the
+// POS had selected, and the table showed free with the party still sitting. With a bar check in
+// front, tapping an occupied table and answering «Park it and open» / «Delete it and open» parked
+// or closed the TAPPED table's account. The order in front travels in every `erp:pos-state`.
+describe('the POS releases the account of the order that finished (tables#118)', () => {
+  type Filler = HTMLElement & {
+    shadowRoot: ShadowRoot; selectedId?: string; sessionId?: string; selectedLabel: string;
+  };
+  type Cmd = { name: string; payload?: Record<string, unknown> };
+
+  function stub(byOrder: Record<string, Array<Record<string, unknown>>>, commands: Cmd[]) {
+    (globalThis as Record<string, unknown>).erplora = {
+      ...((globalThis as Record<string, unknown>).erplora as object),
+      query: async (name: string, params?: Record<string, unknown>) => {
+        if (name === 'tables.sessions.by_order') return byOrder[String(params?.order_id)] ?? [];
+        if (name.includes('zone')) return [ZONA];
+        if (name.includes('session')) return [];
+        return [MESA];
+      },
+      command: async (name: string, payload?: Record<string, unknown>) => {
+        commands.push({ name, payload });
+        return {};
+      },
+    };
+  }
+
+  async function settle(el: Filler) {
+    for (let i = 0; i < 3; i++) {
+      await new Promise((r) => setTimeout(r, 0));
+      await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    }
+  }
+
+  async function withFront(table: string, session: string, frontOrder: string | undefined) {
+    const el = (await montar()) as Filler;
+    el.selectedId = table;
+    el.selectedLabel = 'ui.tableLabel';
+    el.sessionId = session;
+    el.dispatchEvent(new CustomEvent('erp:pos-state', { detail: { order_id: frontOrder, pending_count: 0 } }));
+    return el;
+  }
+
+  it('charging the split check closes THAT account, not the one the POS remembered', async () => {
+    const commands: Cmd[] = [];
+    stub({ 'ord-new': [{ session_id: 'ses-new', order_id: 'ord-new', table_id: 'tbl-5', status: 'active' }] }, commands);
+    const el = await withFront('tbl-4', 'ses-4', 'ord-new');
+
+    el.dispatchEvent(new CustomEvent('erp:order-context-reset'));
+    await settle(el);
+
+    const closed = commands.filter((c) => c.name === 'tables.sessions.close').map((c) => c.payload?.session_id);
+    expect(closed, 'only the account of the charged order is closed').toEqual(['ses-new']);
+  });
+
+  it('deleting a bar check to open a table closes nothing and keeps that table in front', async () => {
+    const commands: Cmd[] = [];
+    stub({}, commands);
+    const el = await withFront('tbl-6', 'ses-6', 'ord-bar');
+
+    el.dispatchEvent(new CustomEvent('erp:order-context-reset'));
+    await settle(el);
+
+    expect(commands.map((c) => c.name), 'the tapped table keeps its account').not.toContain('tables.sessions.close');
+    expect(el.selectedId, 'Ventas is opening that table: it stays selected').toBe('tbl-6');
+    expect(el.sessionId).toBe('ses-6');
+  });
+
+  it('charging the check of the selected table still closes it and drops the selection', async () => {
+    const commands: Cmd[] = [];
+    stub({ 'ord-4': [{ session_id: 'ses-4', order_id: 'ord-4', table_id: 'tbl-4', status: 'active' }] }, commands);
+    const el = await withFront('tbl-4', 'ses-4', 'ord-4');
+
+    el.dispatchEvent(new CustomEvent('erp:order-context-reset'));
+    await settle(el);
+
+    expect(commands.filter((c) => c.name === 'tables.sessions.close').map((c) => c.payload?.session_id)).toEqual(['ses-4']);
+    expect(el.selectedId, 'the table is no longer in front').toBeUndefined();
+    expect(el.sessionId).toBeUndefined();
+  });
+
+  it('when the charge already closed the account on the server, the selection is still dropped', async () => {
+    const commands: Cmd[] = [];
+    stub({ 'ord-4': [{ session_id: 'ses-4', order_id: 'ord-4', table_id: 'tbl-4', status: 'closed' }] }, commands);
+    const el = await withFront('tbl-4', 'ses-4', 'ord-4');
+
+    el.dispatchEvent(new CustomEvent('erp:order-context-reset'));
+    await settle(el);
+
+    expect(el.selectedId, 'the charged table is no longer in front').toBeUndefined();
+    expect(el.sessionId).toBeUndefined();
+  });
+
+  it('parking a bar check to open a table parks nothing and keeps that table in front', async () => {
+    const commands: Cmd[] = [];
+    stub({}, commands);
+    const el = await withFront('tbl-6', 'ses-6', 'ord-bar');
+
+    el.dispatchEvent(new CustomEvent('erp:order-parked', { detail: { order_id: 'ord-bar' } }));
+    await settle(el);
+
+    expect(commands.map((c) => c.name), 'the tapped table is not parked').not.toContain('tables.sessions.park');
+    expect(el.selectedId).toBe('tbl-6');
+    expect(el.sessionId).toBe('ses-6');
+  });
+
+  it('parking a table check parks the account of THAT order', async () => {
+    const commands: Cmd[] = [];
+    stub({ 'ord-5': [{ session_id: 'ses-5b', order_id: 'ord-5', table_id: 'tbl-5', status: 'active' }] }, commands);
+    const el = await withFront('tbl-5', 'ses-5b', 'ord-5');
+
+    el.dispatchEvent(new CustomEvent('erp:order-parked', { detail: { order_id: 'ord-5' } }));
+    await settle(el);
+
+    expect(commands.filter((c) => c.name === 'tables.sessions.park').map((c) => c.payload?.session_id)).toEqual(['ses-5b']);
+    expect(el.selectedId).toBeUndefined();
+  });
+
+  it('splitting puts the NEW account in front, on its table (Ventas shows the new check)', async () => {
+    const live = [{ id: 'ses-1', table_id: 'tbl-1', status: 'active', order_id: 'ord-1' }];
+    (globalThis as Record<string, unknown>).erplora = {
+      ...((globalThis as Record<string, unknown>).erplora as object),
+      queryAll: async (name: string) => (name.includes('zone') ? [ZONA] : [{ ...MESA, status: 'occupied' }]),
+      query: async (name: string) => {
+        if (name.includes('zone')) return [ZONA];
+        if (name === 'tables.sessions.list') return live;
+        return [{ ...MESA, status: 'occupied' }];
+      },
+      command: async () => ({ new_ids: ['ses-2'] }),
+    };
+    const el = (await montar()) as Filler;
+    el.selectedId = 'tbl-other';
+    el.sessionId = 'ses-other';
+
+    el.shadowRoot.querySelector<HTMLElement>('ion-button.trigger')!.click();
+    await settle(el);
+    el.shadowRoot.querySelector<HTMLElement>('.kebab')!.click();
+    await settle(el);
+    el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-pos-split"]')!.click();
+    await settle(el);
+
+    expect(el.sessionId, 'the account in front is the new one').toBe('ses-2');
+    expect(el.selectedId, 'on the split table').toBe('tbl-1');
+  });
+});
