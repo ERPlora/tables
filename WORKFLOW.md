@@ -66,7 +66,8 @@ móvil y se difumina por el borde cuando hay más zonas), un «+» («Añadir zo
 («Editar zona»). Debajo, el plano de la zona elegida: cada mesa es una baldosa con su número, su
 estado escrito con su icono y color (Disponible, Ocupada, Reservada, Bloqueada), el aforo («4 pax»)
 o, si está ocupada, los comensales y los minutos que llevan («3 pax · 35 min») y quién la atiende; si
-tiene una reserva retenida, el nombre y la hora de la reserva. Las mesas redondas se pintan
+tiene una reserva retenida, el nombre y la hora de la reserva («Cliente borrado» si se borraron
+los datos de esa clienta, TABLES-F31). Las mesas redondas se pintan
 redondas; la rectangular se pinta igual que la cuadrada. Debajo, la ayuda «Arrastra para colocar ·
 clic en una mesa para editarla o borrarla. Los cambios se guardan al momento.».
 Tocar una mesa abre **Editar mesa** (Número, Aforo, Nombre (opcional), Forma, Estado, Zona; pie con
@@ -117,7 +118,8 @@ ajustes.».
 ### Elegir mesa (en el TPV)
 En **Ventas → Vender**, el botón de mesa de la cabecera de la cuenta («Asignar mesa»; se colorea
 cuando la cuenta tiene mesa) abre la ventana «Elegir mesa»: pestañas por zona y una rejilla de mesas
-con número, aforo, comensales sentados, estado escrito y, si la hay, la reserva («Ana · 21:00»). Una
+con número, aforo, comensales sentados, estado escrito y, si la hay, la reserva («Ana · 21:00»;
+«Cliente borrado · 21:00» si se borraron sus datos). Una
 mesa Bloqueada sale apagada. Cada mesa ocupada lleva un «⋮» («Opciones de mesa») con «Transferir»,
 «Fusionar», «Dividir cuenta» y «Comensales». Al pie, «Quitar mesa» si la cuenta tiene mesa, o
 «Cancelar» mientras se elige el destino de un traslado o una fusión («Elige una mesa libre», «Elige
@@ -176,6 +178,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | TABLES-F28 | Gastar la retención al sentar a la reserva | parcial | [workflow/reservas.md](workflow/reservas.md) |
 | TABLES-F29 | Caducar las retenciones vencidas | parcial | [workflow/reservas.md](workflow/reservas.md) |
 | TABLES-F30 | Retener o soltar una mesa a mano | parcial | [workflow/reservas.md](workflow/reservas.md) |
+| TABLES-F31 | Olvidar el nombre de un cliente cuyos datos se borran (RGPD) | parcial | [workflow/reservas.md](workflow/reservas.md) |
 
 ## Cobertura contra la referencia
 
@@ -222,12 +225,14 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
   y Mesas lo apunta en su propio libro; el aviso de pedido completado (cuenta cobrada entera) cierra
   la cuenta de mesa. Nunca lee las tablas de Ventas.
 - **De Reservas**: la reserva llega por sus avisos de cambio de estado y de cambio de datos: mesa,
-  fecha, hora, duración, comensales y nombre. Mesas guarda solo la referencia de la reserva, su
-  ventana, sus comensales y el nombre que pinta.
+  fecha, hora, duración, comensales, nombre y ficha de cliente. Mesas guarda solo la referencia de
+  la reserva, su ventana, sus comensales, el nombre que pinta y de qué ficha es.
+- **De Clientes**: el aviso de borrado de los datos de una ficha (TABLES-F31). Nunca lee sus tablas.
 - **Del hub**: quién atiende es la persona del hub que abrió la cuenta; el nombre se busca en la lista
   de personas del hub cada vez que se pinta, no se copia.
 - **Datos personales** (inventario RGPD, de las migraciones):
-  - retención de mesa: el nombre del cliente copiado de la reserva y sus comensales;
+  - retención de mesa: el nombre del cliente copiado de la reserva, el enlace a su ficha y sus
+    comensales; el nombre se guarda solo mientras la retención está viva;
   - cuenta de mesa: quién la atiende y las notas libres (pueden traer cualquier dato de la mesa);
   - mesa y zona: nombre y descripción libres;
   - en las siete tablas (zonas, mesas, cuentas, recorrido, retenciones, libro de cobrado, ajustes):
@@ -236,6 +241,12 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
     persona del hub que la dio y la identidad fiscal del negocio (NIF, razón social y dirección, que en
     un autónomo son datos personales); así, el de cuenta abierta o dividida lleva las notas si se
     mandaron, y el de mesa retenida a mano, el nombre de la retención.
+  - **Borrado**: al borrar los datos personales de una ficha en Clientes, Mesas vacía el nombre de
+    todas sus retenciones, también las terminadas y las borradas (F31); la mesa sigue Reservada y la
+    pantalla dice «Cliente borrado». Se conservan la mesa, la hora, los comensales, el estado, la
+    referencia de la reserva y el enlace a la ficha. No alcanza las retenciones sin ficha ni las
+    vivas anteriores a esta versión (las dos olvidan el nombre al terminar), ni las notas libres de
+    una cuenta, ni los avisos ya emitidos, ni quién del equipo creó o cambió cada fila.
 
 ## Reglas que no se rompen
 
