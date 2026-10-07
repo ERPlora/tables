@@ -9,6 +9,8 @@
 -- `released`, o perderíamos la traza de que aquella reserva sí llegó a ocupar la mesa.
 UPDATE tables_table_hold SET
     status     = 'released',
+    -- pm#637: a hold that is over keeps no name — no screen reads it any more.
+    label      = '',
     updated_by = :current_user_id,
     updated_at = :now
 WHERE hub_id = :hub_id AND source = :source AND source_ref = :source_ref

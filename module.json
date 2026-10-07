@@ -127,7 +127,8 @@
         "kind": "contract",
         "since": "2.2.39"
       },
-      "migrations/postgres/012_order_payment.sql"
+      "migrations/postgres/012_order_payment.sql",
+      "migrations/postgres/013_table_hold_customer.sql"
     ]
   },
   "queries": {
@@ -874,6 +875,13 @@
         "commands/_hold_free_stale.sql"
       ]
     },
+    "tables._on_customer_anonymized": {
+      "permission": "tables.change_tablesession",
+      "transaction": true,
+      "sql": [
+        "commands/customer_erase_holds.sql"
+      ]
+    },
     "tables.settings.update": {
       "permission": "tables.manage_settings",
       "transaction": true,
@@ -905,6 +913,9 @@
   },
   "events": {
     "listen": {
+      "customer.anonymized": {
+        "command": "tables._on_customer_anonymized"
+      },
       "order.completed": {
         "command": "tables._session_close_by_order"
       },
