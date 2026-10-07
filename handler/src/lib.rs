@@ -442,7 +442,9 @@ pub fn transfer_session_pure(input: Value) -> Result<Output, String> {
 /// `{payload, context}` → intención `tables._session_merge`.
 ///
 /// Fusiona la comanda de la sesión origen (`session_id`) en la mesa destino OCUPADA
-/// (`target_table_id`). El handler es puro: NO conoce la sesión activa del destino
+/// (`target_table_id`), y opcionalmente `target_session_id`: cuál cuenta del destino absorbe
+/// cuando la mesa destino está dividida — sin ella el SQL elige la más reciente, como siempre.
+/// El handler es puro: NO conoce la sesión activa del destino
 /// (`merged_into_id`) ni el estado vivo — el SQL interno `tables._session_merge` cierra
 /// la sesión origen (`merged`, `merged_into_id` = sesión activa del destino por subquery),
 /// libera la mesa origen y asegura por gate que ambas estaban en el estado esperado. A
@@ -456,6 +458,13 @@ pub fn merge_session_pure(input: Value) -> Result<Output, String> {
     let mut p = Map::new();
     p.insert("session_id".into(), json!(session_id));
     p.insert("target_table_id".into(), json!(target_table_id));
+    // tables#122: opcional como `target_table_id` del split — Value::Null cuando no viene,
+    // y el SQL la trata con COALESCE/NULLIF (ausente o vacía = sin elección). Nombra QUÉ
+    // cuenta del destino absorbe cuando la mesa destino está dividida.
+    p.insert(
+        "target_session_id".into(),
+        opt_str(&payload, "target_session_id"),
+    );
 
     Ok(Output {
         operations: vec![Operation::sql("tables._session_merge", p)],
@@ -644,6 +653,45 @@ mod tests {
         assert!(
             merge_session_pure(input(json!({ "session_id": "s-origen" }), 0)).is_err(),
             "sin target_table_id (destino) debe fallar"
+        );
+    }
+
+    // ── tables#122 · the merge names WHICH check of the destination absorbs ──
+
+    #[test]
+    fn merge_session_names_the_chosen_destination_check() {
+        // A split destination table holds TWO active sessions; when the waiter has chosen
+        // which one absorbs, the intent carries `target_session_id`…
+        let out = merge_session_pure(input(
+            json!({
+                "session_id": "s-origen",
+                "target_table_id": "mesa-destino",
+                "target_session_id": "s-elegida"
+            }),
+            0,
+        ))
+        .expect("merge with a chosen destination check");
+
+        assert_eq!(out.operations.len(), 1, "una sola intención de fusión");
+        assert_eq!(
+            out.operations[0].params.get("target_session_id"),
+            Some(&json!("s-elegida")),
+            "the chosen check is named, not left to the SQL's newest-by-default"
+        );
+
+        // …and no value (or an explicit NULL) when nobody chose, which releases the SQL
+        // subquery to its default (the newest active session) — callers predating
+        // tables#122 keep working.
+        let out = merge_session_pure(input(
+            json!({ "session_id": "s-origen", "target_table_id": "mesa-destino" }),
+            0,
+        ))
+        .expect("merge without a chosen check keeps working as before");
+
+        let named = out.operations[0].params.get("target_session_id");
+        assert!(
+            matches!(named, None) || named == Some(&Value::Null),
+            "sin elección la intención no nombra ninguna cuenta del destino"
         );
     }
 

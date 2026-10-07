@@ -46,6 +46,8 @@
     "pickFreeTable": "Pick a free table",
     "pickOccupiedTable": "Pick an occupied table",
     "errNoActiveSession": "That table has no open order",
+    "accountPromptTitle": "Which check of table {number}?",
+    "accountLabel": "Check {index}",
     "errTransfer": "Could not transfer the table",
     "errMerge": "Could not merge the tables",
     "errSplit": "Could not split the check",

@@ -38,6 +38,15 @@ interface Table {
   live_guests?: number | null;
 }
 
+/** tables#122: one live check of a table (`tables.sessions.list`). A split table holds TWO under
+ *  one tablecloth; which one the waiter means is their call, never the lowest id's. */
+interface AccountRow {
+  id: string;
+  order_id?: string | null;
+  guests_count?: number | null;
+  opened_at?: string | null;
+}
+
 interface ErploraLike {
   query<T = unknown>(name: string, params?: Record<string, unknown>): Promise<T>;
   /** TODAS las filas (sin tope). Para lo que no es «una página»: la rejilla del TPV, un
@@ -183,6 +192,12 @@ export class ErpTablesPosZones extends LitElement {
     .guests .over { text-align:center; font-size:.85rem; color:var(--ion-color-warning,#f08c00); }
     .guests .cta { display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
     .guests .cta .seat { flex:1; }
+    /* tables#122: the checks of a split table — one row per live check (44px targets, tables#16),
+       left-aligned like a list, the back button alone at the foot. */
+    .accounts { display:flex; flex-direction:column; gap:.5rem; padding:.4rem 0; }
+    .accounts ion-button { --justify-content: flex-start; }
+    .accounts .meta { font-size:.8rem; color:#8b897f; }
+    .accounts .cta { display:flex; justify-content:flex-start; }
     .mesa .live { font-size:.75rem; font-weight:700; color:var(--ion-color-danger,#d9480f);
       display:flex; align-items:center; justify-content:center; gap:.2rem; }
     /* pm#392 — a danger outline/clear button paints from HERE, never from \`color="danger"\`:
@@ -224,7 +239,15 @@ export class ErpTablesPosZones extends LitElement {
   /** tables#32: covers prompt. `seat` = a free table was touched (seat the party with N covers);
    *  `edit` = ⋮ → Guests on an occupied table (correct the live check). Default = capacity /
    *  live covers; quick chips seat in one tap; +/− for the rest. */
-  @state() private guestsPrompt?: { kind: 'seat' | 'edit'; table: Table; value: number };
+  @state() private guestsPrompt?: { kind: 'seat' | 'edit'; table: Table; value: number; account?: AccountRow };
+
+  /** tables#122: the table's live checks are on screen and the waiter must name one — with what
+   *  happens with the chosen half. Shown only when there are SEVERAL (one check never asks). */
+  @state() private accountPrompt?: {
+    table: { id: string; number: string };
+    accounts: AccountRow[];
+    then: (a?: AccountRow) => void | Promise<void>;
+  };
 
   /** Room setting `prompt_guests_on_seat` (tables#3 c). Off = a bar that never counts covers:
    *  seating a free table opens the check with the capacity in ONE tap (Lightspeed "Cover count
@@ -233,6 +256,9 @@ export class ErpTablesPosZones extends LitElement {
 
   /** Active account of the selected table (opened when seating, or resumed if it was already there). */
   private sessionId?: string;
+
+  /** tables#122: the check the ⋮ acts on, named by the waiter when the source table is split. */
+  private actionSession?: AccountRow;
 
   /** tables#118: the order Ventas has in front, from the last `erp:pos-state`. Ventas fires the
    *  reset/park synchronously, before it re-renders, so this still names the order that finished. */
@@ -247,7 +273,9 @@ export class ErpTablesPosZones extends LitElement {
     const orderId = this.frontOrderId;
     this.mode = 'select';
     this.actionSource = undefined;
+    this.actionSession = undefined;
     this.guestsPrompt = undefined;
+    this.accountPrompt = undefined;
     if (!orderId) {
       // No order in front: the remembered account never got one, so it is the one being dropped.
       this.dropSelection(sid);
@@ -443,18 +471,55 @@ export class ErpTablesPosZones extends LitElement {
     } catch { /* linking is operational, it must not break the sale */ }
   };
 
-  /** Id de la sesión `active` de una mesa (para reanudar/cerrar), o undefined si no hay. */
+  /** Id de la sesión `active` de una mesa (para reanudar/cerrar), o undefined si no hay.
+   *  tables#122: responde la PRIMERA cuenta por id — solo para caminos de cuenta ÚNICA (la que
+   *  `seat` acaba de abrir); donde la mesa puede estar dividida, se pasa por `activeAccounts`. */
   private async activeSessionFor(tableId: string): Promise<string | undefined> {
     return (await this.activeSessionInfo(tableId))?.id;
   }
 
-  /** Sesión activa de una mesa CON su pedido enlazado (junction ADR-0141). */
+  /** Sesión activa de una mesa CON su pedido enlazado (junction ADR-0141). tables#122: es la
+   *  primera por id, NO «la cuenta de la mesa» — en una mesa dividida hay dos y esta elige una
+   *  por debajo; los caminos donde puede haber división usan `activeAccounts`/`resolveAccount`. */
   private async activeSessionInfo(tableId: string): Promise<{ id: string; order_id?: string } | undefined> {
     try {
       const r = await erplora().query('tables.sessions.list', { f_table_id: tableId, f_status: 'active', limit: 1 });
       return rows<{ id: string; order_id?: string }>(r)[0];
     } catch { return undefined; }
   }
+
+  /** tables#122: TODAS las cuentas vivas de una mesa (una dividida guarda dos bajo un mismo
+   *  mantel). Quien necesite «la cuenta de la mesa» pregunta cuando hay varias — nunca deja que
+   *  un limit-1 elija la mitad por él. */
+  private async activeAccounts(tableId: string): Promise<AccountRow[]> {
+    try {
+      const r = await erplora().query('tables.sessions.list', {
+        f_table_id: tableId, f_status: 'active', sort: 'id', dir: 'asc', limit: 50,
+      });
+      return rows<AccountRow>(r);
+    } catch { return []; }
+  }
+
+  /** tables#122: una misma pregunta para todo lo que toca una mesa — «¿qué cuenta?». UNA viva va
+   *  directa a `then` (el 99 % de las mesas no cambia nada); VARIAS y el camarero nombra la mitad
+   *  (Toast «Select a check», Square «choose the check»); NINGUNA y `then(undefined)` cuenta por
+   *  qué no se puede actuar. */
+  private async resolveAccount(table: { id: string; number: string }, then: (a?: AccountRow) => void | Promise<void>) {
+    const accounts = await this.activeAccounts(table.id);
+    if (accounts.length > 1) {
+      this.accountPrompt = { table, accounts, then };
+      return;
+    }
+    await then(accounts[0]);
+  }
+
+  private async confirmAccount(a: AccountRow) {
+    const p = this.accountPrompt;
+    this.accountPrompt = undefined;
+    await p?.then(a);
+  }
+
+  private cancelAccountPrompt() { this.accountPrompt = undefined; }
 
   private async closeSession(id: string) {
     try { await erplora().command('tables.sessions.close', { session_id: id }); }
@@ -482,7 +547,20 @@ export class ErpTablesPosZones extends LitElement {
     // En modo destino, un toque elige la mesa a la que transferir/fusionar (solo válidas).
     if (this.mode === 'transfer') { if (this.isValidTarget(t)) await this.doTransfer(t); return; }
     if (this.mode === 'merge') { if (this.isValidTarget(t)) await this.doMerge(t); return; }
-    if (t.id === this.selectedId) return;
+    // tables#122: re-tocar la mesa que ya está delante era un no-op — inalcanzable para una mesa
+    // dividida, cuya SEGUNDA mitad no podía llegar nunca a la pantalla. Ahora ofrece sus cuentas:
+    // con una (o ninguna) sigue sin hacer nada; con varias, el camarero elige.
+    if (t.id === this.selectedId) {
+      const accounts = await this.activeAccounts(t.id);
+      if (accounts.length < 2) return;
+      if (this.pendingBlocks) { this.heldBack = { kind: 'pick', table: t }; return; }
+      this.error = '';
+      this.accountPrompt = {
+        table: t, accounts,
+        then: (a) => { if (a) this.settle(t, a.id, a.order_id || undefined); },
+      };
+      return;
+    }
     this.error = '';
     // Segunda puerta de lo de arriba: la celda ya está deshabilitada, pero el teclado, un
     // `pick()` desde otro flujo o una mesa que se bloqueó mientras el plano estaba abierto no
@@ -504,7 +582,9 @@ export class ErpTablesPosZones extends LitElement {
     // Regla: si la mesa que dejamos ya tiene pedido enlazado, sigue OCUPADA (es su comanda viva);
     // solo se libera la que tocamos por error y quedó sin pedir nada. Se cierra al cobrar (reset).
     if (this.sessionId && this.selectedId && this.selectedId !== t.id) {
-      const prev = await this.activeSessionInfo(this.selectedId);
+      // tables#122: se juzga NUESTRA mitad, no la que el limit-1 encuentre primero — en una mesa
+      // dividida nombraba a la hermana y NUESTRA mitad vacía quedaba abierta para siempre.
+      const prev = (await this.activeAccounts(this.selectedId)).find((a) => a.id === this.sessionId);
       if (!prev?.order_id) {
         await this.closeSession(this.sessionId);
       }
@@ -516,13 +596,21 @@ export class ErpTablesPosZones extends LitElement {
     // tables#12: antes esto se decidía por `status === 'available'`, y una mesa `reserved` —que
     // desde #12 sí existe— caía en la rama de «reanudar» sin sesión que reanudar: el TPV se quedaba
     // con mesa y sin cuenta. Sentar una reserva es exactamente abrir su primera cuenta.
-    const live = await this.activeSessionInfo(t.id);
-    if (live) {
-      this.settle(t, live.id, live.order_id || undefined);
-      return;
-    }
-    // tables#32: seating a party asks for the covers first (Toast/Lightspeed/Square do the same):
-    // default = the table capacity (or the reservation's party size), quick chips seat in one tap.
+    //
+    // tables#122: una mesa dividida tiene VARIAS cuentas vivas — el camarero nombra cuál abre
+    // (resolveAccount pregunta solo si hay más de una); con una o ninguna, ni se entera.
+    await this.resolveAccount(t, (a) => {
+      if (a) {
+        this.settle(t, a.id, a.order_id || undefined);
+        return;
+      }
+      return this.offerSeat(t);
+    });
+  }
+
+  /** tables#32: seating a party asks for the covers first (Toast/Lightspeed/Square do the same):
+   *  default = the table capacity (or the reservation's party size), quick chips seat in one tap. */
+  private async offerSeat(t: Table) {
     const seed = t.reserved_party_size && t.reserved_party_size > 0 ? t.reserved_party_size : t.capacity;
     const covers = Math.max(1, Number(seed) || 1);
     if (!this.promptGuests) {
@@ -587,12 +675,15 @@ export class ErpTablesPosZones extends LitElement {
     const p = this.guestsPrompt;
     if (!p || !value) return;
     if (p.kind === 'seat') { await this.seat(p.table, value); return; }
-    const info = await this.activeSessionInfo(p.table.id);
-    if (!info?.id) { this.error = erplora().t(CATALOG, 'ui.errNoActiveSession'); return; }
+    // tables#122: el ⋮ ya nombró QUÉ cuenta de la mesa dividida se corrige; releer «la de la
+    // mesa» podría devolver la otra mitad. Sin cuenta elegida se mira la mesa (camino antiguo).
+    const sid = p.account?.id ?? (await this.activeSessionInfo(p.table.id))?.id;
+    if (!sid) { this.error = erplora().t(CATALOG, 'ui.errNoActiveSession'); return; }
     try {
-      await erplora().command('tables.sessions.set_guests', { session_id: info.id, guests_count: value });
+      await erplora().command('tables.sessions.set_guests', { session_id: sid, guests_count: value });
       this.guestsPrompt = undefined;
       this.actionSource = undefined;
+      this.actionSession = undefined;
       void this.refreshTables();
     } catch (e) {
       this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errSetGuests');
@@ -601,12 +692,15 @@ export class ErpTablesPosZones extends LitElement {
 
   private cancelGuests() { this.guestsPrompt = undefined; }
 
-  /** ⋮ → Guests: correct the covers of the live check, pre-filled with what the plan shows. */
-  private startEditGuests() {
+  /** ⋮ → Guests: correct the covers of the live check, pre-filled with what the plan shows.
+   *  tables#122: on a split table the plan's `live_guests` is the OLDEST half's — the prefill is
+   *  the CHOSEN check's own covers (`account`), so the correction starts from what it serves. */
+  private startEditGuests(account?: AccountRow) {
     const src = this.actionSource;
     const t = src && this.tables.find((x) => x.id === src.id);
     if (!t) return;
-    this.guestsPrompt = { kind: 'edit', table: t, value: Math.max(1, Number(t.live_guests) || t.capacity || 1) };
+    const seed = account?.guests_count ?? t.live_guests ?? t.capacity;
+    this.guestsPrompt = { kind: 'edit', table: t, value: Math.max(1, Number(seed) || 1), account };
   }
 
   private async clear() {
@@ -638,30 +732,46 @@ export class ErpTablesPosZones extends LitElement {
     e.stopPropagation();
     this.error = '';
     this.actionSource = { id: t.id, number: t.number };
+    this.actionSession = undefined; // tables#122: cada ⋮ nombra su cuenta al elegir la acción
     this.mode = 'select';
   }
 
   private startTransfer() { this.mode = 'transfer'; }
   private startMerge() { this.mode = 'merge'; }
 
-  /** tables#12 — dividir la cuenta. A diferencia de transferir/fusionar NO pide mesa destino: la
-   *  segunda cuenta se queda en la misma mesa (dos cuentas, un mantel), que es lo que pide la sala.
-   *  `tables` abre la cuenta; las líneas y los importes los reparte `sales` al recibir el evento. */
-  private async doSplit() {
+  /** tables#122: the ⋮ acts on ONE check of the source table. With SEVERAL live checks the
+   *  waiter names which one before anything moves (Toast «Select a check»); with none, the
+   *  reason — never a blind command on whichever half a lookup finds. */
+  private async chooseAction(kind: 'transfer' | 'merge' | 'split' | 'guests') {
     const src = this.actionSource;
     if (!src) return;
-    const info = await this.activeSessionInfo(src.id);
-    if (!info?.id) { this.error = erplora().t(CATALOG, 'ui.errNoActiveSession'); return; }
+    await this.resolveAccount(src, (a) => {
+      if (!a) { this.error = erplora().t(CATALOG, 'ui.errNoActiveSession'); return; }
+      this.actionSession = a;
+      if (kind === 'transfer') this.startTransfer();
+      else if (kind === 'merge') this.startMerge();
+      else if (kind === 'split') void this.doSplit(a);
+      else this.startEditGuests(a);
+    });
+  }
+
+  /** tables#12 — dividir la cuenta. A diferencia de transferir/fusionar NO pide mesa destino: la
+   *  segunda cuenta se queda en la misma mesa (dos cuentas, un mantel), que es lo que pide la sala.
+   *  `tables` abre la cuenta; las líneas y los importes los reparte `sales` al recibir el evento.
+   *  tables#122: `account` es la mitad elegida cuando la mesa está dividida. */
+  private async doSplit(account: AccountRow) {
+    const src = this.actionSource;
+    if (!src) return;
     try {
       const res = await erplora().command<{ new_ids?: string[] }>(
-        'tables.sessions.split', { session_id: info.id });
+        'tables.sessions.split', { session_id: account.id });
       // La cuenta nueva nace SIN pedido: `sales` materializa el suyo y lo cuelga de ella con
       // `tables.sessions.link_order`, por eso viaja su id (sin él, el pedido aterrizaría en la
       // cuenta original y las dos mitades cobrarían la misma comanda).
       this.dispatchEvent(new CustomEvent('erp:order-split', {
         detail: {
           table_id: src.id,
-          from_order_id: info.order_id ?? null,
+          from_order_id: account.order_id ?? null,
           session_id: res?.new_ids?.[0] ?? null,
           label: erplora().t(CATALOG, 'ui.tableLabel', { number: src.number }),
         },
@@ -677,13 +787,20 @@ export class ErpTablesPosZones extends LitElement {
       }
       this.mode = 'select';
       this.actionSource = undefined;
+      this.actionSession = undefined;
       this.open = false;
       void this.refreshTables();
     } catch (e) {
       this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errSplit');
     }
   }
-  private cancelAction() { this.mode = 'select'; this.actionSource = undefined; this.guestsPrompt = undefined; }
+  private cancelAction() {
+    this.mode = 'select';
+    this.actionSource = undefined;
+    this.actionSession = undefined;
+    this.guestsPrompt = undefined;
+    this.accountPrompt = undefined;
+  }
 
   /** Emite hacia el POS el movimiento de comanda (mover en transfer, combinar en merge). El POS
    *  (erp-pos-touch/desktop) mueve/fusiona el carrito por `table_id`; contrato por evento DOM. */
@@ -708,10 +825,12 @@ export class ErpTablesPosZones extends LitElement {
   private async doTransfer(target: Table) {
     const src = this.actionSource;
     if (!src) return;
-    const info = await this.activeSessionInfo(src.id);
-    const sid = info?.id;
+    // tables#122: la mitad nombrada en `chooseAction` — sin reconsultar: la mesa origen puede
+    // seguir dividida y otra lectura volvería a elegir por nosotros.
+    const a = this.actionSession;
+    const sid = a?.id;
     // Pedido de la mesa ORIGEN, leído ANTES de mover (después la sesión origen queda 'transferred').
-    const srcOrderId = info?.order_id || undefined;
+    const srcOrderId = a?.order_id || undefined;
     if (!sid) { this.error = erplora().t(CATALOG, 'ui.errNoActiveSession'); return; }
     try {
       await erplora().command('tables.sessions.transfer', { session_id: sid, target_table_id: target.id });
@@ -727,33 +846,46 @@ export class ErpTablesPosZones extends LitElement {
   private async doMerge(target: Table) {
     const src = this.actionSource;
     if (!src) return;
-    const info = await this.activeSessionInfo(src.id);
-    const sid = info?.id;
-    // Los DOS pedidos, leídos antes de fusionar: el POS suma el del origen en el del destino.
-    const srcOrderId = info?.order_id || undefined;
-    const dstOrderId = (await this.activeSessionInfo(target.id))?.order_id || undefined;
-    if (!sid) { this.error = erplora().t(CATALOG, 'ui.errNoActiveSession'); return; }
+    const a = this.actionSession;
+    if (!a?.id) { this.error = erplora().t(CATALOG, 'ui.errNoActiveSession'); return; }
+    // tables#122: el DESTINO también puede estar dividido — cuál de sus cuentas absorbe lo nombra
+    // el camarero y viaja al hub (`target_session_id`); sin división es su única cuenta y no
+    // cambia nada. Antes lo resolvía en silencio un «la más nueva», también en el SQL.
+    await this.resolveAccount(target, (dst) => this.finishMerge(src, a, target, dst));
+  }
+
+  /** La fusión en sí, con origen y (si el destino está dividido) cuenta absorbedora ya nombrados. */
+  private async finishMerge(src: { id: string; number: string }, account: AccountRow, target: Table, dst?: AccountRow) {
     try {
-      await erplora().command('tables.sessions.merge', { session_id: sid, target_table_id: target.id });
+      await erplora().command('tables.sessions.merge', {
+        session_id: account.id,
+        target_table_id: target.id,
+        ...(dst ? { target_session_id: dst.id } : {}),
+      });
       // Fusionar SÍ mueve líneas: el POS suma la comanda del origen en la del destino y anula la
       // del origen (una sola cuenta en una sola mesa).
-      this.emitCartMove('erp:order-merge', src.id, target, { from: srcOrderId, to: dstOrderId });
-      await this.afterMove(src.id, target);
+      this.emitCartMove('erp:order-merge', src.id, target, {
+        from: account.order_id || undefined,
+        to: dst?.order_id || undefined,
+      });
+      await this.afterMove(src.id, target, dst?.id);
     } catch (e) {
       this.error = e instanceof Error ? e.message : erplora().t(CATALOG, 'ui.errMerge');
     }
   }
 
   /** Tras transferir/fusionar: la comanda vive ahora en el DESTINO. Si SEGUÍAMOS en la mesa origen,
-   *  la selección pasa a la mesa destino (si no, el POS conserva la mesa que estuviera atendiendo). */
-  private async afterMove(srcId: string, target: Table) {
+   *  la selección pasa a la mesa destino (si no, el POS conserva la mesa que estuviera atendiendo).
+   *  tables#122: `dstSid` es la cuenta del destino que absorbió, cuando el camarero la nombró. */
+  private async afterMove(srcId: string, target: Table, dstSid?: string) {
     if (this.selectedId === srcId) {
       this.selectedId = target.id;
-      this.sessionId = await this.activeSessionFor(target.id);
+      this.sessionId = dstSid ?? await this.activeSessionFor(target.id);
       this.selectedLabel = erplora().t(CATALOG, 'ui.tableLabel', { number: target.number });
     }
     this.mode = 'select';
     this.actionSource = undefined;
+    this.actionSession = undefined;
     this.open = false;
     void this.refreshTables();
   }
@@ -809,22 +941,23 @@ export class ErpTablesPosZones extends LitElement {
           : nothing}
 
         ${this.guestsPrompt ? this.renderGuestsPrompt(t) : nothing}
+        ${this.accountPrompt ? this.renderAccountsPrompt(t) : nothing}
 
-        ${this.actionSource && !inAction && !this.guestsPrompt
+        ${this.actionSource && !inAction && !this.guestsPrompt && !this.accountPrompt
           ? html`<div class="actions">
               <span class="lbl">${t('ui.tableLabel', { number: srcNum })}</span>
               ${can('tables.transfer_tablesession')
-                ? html`<ion-button data-testid="tables-pos-transfer" fill="outline" @click=${() => this.startTransfer()}>
+                ? html`<ion-button data-testid="tables-pos-transfer" fill="outline" @click=${() => void this.chooseAction('transfer')}>
                 <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>${t('ui.transfer')}
               </ion-button>
-              <ion-button data-testid="tables-pos-merge" fill="outline" @click=${() => this.startMerge()}>
+              <ion-button data-testid="tables-pos-merge" fill="outline" @click=${() => void this.chooseAction('merge')}>
                 <ion-icon slot="start" name="git-merge-outline"></ion-icon>${t('ui.merge')}
               </ion-button>`
                 : nothing}
-              <ion-button data-testid="tables-pos-split" fill="outline" @click=${() => void this.doSplit()}>
+              <ion-button data-testid="tables-pos-split" fill="outline" @click=${() => void this.chooseAction('split')}>
                 <ion-icon slot="start" name="git-branch-outline"></ion-icon>${t('ui.split')}
               </ion-button>
-              <ion-button data-testid="tables-pos-guests" fill="outline" @click=${() => this.startEditGuests()}>
+              <ion-button data-testid="tables-pos-guests" fill="outline" @click=${() => void this.chooseAction('guests')}>
                 <ion-icon slot="start" name="people-outline"></ion-icon>${t('ui.guests')}
               </ion-button>
             </div>`
@@ -833,14 +966,14 @@ export class ErpTablesPosZones extends LitElement {
           ? html`<div class="hint" data-testid="tables-pos-hint">${this.mode === 'transfer' ? t('ui.pickFreeTable') : t('ui.pickOccupiedTable')}</div>`
           : nothing}
 
-        ${this.zones.length && !this.guestsPrompt
+        ${this.zones.length && !this.guestsPrompt && !this.accountPrompt
           ? html`<ion-segment data-testid="tables-pos-zones" scrollable value=${this.activeZone}
               @ionChange=${(e: CustomEvent) => { this.activeZone = (e.detail as { value: string }).value; }}>
               ${this.zones.map((z) => html`<ion-segment-button data-testid=${`tables-pos-zone-tab-${z.id}`} value=${z.id}><ion-label>${z.name}</ion-label></ion-segment-button>`)}
             </ion-segment>`
           : nothing}
 
-        ${this.guestsPrompt ? nothing : html`<div class="grid">
+        ${this.guestsPrompt || this.accountPrompt ? nothing : html`<div class="grid">
           ${this.tablesInZone.map((tb) => {
             const validTarget = inAction && this.isValidTarget(tb);
             const showKebab = !inAction && tb.status === 'occupied';
@@ -919,6 +1052,27 @@ export class ErpTablesPosZones extends LitElement {
         <div class="cta">
           <ion-button data-testid="tables-pos-guests-back" class="back" fill="clear" @click=${() => this.cancelGuests()}>${t('ui.back')}</ion-button>
           <ion-button data-testid="tables-pos-guests-confirm" class="seat" size="default" @click=${() => void this.confirmGuests()}>${cta}</ion-button>
+        </div>
+      </div>`;
+  }
+
+  /** tables#122: the live checks of a split table — the waiter names which one before anything
+   *  moves. One row per check (its covers and the hour it opened tell them apart). */
+  private renderAccountsPrompt(t: (k: string, params?: Record<string, unknown>) => string) {
+    const p = this.accountPrompt!;
+    return html`
+      <div class="accounts" data-testid="tables-pos-accounts-prompt" role="group"
+        aria-label=${t('ui.accountPromptTitle', { number: p.table.number })}>
+        <div class="hint">${t('ui.accountPromptTitle', { number: p.table.number })}</div>
+        ${p.accounts.map((a, i) => html`
+          <ion-button data-testid=${`tables-pos-account-${a.id}`} fill="outline" expand="block"
+            @click=${() => void this.confirmAccount(a)}>
+            <ion-icon slot="start" name="people-outline"></ion-icon>
+            ${t('ui.accountLabel', { index: i + 1 })}
+            <span class="meta" slot="end">${t('ui.paxCount', { count: a.guests_count ?? 1 })}${a.opened_at ? ` · ${hhmm(a.opened_at)}` : ''}</span>
+          </ion-button>`)}
+        <div class="cta">
+          <ion-button data-testid="tables-pos-accounts-back" fill="clear" @click=${() => this.cancelAccountPrompt()}>${t('ui.back')}</ion-button>
         </div>
       </div>`;
   }

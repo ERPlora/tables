@@ -14,6 +14,11 @@
       "type": "string",
       "minLength": 1,
       "description": "UUID de la mesa destino OCUPADA que absorbe la comanda (debe tener una sesión `active`, distinta de la origen)"
+    },
+    "target_session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "tables#122: UUID de la cuenta del destino que absorbe, cuando la mesa destino está dividida (varias sesiones `active`). Sin ella, el SQL elige la más reciente — como siempre"
     }
   }
 }

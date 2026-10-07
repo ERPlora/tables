@@ -162,7 +162,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | TABLES-F08 | Ajustar la sala: comensales al sentar y avisos de tiempo | hecho | [workflow/plano.md](workflow/plano.md) |
 | TABLES-F09 | Ver cómo está la sala | parcial | [workflow/servicio.md](workflow/servicio.md) |
 | TABLES-F10 | Sentar a un grupo en una mesa libre o reservada | parcial | [workflow/servicio.md](workflow/servicio.md) |
-| TABLES-F11 | Volver a una mesa ocupada y cambiar de mesa en el TPV | parcial | [workflow/servicio.md](workflow/servicio.md) |
+| TABLES-F11 | Volver a una mesa ocupada y cambiar de mesa en el TPV | hecho | [workflow/servicio.md](workflow/servicio.md) |
 | TABLES-F12 | Llevar a una mesa la cuenta que ya está en pantalla | hecho | [workflow/servicio.md](workflow/servicio.md) |
 | TABLES-F13 | Quitar la mesa de una cuenta (aparcarla) | parcial | [workflow/servicio.md](workflow/servicio.md) |
 | TABLES-F14 | Corregir los comensales de una mesa ocupada | hecho | [workflow/servicio.md](workflow/servicio.md) |
@@ -198,8 +198,8 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | Pedir los comensales al sentar, con atajos | hecho | F10, F08 |
 | Dos TPV a la vez sobre la misma mesa: gana uno | parcial: si ya está ocupada se rechaza; en el mismo instante pueden entrar las dos (sin ejecutar) | F10 |
 | Superar el aforo avisa sin impedir | hecho | F10, F14 |
-| Varias cuentas en una mesa (dividir) | parcial: solo en la misma mesa, sin deshacer; tocar la mesa abre una de las dos sin elegir | F17 |
-| Transferir la cuenta a otra mesa | parcial: con la mesa dividida se traslada una de sus dos cuentas sin elegir cuál | F15 |
+| Varias cuentas en una mesa (dividir) | parcial: solo en la misma mesa, sin deshacer | F17 |
+| Transferir la cuenta a otra mesa | parcial: los rechazos salen sin traducir | F15 |
 | Juntar las cuentas de dos mesas | parcial: las líneas las junta Ventas y su fallo no se ve | F16 |
 | Juntar mesas físicas para un grupo grande (aforo sumado) | no hecho (duda abierta 3) | — |
 | Mesa «por limpiar» tras irse el grupo | no hecho (duda abierta 2) | — |

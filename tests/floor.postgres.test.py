@@ -587,7 +587,6 @@ def test_transfer_repoints_the_order():
     check("table 5 is free at last", "available", table_status("t5"))
 
 
-
 def test_another_hubs_account_never_holds_our_table():
     """tables#118 tenancy: «does another account still sit at this table?» is asked of THIS hub
     only. A foreign hub's live row naming our table id (corrupt or hostile data) must not keep our
@@ -623,8 +622,14 @@ def test_another_hubs_account_never_holds_our_table():
     command_ok(
         "our party sits at table 30",
         "tables._session_open",
-        {"session_id": "s30", "table_id": "t30", "guests_count": 2, "waiter_id": None,
-         "notes": "", "order_id": "O30"},
+        {
+            "session_id": "s30",
+            "table_id": "t30",
+            "guests_count": 2,
+            "waiter_id": None,
+            "notes": "",
+            "order_id": "O30",
+        },
         "2026-08-07T13:00:00+00:00",
     )
     command_ok(
@@ -633,13 +638,23 @@ def test_another_hubs_account_never_holds_our_table():
         {"session_id": "s30", "target_table_id": "t32", "new_session_id": "s32"},
         "2026-08-07T13:10:00+00:00",
     )
-    check("table 30 is free: the foreign row does not count", "available", table_status("t30"))
+    check(
+        "table 30 is free: the foreign row does not count",
+        "available",
+        table_status("t30"),
+    )
 
     command_ok(
         "our party sits at table 31",
         "tables._session_open",
-        {"session_id": "s31", "table_id": "t31", "guests_count": 2, "waiter_id": None,
-         "notes": "", "order_id": "O31"},
+        {
+            "session_id": "s31",
+            "table_id": "t31",
+            "guests_count": 2,
+            "waiter_id": None,
+            "notes": "",
+            "order_id": "O31",
+        },
         "2026-08-07T13:20:00+00:00",
     )
     command_ok(
@@ -648,7 +663,12 @@ def test_another_hubs_account_never_holds_our_table():
         {"session_id": "s31", "target_table_id": "t32"},
         "2026-08-07T13:30:00+00:00",
     )
-    check("table 31 is free: the foreign row does not count", "available", table_status("t31"))
+    check(
+        "table 31 is free: the foreign row does not count",
+        "available",
+        table_status("t31"),
+    )
+
 
 # ── 3. Splitting and merging exist and keep the check ────────────────────────────────────
 
@@ -810,6 +830,162 @@ def test_split_and_merge_keep_the_check():
     )
     check("table 2 is released", "available", table_status("t2"))
     check("table 1 was not disturbed", "available", table_status("t1"))
+
+
+# ── 3b. Merging into a SPLIT table names WHICH check absorbs (tables#122) ─────────────────
+
+
+def test_merge_into_the_chosen_check_of_a_split_table():
+    """tables#122 — a split table holds two live checks, and the merge resolved its destination
+    with a subquery the waiter never chose: `ORDER BY opened_at DESC LIMIT 1`, always the newest
+    half. Every reference POS asks first (Toast «Select a check», Square «choose the check»),
+    so the merge accepts `target_session_id` — and keeps falling back to the newest when nobody
+    names one, so callers that predate the picker keep working."""
+    print("\n== 3b. merging into the CHOSEN check of a split table ==")
+
+    command_ok(
+        "party A sits at table 5, nothing ordered yet",
+        "tables._session_open",
+        {
+            "session_id": "s-cho-a",
+            "table_id": "t5",
+            "guests_count": 4,
+            "waiter_id": None,
+            "notes": "",
+            "order_id": None,
+        },
+        "2026-08-07T19:00:00+00:00",
+    )
+    command_ok(
+        "the party splits the check in two",
+        "tables._session_split",
+        {
+            "session_id": "s-cho-a",
+            "new_session_id": "s-cho-b",
+            "target_table_id": "t5",
+            "guests_count": 2,
+            "notes": "",
+        },
+        "2026-08-07T19:30:00+00:00",
+    )
+    check("the split table keeps both halves open", "active", session_status("s-cho-b"))
+
+    command_ok(
+        "party C sits at table 1 with order O8",
+        "tables._session_open",
+        {
+            "session_id": "s-cho-src-a",
+            "table_id": "t1",
+            "guests_count": 2,
+            "waiter_id": None,
+            "notes": "",
+            "order_id": "O8",
+        },
+        "2026-08-07T19:05:00+00:00",
+    )
+
+    # The waiter chose the OLDER half (s-cho-a, opened 19:00) — the one the default subquery
+    # (newest first) would never pick.
+    command_ok(
+        "table 1 merges into the CHOSEN half of table 5",
+        "tables._session_merge",
+        {
+            "session_id": "s-cho-src-a",
+            "target_table_id": "t5",
+            "target_session_id": "s-cho-a",
+        },
+        "2026-08-07T19:40:00+00:00",
+    )
+    check(
+        "the merge landed on the chosen half",
+        "s-cho-a",
+        q(
+            f"SELECT merged_into_id FROM tables_session "
+            f"WHERE id = 's-cho-src-a' AND hub_id = '{HUB}'"
+        ),
+    )
+    check(
+        "the chosen half absorbs the order (the whole chain follows the choice)",
+        "O8",
+        q(
+            f"SELECT order_id FROM tables_session "
+            f"WHERE id = 's-cho-a' AND hub_id = '{HUB}'"
+        ),
+    )
+    check("the sibling half is untouched", "active", session_status("s-cho-b"))
+    check("the source table is emptied", "available", table_status("t1"))
+    check("table 5 still holds the split party", "occupied", table_status("t5"))
+
+    # A caller that predates the picker (or a single-check destination) names nobody: the merge
+    # keeps resolving to the NEWEST open check of the destination, exactly as it always did.
+    command_ok(
+        "party D sits at table 2 with order O9",
+        "tables._session_open",
+        {
+            "session_id": "s-cho-src-b",
+            "table_id": "t2",
+            "guests_count": 1,
+            "waiter_id": None,
+            "notes": "",
+            "order_id": "O9",
+        },
+        "2026-08-07T19:45:00+00:00",
+    )
+    command_ok(
+        "table 2 merges into table 5 without naming a check",
+        "tables._session_merge",
+        {"session_id": "s-cho-src-b", "target_table_id": "t5"},
+        "2026-08-07T19:50:00+00:00",
+    )
+    check(
+        "the newest half still absorbs by default",
+        "s-cho-b",
+        q(
+            f"SELECT merged_into_id FROM tables_session "
+            f"WHERE id = 's-cho-src-b' AND hub_id = '{HUB}'"
+        ),
+    )
+    check("table 2 is emptied", "available", table_status("t2"))
+
+    # A named check that does not exist on the destination must refuse the WHOLE merge —
+    # nothing persisted, nothing emitted — not silently fall back to the newest.
+    command_ok(
+        "party E sits at table 8 with order O10",
+        "tables._session_open",
+        {
+            "session_id": "s-cho-src-c",
+            "table_id": "t8",
+            "guests_count": 3,
+            "waiter_id": None,
+            "notes": "",
+            "order_id": "O10",
+        },
+        "2026-08-07T19:55:00+00:00",
+    )
+    ok, err = run_command(
+        "tables._session_merge",
+        {
+            "session_id": "s-cho-src-c",
+            "target_table_id": "t5",
+            "target_session_id": "s-bogus",
+        },
+        "2026-08-07T20:00:00+00:00",
+    )
+    check("a named check that does not exist refuses the merge whole", False, ok)
+    # tables#76: each gate refuses UNDER ITS OWN NAME — the merge constraint is `merge_applied`,
+    # not the anonymous `tables__gate_ok_check` that migration 011 dropped precisely so the
+    # refusal could say WHAT refused.
+    check("the refusal names the merge gate", True, "merge_applied" in err)
+    check("the refused source is still open", "active", session_status("s-cho-src-c"))
+    check("its table was not emptied", "occupied", table_status("t8"))
+    check(
+        "no half of the destination was disturbed",
+        "",
+        q(
+            f"SELECT merged_into_id FROM tables_session "
+            f"WHERE id = 's-cho-src-c' AND hub_id = '{HUB}'"
+        ),
+    )
 
 
 # ── Runner ───────────────────────────────────────────────────────────────────────────────
@@ -1139,6 +1315,7 @@ def main() -> int:
         test_transfer_repoints_the_order()
         test_another_hubs_account_never_holds_our_table()
         test_split_and_merge_keep_the_check()
+        test_merge_into_the_chosen_check_of_a_split_table()
         test_guests_count_is_visible_and_correctable()
         test_plan_projects_who_serves_and_since_when()
         test_tables_list_orders_naturally()
