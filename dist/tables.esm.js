@@ -6465,10 +6465,13 @@ var ErpTablesPosZones = class extends i3 {
        scales with it up to its normal .65rem, and the ellipsis is only the net for a longer locale. */
     .mesa .s { font-size:min(.65rem, 15cqi); text-transform:uppercase; letter-spacing:0; font-weight:600;
       white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    /* Nombre y hora de la reserva viva. Cabe en la celda porque es lo unico que el encargado
-       necesita de un vistazo; el resto va en el tooltip. */
-    .mesa .hold { font-size:.65rem; color:var(--ion-color-warning,#f08c00); font-weight:600;
-      overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    /* Name and time of the live reservation: all the waiter needs at a glance, the rest is in
+       the tooltip. tables#126: one row, truncated title + fixed tail (as ok-data-table's card
+       head) — a long name shrinks with an ellipsis, the time never does. */
+    .mesa .hold { display:flex; justify-content:center; gap:.2em; min-width:0;
+      font-size:.65rem; color:var(--ion-color-warning,#f08c00); font-weight:600; white-space:nowrap; }
+    .mesa .hold-name { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+    .mesa .hold-time { flex:none; }
     /* Botón ⋮ (more-vert) en la esquina de cada mesa OCUPADA: abre transferir/fusionar. */
     /* ion-button (tables#11): 44px target overlapping the tile corner; the tile keeps its own tap. */
     ion-button.kebab { position:absolute; top:-6px; right:-6px; z-index:1; margin:0; --padding-start:0; --padding-end:0;
@@ -6986,7 +6989,7 @@ var ErpTablesPosZones = class extends i3 {
                 <div class="c">${t5("ui.paxCount", { count: tb.capacity })}</div>
                 ${tb.live_guests ? b2`<div class="live"><ion-icon name="people-outline"></ion-icon>${t5("ui.liveGuests", { count: tb.live_guests })}</div>` : A}
                 <div class="s" style=${`color:${STATUS_COLOR2[tb.status] ?? "#868e96"}`}>${t5(STATUS_KEY3[tb.status] ?? tb.status)}</div>
-                ${holder ? b2`<div class="hold">${holder}${tb.reserved_from ? b2` · ${hhmm2(tb.reserved_from)}` : A}</div>` : A}
+                ${holder ? b2`<div class="hold"><span class="hold-name">${holder}</span>${tb.reserved_from ? b2` <span class="hold-time">· ${hhmm2(tb.reserved_from)}</span>` : A}</div>` : A}
               </button>
             </div>`;
     })}

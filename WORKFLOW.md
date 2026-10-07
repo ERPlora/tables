@@ -119,7 +119,9 @@ ajustes.».
 En **Ventas → Vender**, el botón de mesa de la cabecera de la cuenta («Asignar mesa»; se colorea
 cuando la cuenta tiene mesa) abre la ventana «Elegir mesa»: pestañas por zona y una rejilla de mesas
 con número, aforo, comensales sentados, estado escrito y, si la hay, la reserva («Ana · 21:00»;
-«Cliente borrado · 21:00» si se borraron sus datos). Una
+«Cliente borrado · 21:00» si se borraron sus datos) en una línea: un nombre que no cabe se recorta
+con «…» y la hora se ve siempre entera («Luis M… · 21:00»); el nombre completo va en el título de
+la mesa. Una
 mesa Bloqueada sale apagada. Cada mesa ocupada lleva un «⋮» («Opciones de mesa») con «Transferir»,
 «Fusionar», «Dividir cuenta» y «Comensales». Al pie, «Quitar mesa» si la cuenta tiene mesa, o
 «Cancelar» mientras se elige el destino de un traslado o una fusión («Elige una mesa libre», «Elige
