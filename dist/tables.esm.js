@@ -2599,7 +2599,10 @@ var ErpTablesCanvas = class extends i3 {
   async onPointerUp() {
     const id = this.dragId;
     this.dragId = void 0;
-    this.dragFloor = void 0;
+    if (this.dragFloor) {
+      this.dragFloor = void 0;
+      this.requestUpdate();
+    }
     if (!id) return;
     const t5 = this.tables.find((m4) => m4.id === id);
     if (!t5) return;
