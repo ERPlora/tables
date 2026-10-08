@@ -314,6 +314,14 @@
         "description": "Lists active or historical table sessions"
       }
     },
+    "tables.sessions.get": {
+      "permission": "tables.view_tablesession",
+      "sql": "queries/session_get.sql",
+      "schema": "schemas/session_get.json",
+      "ai": {
+        "description": "Gets one table check (session) by its identifier, with its status and the sales order (bill) linked to it"
+      }
+    },
     "tables.sessions.by_order": {
       "permission": "tables.view_tablesession",
       "expose_api": true,
@@ -576,6 +584,21 @@
     "tables.sessions.close": {
       "permission": "tables.change_tablesession",
       "schema": "schemas/session_close.json",
+      "reads": [
+        {
+          "query": "tables.sessions.get",
+          "params": {
+            "session_id": "payload.session_id"
+          },
+          "required": true
+        },
+        {
+          "query": "sales.order.get",
+          "params": {
+            "order_id": "payload.order_id"
+          }
+        }
+      ],
       "handler": {
         "type": "wasm",
         "file": "dist/handler.wasm",
@@ -585,7 +608,7 @@
         "tables.session.closed"
       ],
       "ai": {
-        "description": "Closes the active session on a table after payment"
+        "description": "Closes an open check on a table by hand and frees the table if nothing else sits there. Pass the check's order_id (from tables.sessions.list) if it has one: a check whose bill is still open in sales is refused (charge it, move it or delete it in sales first)."
       }
     },
     "tables.sessions.transfer": {
@@ -896,6 +919,8 @@
   },
   "errors": {
     "tables.hold_not_found": {},
+    "tables.session_bill_mismatch": {},
+    "tables.session_bill_open": {},
     "tables.session_not_active": {},
     "tables.session_not_parked": {},
     "tables.table_has_active_session": {},

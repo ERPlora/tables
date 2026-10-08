@@ -424,7 +424,7 @@ pub fn close_session_pure(input: Value) -> Result<Output, String> {
             if as_str(&named_order) != bill {
                 return Ok(reject(
                     "tables.session_bill_mismatch",
-                    "That check's bill is not the one named: reload the checks and try again.",
+                    "This table's bill has changed. Reload the list and try again.",
                 ));
             }
             // Absent read = sales is not installed (graceful read): no till can charge that bill.

@@ -189,6 +189,8 @@
     "tables.zone_has_tables": "Esta zona todavía tiene mesas. Muévelas a otra zona o bórralas antes.",
     "tables.table_has_active_session": "Esa mesa tiene una cuenta abierta. Ciérrala o trasládala antes de borrar la mesa.",
     "tables.hold_not_found": "Esa retención ya no está: se soltó, ha vencido, o esa reserva nunca llegó a retener una mesa.",
-    "tables.table_not_available": "Esa mesa no se puede sentar ahora mismo: está ocupada, fuera de servicio o ya no está en uso."
+    "tables.table_not_available": "Esa mesa no se puede sentar ahora mismo: está ocupada, fuera de servicio o ya no está en uso.",
+    "tables.session_bill_mismatch": "La cuenta de esta mesa ha cambiado. Recarga la lista e inténtalo de nuevo.",
+    "tables.session_bill_open": "La cuenta de esta mesa sigue abierta en Ventas: cóbrala, pásala a otra mesa o elimínala desde el TPV."
   }
 }
