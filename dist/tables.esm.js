@@ -2266,6 +2266,14 @@ function boxOf(t5) {
   const h4 = Number(t5.height) || 0;
   return { w: w2 >= MIN_BOX ? w2 : BOX, h: h4 >= MIN_BOX ? h4 : BOX };
 }
+function markHiddenEdges(el) {
+  if (!el) return;
+  const hidden = el.scrollWidth - el.clientWidth;
+  const rtl = getComputedStyle(el).direction === "rtl";
+  const left = rtl ? hidden + el.scrollLeft : el.scrollLeft;
+  el.classList.toggle("more-left", left > 1);
+  el.classList.toggle("more-right", left < hidden - 1);
+}
 function neverPlaced(t5) {
   return !(Number(t5.width) >= MIN_BOX && Number(t5.height) >= MIN_BOX);
 }
@@ -2339,13 +2347,10 @@ var ErpTablesCanvas = class extends i3 {
     /** Fades each edge of the zone strip that has zones behind it. The classes go straight on the
      *  element (no Lit class binding): a bound `class` would wipe the ones Ionic sets on its host. */
     this.updateZoneCue = () => {
-      const seg = this.renderRoot.querySelector('[data-testid="tables-floor-zones"]');
-      if (!seg) return;
-      const hidden = seg.scrollWidth - seg.clientWidth;
-      const rtl = getComputedStyle(seg).direction === "rtl";
-      const left = rtl ? hidden + seg.scrollLeft : seg.scrollLeft;
-      seg.classList.toggle("more-left", left > 1);
-      seg.classList.toggle("more-right", left < hidden - 1);
+      markHiddenEdges(this.renderRoot.querySelector('[data-testid="tables-floor-zones"]'));
+    };
+    this.updatePlanCue = () => {
+      markHiddenEdges(this.canvasEl());
     };
   }
   static {
@@ -2372,11 +2377,28 @@ var ErpTablesCanvas = class extends i3 {
     .zonebar .flex { flex:1; }
     /* tables#97: only a TABLE owns the touch gesture (touch-action:none on .mesa, so it drags). The
        empty plan lets a vertical swipe scroll the page: on a phone the plan fills the screen, and
-       with touch-action:none everywhere the help line under it could never be scrolled into view. */
-    .canvas { position:relative; height:60vh; min-height:22rem; border:1px dashed var(--ion-border-color,#cfcabd); border-radius: var(--ok-radius, 14px); background:
+       with touch-action:none everywhere the help line under it could never be scrolled into view.
+       tables#131: .canvas is the WINDOW onto the plan and .plane the plan itself, as large as its
+       farthest table (planeSize). A plan laid out on a computer is wider than a phone: the window
+       scrolls sideways (a sideways swipe on the empty plan), and grows down with the plan, so the
+       page scrolls to its lowest table. Tables keep their real size, like Toast's pan or Odoo's
+       «full size» floor: scaled to fit, a 752 px row would shrink each table to a third. */
+    .canvas { position:relative; border:1px dashed var(--ion-border-color,#cfcabd); border-radius: var(--ok-radius, 14px);
+      overflow-x:auto; overflow-y:hidden; touch-action:pan-x pan-y; }
+    .plane { position:relative; min-width:100%; min-height:max(60vh, 22rem); background:
         repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px),
-        repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px);
-      overflow:hidden; touch-action:pan-y; }
+        repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px); }
+    /* tables#131: as on the zone strip (tables#97), each edge of the window with tables behind it
+       fades out — a hard cut read as «there are no more tables». updatePlanCue() sets the classes. */
+    .canvas.more-right {
+      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+      mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent); }
+    .canvas.more-left {
+      -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent);
+      mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent); }
+    .canvas.more-left.more-right {
+      -webkit-mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
+      mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent); }
     /* tables#53: el TAMAÑO ya no se clava aquí — lo pinta cada mesa con el suyo (estilo inline),
        porque la fila lo trae y tables.tables.move lo persiste. Se deja como respaldo para una
        mesa que no lo declare. */
@@ -2438,6 +2460,7 @@ var ErpTablesCanvas = class extends i3 {
     this.unsub?.();
     if (this.timer) clearInterval(this.timer);
     this.unwatchZoneStrip();
+    this.unwatchPlan();
   }
   watchZoneStrip() {
     const seg = this.renderRoot.querySelector('[data-testid="tables-floor-zones"]');
@@ -2458,8 +2481,26 @@ var ErpTablesCanvas = class extends i3 {
     this.observedStrip = void 0;
     this.observedZones = void 0;
   }
+  watchPlan() {
+    const win = this.canvasEl();
+    if (win === this.observedPlan) return;
+    this.unwatchPlan();
+    if (win && typeof ResizeObserver !== "undefined") {
+      this.planObserver = new ResizeObserver(this.updatePlanCue);
+      this.planObserver.observe(win);
+      const plane = this.planeEl();
+      if (plane) this.planObserver.observe(plane);
+      this.observedPlan = win;
+    }
+  }
+  unwatchPlan() {
+    this.planObserver?.disconnect();
+    this.planObserver = void 0;
+    this.observedPlan = void 0;
+  }
   updated() {
     this.watchZoneStrip();
+    this.watchPlan();
   }
   async reload() {
     this.loading = true;
@@ -2507,11 +2548,28 @@ var ErpTablesCanvas = class extends i3 {
   canvasEl() {
     return this.renderRoot.querySelector(".canvas");
   }
+  /** tables#131 — the plan the tables are positioned in (it scrolls inside the .canvas window). */
+  planeEl() {
+    return this.renderRoot.querySelector(".plane");
+  }
+  /** tables#131 — the plan reaches the far edge of its farthest table and the bottom of its lowest
+   *  one (never smaller than the window: .plane has a min-width/min-height). */
+  get planeSize() {
+    let w2 = this.dragFloor?.w ?? 0;
+    let h4 = this.dragFloor?.h ?? 0;
+    for (const t5 of this.tablesInZone) {
+      const box = boxOf(t5);
+      w2 = Math.max(w2, t5.position_x + box.w);
+      h4 = Math.max(h4, t5.position_y + box.h);
+    }
+    return { w: Math.ceil(w2), h: Math.ceil(h4) };
+  }
   // ── Drag + clic-para-editar (pointer events) ────────────────────────────────────────────────
   onPointerDown(t5, e5) {
-    const canvas = this.canvasEl();
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
+    const plane = this.planeEl();
+    if (!plane) return;
+    const rect = plane.getBoundingClientRect();
+    this.dragFloor = this.planeSize;
     this.dragId = t5.id;
     this.dragDX = e5.clientX - rect.left - t5.position_x;
     this.dragDY = e5.clientY - rect.top - t5.position_y;
@@ -2526,9 +2584,9 @@ var ErpTablesCanvas = class extends i3 {
     if (Math.abs(e5.clientX - this.dragStartX) > DRAG_THRESHOLD || Math.abs(e5.clientY - this.dragStartY) > DRAG_THRESHOLD) {
       this.dragMoved = true;
     }
-    const canvas = this.canvasEl();
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
+    const plane = this.planeEl();
+    if (!plane) return;
+    const rect = plane.getBoundingClientRect();
     const dragged = this.tables.find((t5) => t5.id === this.dragId);
     const box = dragged ? boxOf(dragged) : { w: BOX, h: BOX };
     const maxX = Math.max(0, rect.width - box.w);
@@ -2540,6 +2598,7 @@ var ErpTablesCanvas = class extends i3 {
   async onPointerUp() {
     const id = this.dragId;
     this.dragId = void 0;
+    this.dragFloor = void 0;
     if (!id) return;
     const t5 = this.tables.find((m4) => m4.id === id);
     if (!t5) return;
@@ -2573,7 +2632,7 @@ var ErpTablesCanvas = class extends i3 {
     const d3 = delta[e5.key];
     if (!d3) return;
     e5.preventDefault();
-    const rect = this.canvasEl()?.getBoundingClientRect();
+    const rect = this.planeEl()?.getBoundingClientRect();
     const box = boxOf(t5);
     const maxX = rect && rect.width > 0 ? Math.max(0, rect.width - box.w) : Number.POSITIVE_INFINITY;
     const maxY = rect && rect.height > 0 ? Math.max(0, rect.height - box.h) : Number.POSITIVE_INFINITY;
@@ -2864,9 +2923,11 @@ var ErpTablesCanvas = class extends i3 {
       ${this.sheetOpen ? A : this.renderError()}
 
       <div class="canvas"
+        @scroll=${this.updatePlanCue}
         @pointermove=${(e5) => this.onPointerMove(e5)}
         @pointerup=${() => this.onPointerUp()}
         @pointercancel=${() => this.onPointerUp()}>
+        <div class="plane" style=${`width:${this.planeSize.w}px; height:${this.planeSize.h}px`}>
         ${this.tablesInZone.map((tb) => {
       const statusLabel = STATUS_KEY[tb.status] ? t5(STATUS_KEY[tb.status]) : tb.status;
       const live = this.liveLine(tb, t5, true);
@@ -2898,6 +2959,7 @@ var ErpTablesCanvas = class extends i3 {
         ${!this.loading && !this.zones.length ? b2`<ok-empty-state data-testid="tables-floor-empty-zones" icon="grid-outline" message=${t5("ui.createZoneToStart")}></ok-empty-state>` : A}
         ${!this.loading && this.zones.length && !this.tablesInZone.length ? b2`<ok-empty-state data-testid="tables-floor-empty-tables" icon="square-outline" message=${t5("ui.noTablesInZonePrompt")}></ok-empty-state>` : A}
         ${this.loading ? b2`<div class="empty" data-testid="tables-floor-loading">${t5("ui.loading")}</div>` : A}
+        </div>
       </div>
       <p class="hint">${t5("ui.canvasHint")}</p>
 
