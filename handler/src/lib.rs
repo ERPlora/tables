@@ -400,12 +400,48 @@ pub fn open_session_pure(input: Value) -> Result<Output, String> {
 }
 
 /// `{payload, context}` → intención `tables._session_close`.
+///
+/// tables#124: closing by hand used to free a table whose bill was still open in sales, and the
+/// bill lost its table. Like Toast, Square or Lightspeed, a table with an open bill is only let go
+/// by charging, moving or deleting that bill. The caller names the bill (`order_id`) because the
+/// sales read can only take its params from the payload; the session row says which bill really
+/// hangs from the check, and `_session_close_update.sql` re-checks it inside the write.
 pub fn close_session_pure(input: Value) -> Result<Output, String> {
     let (payload, _) = payload_and_ids(&input);
 
     let session_id = req_str(&payload, "session_id")?;
+    let named_order = opt_str(&payload, "order_id");
+
+    if let Some(rows) = preloaded(&input, "tables.sessions.get") {
+        let Some(session) = rows.first().filter(|s| as_str(&s["status"]) == "active") else {
+            return Ok(reject(
+                "tables.session_not_active",
+                "That check is not open: it does not exist in this business, or it has already been closed, transferred, merged or parked.",
+            ));
+        };
+        let bill = as_str(&session["order_id"]);
+        if !bill.is_empty() {
+            if as_str(&named_order) != bill {
+                return Ok(reject(
+                    "tables.session_bill_mismatch",
+                    "That check's bill is not the one named: reload the checks and try again.",
+                ));
+            }
+            // Absent read = sales is not installed (graceful read): no till can charge that bill.
+            let still_open = preloaded(&input, "sales.order.get")
+                .is_some_and(|orders| orders.iter().any(|o| as_str(&o["status"]) == "open"));
+            if still_open {
+                return Ok(reject(
+                    "tables.session_bill_open",
+                    "This table's bill is still open in Sales: charge it, move it to another table or delete it from the till.",
+                ));
+            }
+        }
+    }
+
     let mut p = Map::new();
     p.insert("session_id".into(), json!(session_id));
+    p.insert("order_id".into(), named_order);
     p.insert("notes".into(), opt_str(&payload, "notes"));
 
     Ok(Output {
@@ -981,6 +1017,125 @@ mod tests {
             .expect("sin reads");
         assert!(out.error.is_none());
         assert_eq!(out.operations[0].command, "tables._session_open");
+    }
+
+    // ── tables#124 · closing a table by hand never frees it with its bill still open ─────────
+
+    fn session_row(status: &str, order_id: Value) -> Value {
+        json!({ "id": "s-1", "table_id": "t-1", "status": status, "order_id": order_id })
+    }
+
+    #[test]
+    fn closing_by_hand_with_the_bill_still_open_in_sales_is_refused() {
+        let out = close_session_pure(input_with_reads(
+            json!({ "session_id": "s-1", "order_id": "o-1" }),
+            0,
+            json!({
+                "tables.sessions.get": [session_row("active", json!("o-1"))],
+                "sales.order.get": [{ "id": "o-1", "status": "open" }],
+            }),
+        ))
+        .expect("a business refusal is an Output");
+        assert_eq!(domain_code(&out), "tables.session_bill_open");
+        assert!(out.operations.is_empty(), "the table is not freed");
+    }
+
+    #[test]
+    fn closing_by_hand_once_the_bill_is_no_longer_open_goes_through() {
+        // Deleted in sales (`voided`), or already charged (`completed`): nothing left to charge.
+        for status in ["voided", "completed"] {
+            let out = close_session_pure(input_with_reads(
+                json!({ "session_id": "s-1", "order_id": "o-1" }),
+                0,
+                json!({
+                    "tables.sessions.get": [session_row("active", json!("o-1"))],
+                    "sales.order.get": [{ "id": "o-1", "status": status }],
+                }),
+            ))
+            .expect("closable");
+            assert!(out.error.is_none(), "order {status}");
+            assert_eq!(out.operations[0].command, "tables._session_close");
+            assert_eq!(out.operations[0].params["order_id"], json!("o-1"), "order {status}");
+        }
+    }
+
+    #[test]
+    fn a_bill_that_no_longer_exists_in_sales_does_not_hold_the_table() {
+        let out = close_session_pure(input_with_reads(
+            json!({ "session_id": "s-1", "order_id": "o-1" }),
+            0,
+            json!({
+                "tables.sessions.get": [session_row("active", json!("o-1"))],
+                "sales.order.get": [],
+            }),
+        ))
+        .expect("closable");
+        assert!(out.error.is_none());
+        assert_eq!(out.operations[0].command, "tables._session_close");
+    }
+
+    #[test]
+    fn without_sales_installed_a_table_with_a_bill_still_closes() {
+        // The graceful read is simply absent when sales is not installed: there is no till that
+        // could charge that bill, so holding the table would only leave it dead.
+        let out = close_session_pure(input_with_reads(
+            json!({ "session_id": "s-1", "order_id": "o-1" }),
+            0,
+            json!({ "tables.sessions.get": [session_row("active", json!("o-1"))] }),
+        ))
+        .expect("closable");
+        assert!(out.error.is_none());
+        assert_eq!(out.operations[0].command, "tables._session_close");
+    }
+
+    #[test]
+    fn a_caller_that_does_not_name_the_tables_bill_is_refused() {
+        // The bill is checked by the `order_id` the caller names (reads take their params from
+        // the payload): omitting it, or naming another one, must not slip past the guard.
+        for payload in [
+            json!({ "session_id": "s-1" }),
+            json!({ "session_id": "s-1", "order_id": null }),
+            json!({ "session_id": "s-1", "order_id": "o-other" }),
+        ] {
+            let out = close_session_pure(input_with_reads(
+                payload.clone(),
+                0,
+                json!({
+                    "tables.sessions.get": [session_row("active", json!("o-1"))],
+                    "sales.order.get": [],
+                }),
+            ))
+            .expect("refusal");
+            assert_eq!(domain_code(&out), "tables.session_bill_mismatch", "{payload}");
+            assert!(out.operations.is_empty(), "{payload}");
+        }
+    }
+
+    #[test]
+    fn a_check_without_a_bill_closes_as_always() {
+        let out = close_session_pure(input_with_reads(
+            json!({ "session_id": "s-1" }),
+            0,
+            json!({ "tables.sessions.get": [session_row("active", Value::Null)] }),
+        ))
+        .expect("closable");
+        assert!(out.error.is_none());
+        assert_eq!(out.operations[0].command, "tables._session_close");
+        assert_eq!(out.operations[0].params["order_id"], Value::Null);
+    }
+
+    #[test]
+    fn closing_a_check_that_is_not_open_says_so() {
+        for rows in [json!([]), json!([session_row("closed", json!("o-1"))])] {
+            let out = close_session_pure(input_with_reads(
+                json!({ "session_id": "s-1", "order_id": "o-1" }),
+                0,
+                json!({ "tables.sessions.get": rows.clone() }),
+            ))
+            .expect("refusal");
+            assert_eq!(domain_code(&out), "tables.session_not_active", "{rows}");
+            assert!(out.operations.is_empty());
+        }
     }
 
     #[test]
