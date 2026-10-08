@@ -171,7 +171,7 @@
     "emptySessions": "No sessions. Seat a party from the POS and it will show up here.",
     "errCloseSession": "Could not close the session",
     "closeSessionTitle": "Close the session?",
-    "closeSessionImpact": "Table {number} · {count} guests. The table is freed and the session moves to the history. To collect the check, use the POS.",
+    "closeSessionImpact": "Table {number} · {count} guests. The table is freed and the session moves to the history. If its bill is still open in Sales, first charge it, move it to another table or delete it from the till.",
     "blockedHint": "Table out of service: it cannot be seated until it is unblocked.",
     "errTableTaken": "Another device has just taken that table. The floor plan has been refreshed."
   },

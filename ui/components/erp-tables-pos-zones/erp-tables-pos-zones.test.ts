@@ -1356,6 +1356,19 @@ describe('the POS releases the account of the order that finished (tables#118)',
     expect(closed, 'only the account of the charged order is closed').toEqual(['ses-new']);
   });
 
+  it('closing after a charge or a delete names the bill it is closing for (tables#124)', async () => {
+    const commands: Cmd[] = [];
+    stub({ 'ord-new': [{ session_id: 'ses-new', order_id: 'ord-new', table_id: 'tbl-5', status: 'active' }] }, commands);
+    const el = await withFront('tbl-4', 'ses-4', 'ord-new');
+
+    el.dispatchEvent(new CustomEvent('erp:order-context-reset'));
+    await settle(el);
+
+    // The server refuses to free a table whose bill is still open; it can only check the bill named.
+    expect(commands.filter((c) => c.name === 'tables.sessions.close').map((c) => c.payload))
+      .toEqual([{ session_id: 'ses-new', order_id: 'ord-new' }]);
+  });
+
   it('deleting a bar check to open a table closes nothing and keeps that table in front', async () => {
     const commands: Cmd[] = [];
     stub({}, commands);
