@@ -8,6 +8,8 @@
 | `tables_attached` | You tried to delete a zone that still has active tables | Move or delete the tables first |
 | `active_sessions` | You tried to delete a table with a live check | Close the check first |
 | Session delete refused | The session is still `active` | Close it, then delete |
+| `tables.session_bill_open` | You tried to close by hand a check whose bill is still open in Sales | Charge it, move it to another table or delete it in the till, then close it |
+| `tables.session_bill_mismatch` | The bill on the check changed since you loaded the list | Reload the list and try again |
 | Transfer refused | The origin is not active, or the destination is not free or reserved | Check both ends |
 | Bulk creation rolled back | The target zone does not exist | Create the zone first; the batch is all-or-nothing |
 | `invalid_capacity` | Capacity of zero or less | Capacity must be at least 1 |

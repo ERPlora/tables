@@ -38,7 +38,8 @@ around — asking it to would mean it had to understand prices and kitchen round
 
 - **Park** — the party is gone from the table but the bill is still open. The table is freed, the
   session survives with no table, the order is untouched. It can be restored to any free table.
-- **Close** — the check is finished. The table is freed and the session ends.
+- **Close** — the check is finished. The table is freed and the session ends. A check whose bill is
+  still open in Sales cannot be closed by hand: charge, move or delete the bill first.
 
 Parking is how a bar keeps a tab open while the customer moves to the terrace, and how a check
 survives while the table is reassigned.
@@ -115,6 +116,7 @@ refuses. Restaurants do this constantly and software that argues about it gets s
 | Delete a zone | It still has active tables |
 | Delete a table | It has an active session |
 | Delete a session | It is still active — close it first |
+| Close a check by hand | Its bill is still open in Sales — charge, move or delete it first |
 | Open a session | The table is not available |
 | Transfer | The origin is not active, or the destination is not free or reserved |
 

@@ -24,6 +24,10 @@ Razón WASM: lectura-condición-escritura cruzada (mesa↔sesión) + warning de 
 ## close_session (`tables.sessions.close`)
 `TableService.close_session` (+ `TableSession.close` del modelo). Reglas:
 - La sesión debe estar `active`; si ya está `closed`/`transferred` → error con estado.
+- tables#124: si la sesión tiene pedido (`order_id`), el llamante lo nombra y debe coincidir
+  (`tables.session_bill_mismatch`), y el pedido no puede seguir `open` en Ventas
+  (`tables.session_bill_open`, read graceful de `sales.order.get`). La escritura repite la
+  comprobación del pedido (`order_id IS NOT DISTINCT FROM :order_id`).
 - UPDATE sesión: `status='closed'`, `closed_at=now`, append opcional de `notes`.
 - UPDATE mesa asociada: `status='available'` (liberar la mesa).
 Razón WASM: validación de estado + doble escritura sesión↔mesa + merge de notas.

@@ -155,6 +155,11 @@ Requires `tables.change_tablesession`.
 Closing frees the table and marks the session `closed`. In normal operation you do not do this by
 hand — completing the order in the till closes it for you.
 
+A check whose bill is still open in Sales is **not** closed by hand (`tables.session_bill_open`):
+charge it, move it to another table or delete it in the till first, then close it. If the bill on
+the check changed in the meantime (another till moved it), the close is refused with
+`tables.session_bill_mismatch` — reload the list and try again.
+
 ### Hold a table for a booking
 
 - **Hold** paints the table `reserved` for a window of time, with a party size and a label. It is
