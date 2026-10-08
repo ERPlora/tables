@@ -116,6 +116,7 @@ describe('every table of the zone can be reached on a narrow screen (tables#131)
     const el = await mount();
     const plane = tile(el, 't5').parentElement!;
     expect(rule(el, '.plane'), 'an emptier zone still fills the window').toMatch(/min-width\s*:\s*100%/);
+    expect(rule(el, '.plane'), 'an emptier zone keeps the height the plan always had').toMatch(/min-height\s*:\s*max\(60vh,\s*22rem\)/);
     el.tables = el.tables.map((t) => (t.id === 't5' ? { ...t, position_x: 900 } : t));
     await tick(el);
     expect(parseFloat(plane.style.width)).toBeGreaterThanOrEqual(972 + PAINTED_W);
@@ -150,6 +151,24 @@ describe('moving a table the phone reaches by scrolling keeps it where it is (ta
     const plane = parseFloat(tile(el, 't5').parentElement!.style.width);
     expect(x, 'the table did not move right at all').toBeGreaterThanOrEqual(680);
     expect(x + 72 + PAINTED_W, 'the painted tile goes past the edge of the plan').toBeLessThanOrEqual(plane);
+    // Let past the painted edge, each drag would push the plan a few px wider: a ratchet, not an edge.
+    expect(plane, 'a drag pushed the edge of the plan').toBe(FAR_RIGHT + 10);
+  });
+
+  it('dragged down, the lowest table stops with its painted edge inside the plan, which does not grow', async () => {
+    const el = await mount();
+    phone(el);
+    const t6 = tile(el, 't6');
+    const plane = t6.parentElement!;
+    const before = parseFloat(plane.style.height);
+    // Table 6 is at y = 520 of the plan, painted at 100 + 520 = 620 px; x = 40 → 16 - 400 + 40.
+    t6.dispatchEvent(new PointerEvent('pointerdown', { clientX: -330, clientY: 640, pointerId: 1, bubbles: true }));
+    viewport(el).dispatchEvent(new PointerEvent('pointermove', { clientX: -330, clientY: 670, pointerId: 1, bubbles: true }));
+    viewport(el).dispatchEvent(new PointerEvent('pointerup', { clientX: -330, clientY: 670, pointerId: 1, bubbles: true }));
+    await tick(el);
+    const y = Number(commands.find((c) => c.name === 'tables.tables.move')!.payload.position_y);
+    expect(y + 72 + PAINTED_H, 'the painted tile goes past the bottom of the plan').toBeLessThanOrEqual(before);
+    expect(parseFloat(plane.style.height), 'a drag pushed the bottom of the plan').toBe(before);
   });
 
   it('while the farthest table is dragged inwards the plan keeps its size, and fits the room once dropped', async () => {
@@ -179,6 +198,11 @@ describe('moving a table the phone reaches by scrolling keeps it where it is (ta
     await tick(el);
     const x = Number(commands.find((c) => c.name === 'tables.tables.move')!.payload.position_x);
     expect(x + 72 + PAINTED_W, 'the painted tile goes past the edge of the plan').toBeLessThanOrEqual(edge);
+    const bottom = parseFloat(tile(el, 't6').parentElement!.style.height);
+    tile(el, 't6').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await tick(el);
+    const y = Number(commands.filter((c) => c.name === 'tables.tables.move')[1].payload.position_y);
+    expect(y + 72 + PAINTED_H, 'the painted tile goes past the bottom of the plan').toBeLessThanOrEqual(bottom);
   });
 
   it('the arrow keys move the farthest table one step, not back into the first screen', async () => {
@@ -253,6 +277,14 @@ describe('the plan says there are more tables past the edge (tables#131)', () =>
       layOut(win, { scrollLeft: 0 });
       watching.forEach((w) => w.cb());
       expect(cues(win)).toEqual({ left: false, right: true });
+      // The plan grows inside a window that keeps its size (a table moved past it, another zone):
+      // only the plan's own size tells the cue the edge moved.
+      const plane = tile(el, 't1').parentElement!;
+      const onPlane = watchers.filter((w) => w.targets.includes(plane));
+      expect(onPlane.length, 'nobody watches the plan inside the window').toBeGreaterThan(0);
+      layOut(win, { scrollWidth: 343, scrollLeft: 0 });
+      onPlane.forEach((w) => w.cb());
+      expect(cues(win), 'the plan fits now: no edge fades').toEqual({ left: false, right: false });
     } finally {
       g.ResizeObserver = original;
     }
