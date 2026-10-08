@@ -48,16 +48,17 @@ Implicados: SALES-F18, REC_RESTAURANTE-F14
 QA: qa-hub-restaurant §13
 
 ### TABLES-F21 Cerrar una mesa a mano
-Estado: parcial — cierra aunque la cuenta siga abierta en Ventas, que se queda sin mesa
+Estado: hecho
 Actor: empleado, cajero, responsable
 Pantalla: Sesiones
 Pasos:
 1. En **Mesas → Sesiones → Abiertas**, pulsa «Cerrar sesión» en la cuenta (o en su «Detalle»).
-2. Confirma en «¿Cerrar la sesión?»: «Mesa N · N comensales. La mesa queda libre y la sesión pasa al histórico. Para cobrar la cuenta, usa el TPV.».
-3. La cuenta pasa a Cerradas y la mesa queda Disponible si no le queda otra cuenta abierta.
-Entra: la cuenta de mesa abierta.
-Sale: la cuenta de mesa «Cerrada» con su hora (avisa: tables.session.closed). En Ventas la cuenta, si la había, sigue abierta en **Cuentas abiertas** y ya no se reconoce como de esa mesa.
-Si falla: encima de la tabla, el motivo traducido o «No se pudo cerrar la sesión» (p. ej. ya la cerró otro).
+2. Confirma en «¿Cerrar la sesión?»: «Mesa N · N comensales. La mesa queda libre y la sesión pasa al histórico. Si su cuenta sigue abierta en Ventas, primero cóbrala, pásala a otra mesa o elimínala desde el TPV.».
+3. Si la mesa no tiene cuenta en Ventas, o su cuenta ya está cobrada o eliminada (TABLES-F20), la cuenta de mesa pasa a Cerradas y la mesa queda Disponible si no le queda otra cuenta abierta.
+4. Si su cuenta sigue abierta en Ventas, no se cierra nada: la mesa sigue Ocupada con su cuenta, como en Toast, Square, Lightspeed u Odoo. Se cobra (TABLES-F18), se pasa a otra mesa (TABLES-F15) o se elimina en Ventas (TABLES-F20), y entonces sí se cierra.
+Entra: la cuenta de mesa abierta y, si la tiene, el estado de su cuenta en Ventas. Sin Ventas instalado no hay cuenta que mirar y se cierra.
+Sale: la cuenta de mesa «Cerrada» con su hora (avisa: tables.session.closed). Una cuenta de Ventas abierta nunca se queda sin su mesa.
+Si falla: encima de la tabla, el motivo traducido: «La cuenta de esta mesa sigue abierta en Ventas: cóbrala, pásala a otra mesa o elimínala desde el TPV.», «La cuenta de esta mesa ha cambiado. Recarga la lista e inténtalo de nuevo.» (otro TPV le cambió la cuenta mientras tanto), «Esa cuenta no está abierta…» (ya la cerró otro) o «No se pudo cerrar la sesión».
 Implicados: FLOWS-F13, SALES-F19, REC_RESTAURANTE-F13
 QA: R-10
 

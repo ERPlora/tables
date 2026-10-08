@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tables.sessions.get params",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["session_id"],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "UUID of the check (table session) to look up"
+    }
+  }
+}

@@ -255,7 +255,7 @@ export class ErpTablesPosZones extends LitElement {
       return;
     }
     void this.releaseOrder(orderId, sid,
-      (sessionId) => erplora().command('tables.sessions.close', { session_id: sessionId }));
+      (sessionId) => erplora().command('tables.sessions.close', { session_id: sessionId, order_id: orderId }));
   };
 
   /** Applies `release` (close/park) to the active account of `orderId` and drops the selection if

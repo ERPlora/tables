@@ -19,4 +19,8 @@ UPDATE tables_session SET
   updated_by = :current_user_id,
   updated_at = :now
 WHERE id = :session_id AND hub_id = :hub_id AND is_deleted = 0
-  AND status = 'active';
+  AND status = 'active'
+  -- tables#124: only for the bill the check really carries (none, or the one named). The handler
+  -- refuses by code when the bill is still open in sales; this is the net under it (a caller that
+  -- names no bill or another one never frees a table with a bill). No match → the gate refuses.
+  AND order_id IS NOT DISTINCT FROM CAST(:order_id AS TEXT);

@@ -1911,7 +1911,7 @@ var es_default = {
     emptySessions: "No hay sesiones. Sienta a un grupo desde el TPV y aparecer\xE1 aqu\xED.",
     errCloseSession: "No se pudo cerrar la sesi\xF3n",
     closeSessionTitle: "\xBFCerrar la sesi\xF3n?",
-    closeSessionImpact: "Mesa {number} \xB7 {count} comensales. La mesa queda libre y la sesi\xF3n pasa al hist\xF3rico. Para cobrar la cuenta, usa el TPV.",
+    closeSessionImpact: "Mesa {number} \xB7 {count} comensales. La mesa queda libre y la sesi\xF3n pasa al hist\xF3rico. Si su cuenta sigue abierta en Ventas, primero c\xF3brala, p\xE1sala a otra mesa o elim\xEDnala desde el TPV.",
     blockedHint: "Mesa fuera de servicio: no se puede sentar hasta que se desbloquee.",
     errTableTaken: "Otro dispositivo acaba de ocupar esa mesa. Se ha actualizado el plano."
   },
@@ -1928,7 +1928,9 @@ var es_default = {
     "tables.zone_has_tables": "Esta zona todav\xEDa tiene mesas. Mu\xE9velas a otra zona o b\xF3rralas antes.",
     "tables.table_has_active_session": "Esa mesa tiene una cuenta abierta. Ci\xE9rrala o trasl\xE1dala antes de borrar la mesa.",
     "tables.hold_not_found": "Esa retenci\xF3n ya no est\xE1: se solt\xF3, ha vencido, o esa reserva nunca lleg\xF3 a retener una mesa.",
-    "tables.table_not_available": "Esa mesa no se puede sentar ahora mismo: est\xE1 ocupada, fuera de servicio o ya no est\xE1 en uso."
+    "tables.table_not_available": "Esa mesa no se puede sentar ahora mismo: est\xE1 ocupada, fuera de servicio o ya no est\xE1 en uso.",
+    "tables.session_bill_mismatch": "La cuenta de esta mesa ha cambiado. Recarga la lista e int\xE9ntalo de nuevo.",
+    "tables.session_bill_open": "La cuenta de esta mesa sigue abierta en Ventas: c\xF3brala, p\xE1sala a otra mesa o elim\xEDnala desde el TPV."
   }
 };
 
@@ -2106,7 +2108,7 @@ var en_default = {
     emptySessions: "No sessions. Seat a party from the POS and it will show up here.",
     errCloseSession: "Could not close the session",
     closeSessionTitle: "Close the session?",
-    closeSessionImpact: "Table {number} \xB7 {count} guests. The table is freed and the session moves to the history. To collect the check, use the POS.",
+    closeSessionImpact: "Table {number} \xB7 {count} guests. The table is freed and the session moves to the history. If its bill is still open in Sales, first charge it, move it to another table or delete it from the till.",
     blockedHint: "Table out of service: it cannot be seated until it is unblocked.",
     errTableTaken: "Another device has just taken that table. The floor plan has been refreshed."
   },
@@ -2123,7 +2125,9 @@ var en_default = {
     "tables.zone_has_tables": "That zone still has tables. Move them to another zone or delete them first.",
     "tables.table_has_active_session": "That table still has an open check. Close or move it before deleting the table.",
     "tables.hold_not_found": "That hold is not there any more: it was already released, it expired, or that booking never held a table.",
-    "tables.table_not_available": "That table cannot be seated right now: it is taken, out of service or no longer in use."
+    "tables.table_not_available": "That table cannot be seated right now: it is taken, out of service or no longer in use.",
+    "tables.session_bill_mismatch": "This table's bill has changed. Reload the list and try again.",
+    "tables.session_bill_open": "This table's bill is still open in Sales: charge it, move it to another table or delete it from the till."
   }
 };
 
@@ -6412,7 +6416,7 @@ var ErpTablesPosZones = class extends i3 {
       void this.releaseOrder(
         orderId,
         sid,
-        (sessionId) => erplora3().command("tables.sessions.close", { session_id: sessionId })
+        (sessionId) => erplora3().command("tables.sessions.close", { session_id: sessionId, order_id: orderId })
       );
     };
     this.onPosState = (e5) => {
@@ -7437,7 +7441,7 @@ var ErpTablesSessions = class extends i3 {
     this.saving = true;
     this.error = "";
     try {
-      await erplora4().command("tables.sessions.close", { session_id: target.id, notes: null });
+      await erplora4().command("tables.sessions.close", { session_id: target.id, order_id: target.order_id ?? null, notes: null });
       await this.ctrl.load();
     } catch (e5) {
       this.error = domainMessage(e5, erplora4().locale, erplora4().t(CATALOG4, "ui.errCloseSession"));

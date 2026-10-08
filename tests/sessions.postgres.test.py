@@ -169,6 +169,35 @@ def test_the_waiter_follows_the_check():
     check("the split check is still Ana's", "u-ana", waiter_of("s-w3"))
 
 
+def test_one_check_by_id_with_its_bill():
+    print(
+        "\n== sessions.get: one check with its status and its bill, only in its own hub (tables#124) =="
+    )
+    command_ok(
+        "the till hangs a bill from the check on table 1",
+        "tables.sessions.link_order",
+        {"session_id": "s1", "table_id": None, "order_id": "O-1"},
+        "2026-08-07T20:10:00+00:00",
+    )
+    rows = run_query("tables.sessions.get", {"session_id": "s1"})
+    check("exactly one row", 1, len(rows))
+    row = rows[0] if rows else {}
+    check("it is the check asked for", "s1", row.get("id"))
+    check("with its table", "t1", row.get("table_id"))
+    check("with its status", "active", row.get("status"))
+    check("with the bill that hangs from it", "O-1", row.get("order_id"))
+    check(
+        "a check of this hub is not visible from another hub",
+        [],
+        run_query("tables.sessions.get", {"session_id": "s1", "hub_id": "hub-other"}),
+    )
+    check(
+        "a check that does not exist gives no row",
+        [],
+        run_query("tables.sessions.get", {"session_id": "nope"}),
+    )
+
+
 def main() -> int:
     running = subprocess.run(
         ["docker", "inspect", "-f", "{{.State.Running}}", harness.CONTAINER],
@@ -188,6 +217,7 @@ def main() -> int:
         seed()
         test_sessions_carry_their_zone()
         test_the_waiter_follows_the_check()
+        test_one_check_by_id_with_its_bill()
     finally:
         psql(["-c", f"DROP DATABASE IF EXISTS {DB} WITH (FORCE)"])
 

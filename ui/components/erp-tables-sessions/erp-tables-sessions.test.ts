@@ -140,7 +140,29 @@ describe('detail and close', () => {
     expect(el.closeTarget?.id).toBe('s1');
     await el.confirmClose();
     expect(commands.map((c) => c.name)).toEqual(['tables.sessions.close']);
-    expect(commands[0].payload).toEqual({ session_id: 's1', notes: null });
+    // tables#124: the check names the bill it carries, so the server can refuse while it is open.
+    expect(commands[0].payload).toEqual({ session_id: 's1', order_id: 'o-1', notes: null });
+    expect(el.closeTarget).toBeNull();
+  });
+
+  it('a check with no bill names none (tables#124)', async () => {
+    const el = await mount();
+    await el.onRowAction(new CustomEvent('rowAction', { detail: { actionId: 'close', row: { ...SESSIONS[0], order_id: null } } }));
+    await el.confirmClose();
+    expect(commands[0].payload).toEqual({ session_id: 's1', order_id: null, notes: null });
+  });
+
+  it('a refusal because the bill is still open in sales shows its translated reason above the table (tables#124)', async () => {
+    const g = (globalThis as Record<string, unknown>).erplora as Record<string, unknown>;
+    g.command = async () => {
+      throw Object.assign(new Error('This table\'s bill is still open in Sales'), { code: 'tables.session_bill_open' });
+    };
+    const el = await mount();
+    await el.onRowAction(new CustomEvent('rowAction', { detail: { actionId: 'close', row: SESSIONS[0] } }));
+    await el.confirmClose();
+    await el.updateComplete;
+    const banner = el.shadowRoot.querySelector('[data-testid="tables-sessions-error"]');
+    expect(banner?.textContent).toContain('La cuenta de esta mesa sigue abierta en Ventas');
     expect(el.closeTarget).toBeNull();
   });
 

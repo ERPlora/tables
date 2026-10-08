@@ -306,6 +306,60 @@ def test_the_gate_is_not_neutralised_by_a_neighbour_statement():
     )
 
 
+def test_closing_by_hand_must_name_the_bill_the_check_carries():
+    print(
+        "\n== 3b. tables#124: the close write only lands for the bill the check really carries =="
+    )
+    # The handler checks the bill in sales by the `order_id` the caller names; this is the net
+    # under it: a caller that names no bill, or another one, never frees a table with a bill.
+    command_ok(
+        "a party sits at table 2",
+        "tables._session_open",
+        {
+            "session_id": "s124",
+            "table_id": "t2",
+            "guests_count": 2,
+            "waiter_id": None,
+            "notes": "",
+        },
+        "2026-08-18T17:00:00+00:00",
+    )
+    command_ok(
+        "the till hangs its bill from the check",
+        "tables.sessions.link_order",
+        {"session_id": "s124", "table_id": None, "order_id": "O-124"},
+        "2026-08-18T17:01:00+00:00",
+    )
+    for label, named in (("no bill", None), ("another bill", "O-other")):
+        ok, _ = run_command(
+            "tables._session_close",
+            {"session_id": "s124", "order_id": named, "notes": None},
+            "2026-08-18T17:02:00+00:00",
+        )
+        check(f"closing naming {label} is refused", False, ok)
+        check(
+            f"closing naming {label} leaves the check open",
+            "active",
+            q("SELECT status FROM tables_session WHERE id = 's124'"),
+        )
+        check(
+            f"closing naming {label} keeps the table occupied",
+            "occupied",
+            q("SELECT status FROM tables_table WHERE id = 't2'"),
+        )
+    command_ok(
+        "closing naming the check's own bill goes through",
+        "tables._session_close",
+        {"session_id": "s124", "order_id": "O-124", "notes": None},
+        "2026-08-18T17:03:00+00:00",
+    )
+    check(
+        "and frees the table",
+        "available",
+        q("SELECT status FROM tables_table WHERE id = 't2'"),
+    )
+
+
 def test_editing_something_that_is_not_there_is_an_error():
     print(
         "\n== 4. editing a zone/table that is not there is an error, not an `ok` (tables#54) =="
@@ -504,6 +558,7 @@ def main() -> int:
         test_a_check_that_is_no_longer_open_refuses_the_write()
         test_parking_and_restoring_refuse_out_of_state()
         test_the_gate_is_not_neutralised_by_a_neighbour_statement()
+        test_closing_by_hand_must_name_the_bill_the_check_carries()
         test_editing_something_that_is_not_there_is_an_error()
         test_releasing_a_hold_that_is_not_there_is_an_error()
     finally:

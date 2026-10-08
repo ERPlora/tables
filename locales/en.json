@@ -171,7 +171,7 @@
     "emptySessions": "No sessions. Seat a party from the POS and it will show up here.",
     "errCloseSession": "Could not close the session",
     "closeSessionTitle": "Close the session?",
-    "closeSessionImpact": "Table {number} · {count} guests. The table is freed and the session moves to the history. To collect the check, use the POS.",
+    "closeSessionImpact": "Table {number} · {count} guests. The table is freed and the session moves to the history. If its bill is still open in Sales, first charge it, move it to another table or delete it from the till.",
     "blockedHint": "Table out of service: it cannot be seated until it is unblocked.",
     "errTableTaken": "Another device has just taken that table. The floor plan has been refreshed."
   },
@@ -188,6 +188,8 @@
     "tables.zone_has_tables": "That zone still has tables. Move them to another zone or delete them first.",
     "tables.table_has_active_session": "That table still has an open check. Close or move it before deleting the table.",
     "tables.hold_not_found": "That hold is not there any more: it was already released, it expired, or that booking never held a table.",
-    "tables.table_not_available": "That table cannot be seated right now: it is taken, out of service or no longer in use."
+    "tables.table_not_available": "That table cannot be seated right now: it is taken, out of service or no longer in use.",
+    "tables.session_bill_mismatch": "This table's bill has changed. Reload the list and try again.",
+    "tables.session_bill_open": "This table's bill is still open in Sales: charge it, move it to another table or delete it from the till."
   }
 }

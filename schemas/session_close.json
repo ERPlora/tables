@@ -8,11 +8,15 @@
     "session_id": {
       "type": "string",
       "minLength": 1,
-      "description": "UUID de la sesión a cerrar (debe estar `active`)"
+      "description": "UUID of the session to close (must be `active`)"
+    },
+    "order_id": {
+      "type": ["string", "null"],
+      "description": "Bill (sales order) linked to the check, as listed by tables.sessions.list; required when the check has one (tables#124)"
     },
     "notes": {
       "type": ["string", "null"],
-      "description": "Notas a añadir al cierre (se concatenan a las existentes)"
+      "description": "Notes to add on closing (appended to the existing ones)"
     }
   }
 }

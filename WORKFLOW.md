@@ -33,7 +33,9 @@ Contrastada en `.claude/agents/qa-hub-restaurant.md` §2 (10/08/2026); se adopta
   pedir los comensales al sentar, transferir y juntar cuentas, sacar una mesa del servicio
   («bloquearla») y la lista de cuentas cerradas con su importe.
 - Comportamiento de sala del mercado que se adopta: sentar en una mesa reservada está permitido y
-  gasta la reserva; superar el aforo avisa pero no impide.
+  gasta la reserva; superar el aforo avisa pero no impide; una mesa con su cuenta abierta no se
+  libera a mano: se cobra, se pasa a otra mesa o se elimina la cuenta (Toast, Square, Lightspeed y
+  Odoo; tables#124).
 
 ## Antes de empezar
 
@@ -174,7 +176,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | TABLES-F18 | Liberar la mesa al cobrar la cuenta entera | hecho | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
 | TABLES-F19 | Anular un cobro de una mesa | hecho | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
 | TABLES-F20 | Eliminar en Ventas la cuenta abierta de una mesa | no hecho | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
-| TABLES-F21 | Cerrar una mesa a mano | parcial | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
+| TABLES-F21 | Cerrar una mesa a mano | hecho | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
 | TABLES-F22 | Consultar las cuentas de la sala (abiertas y cerradas) | hecho | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
 | TABLES-F23 | Borrar una cuenta cerrada del historial | hecho | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
 | TABLES-F24 | Volver a sentar una cuenta aparcada | parcial | [workflow/cierre-e-historial.md](workflow/cierre-e-historial.md) |
@@ -212,6 +214,7 @@ gramática y el mismo prefijo. Huecos (`parcial`, `no hecho`): el porqué está 
 | Un cobro parcial no libera la mesa | hecho | F18 |
 | Anular un cobro no rompe la mesa | hecho | F19 |
 | Eliminar la cuenta libera la mesa | no hecho | F20 |
+| Una mesa con la cuenta abierta no se libera a mano | hecho | F21 |
 | Cuentas cerradas con su importe | hecho | F22 |
 | Reserva confirmada visible en su mesa | parcial: se pinta desde que se confirma, no cerca de su hora; la mesa solo se pone a la reserva con el asistente | F25 |
 | El estado de la mesa sigue a la reserva (mover, cancelar, no-show) | parcial: la hora y el borrado no se siguen | F26, F27 |
@@ -296,8 +299,8 @@ Se resuelven con `market-decision`; no las decide el worker.
    antes, ¿debe gastar la reserva de la noche (hoy sí)?
 2. ¿Entra en el MVP el estado «por limpiar» que deja la mesa al irse el grupo?
 3. ¿Entra en el MVP juntar mesas físicas para un grupo grande (aforo sumado) y separarlas después?
-4. ¿Se puede cerrar a mano una mesa cuya cuenta sigue abierta en Ventas (hoy sí, y la cuenta pierde
-   su mesa)?
+4. Resuelta (tables#124): no se puede cerrar a mano una mesa cuya cuenta sigue abierta en Ventas;
+   se cobra, se pasa a otra mesa o se elimina primero (TABLES-F21).
 5. ¿Hace falta en pantalla volver a sentar una cuenta aparcada, deshacer una división y elegir cuál
    de las cuentas de una mesa dividida se abre?
 6. ¿El número de mesa debe ser único en su zona también para el asistente y la lista Mesas (hoy solo
@@ -315,7 +318,6 @@ Contra `origin/main` v2.2.57 (05/10/2026). Una línea por discrepancia; manda el
 - **`architecture/modules/tables.md`** («Quién atiende la cuenta»): el camarero «viaja también en el aviso de cuenta abierta»; el aviso lleva lo que mandó el TPV (mesa y comensales) y quién dio la orden, no el camarero que resuelve Mesas (F10).
 - **`architecture/modules/tables.md`** («Dónde vive cada guarda»): la comprobación en la base de datos es «la red de la carrera de dos TPV»; la escritura no bloquea la mesa y la comprobación posterior pasa en las dos aperturas, así que dos peticiones simultáneas pueden entrar (leído en el código, sin ejecutar) (F10).
 - **`module.json`** (`tables.sessions.by_order`, descripción para el asistente): «la usa Cocina»; Cocina no la llama (F18).
-- **`module.json`** (`tables.sessions.close`, descripción para el asistente): «tras el pago»; cerrar no comprueba nada de Ventas (F21).
 - **`docs/limits.md`**: los rechazos se llaman `not_available`, `tables_attached`, `active_sessions`, `invalid_capacity`, `invalid_status`; hoy son `tables.table_not_available`, `tables.zone_has_tables`, `tables.table_has_active_session`, y aforo y estado los rechaza el esquema (F04, F06, F10).
 - **`docs/limits.md`**: «borrar una zona borra sus mesas»; una zona con mesas en uso no se borra, y las que no estaban en uso se quedan sin zona visible (F06).
 - **`docs/limits.md`** y `docs/concepts.md`: «si las dos mesas tenían pedido, termina la unión en el TPV»; el TPV junta las líneas solo (F16).

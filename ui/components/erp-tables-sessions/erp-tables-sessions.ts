@@ -415,7 +415,8 @@ export class ErpTablesSessions extends LitElement {
     this.saving = true;
     this.error = '';
     try {
-      await erplora().command('tables.sessions.close', { session_id: target.id, notes: null });
+      // tables#124: name the bill the check carries — the server refuses while it is still open in sales.
+      await erplora().command('tables.sessions.close', { session_id: target.id, order_id: target.order_id ?? null, notes: null });
       await this.ctrl.load();
     } catch (e) {
       this.error = domainMessage(e, erplora().locale, erplora().t(CATALOG, 'ui.errCloseSession'));

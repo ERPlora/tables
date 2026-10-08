@@ -332,6 +332,58 @@ def test_voiding_a_partial_charge_keeps_the_party_seated(hub: Hub, cash: str) ->
     )
 
 
+def test_closing_by_hand_refuses_a_table_whose_bill_is_still_open(hub: Hub) -> None:
+    print(
+        "\n5c · closing a table by hand refuses while its bill is still open in sales; once the "
+        "bill is deleted in sales it closes and frees the table (tables#124)"
+    )
+    tid = create_table(hub)
+    hub.run("tables.sessions.open", {"table_id": tid})
+    sid = session_on(hub, tid)["id"]
+    order_out = hub.run(
+        "sales.order.open",
+        {"items": [{"product_name": "Caña", "price": 250, "quantity": ONE}]},
+    )
+    oid = order_out["new_ids"][0]
+    hub.run("tables.sessions.link_order", {"table_id": tid, "order_id": oid})
+
+    hub.refused(
+        "closing by hand with the bill still open in sales",
+        "tables.sessions.close",
+        {"session_id": sid, "order_id": oid},
+        "tables.session_bill_open",
+    )
+    # A caller that does not name the bill (or names another one) cannot slip past the guard.
+    hub.refused(
+        "closing by hand without naming the table's bill",
+        "tables.sessions.close",
+        {"session_id": sid},
+        "tables.session_bill_mismatch",
+    )
+    hub.refused(
+        "closing by hand naming a different bill",
+        "tables.sessions.close",
+        {"session_id": sid, "order_id": key("other-order")},
+        "tables.session_bill_mismatch",
+    )
+    hub.check(
+        "the table stays occupied with its open bill",
+        table_status(hub, tid),
+        "occupied",
+    )
+    hub.check(
+        "the check stays open on its table",
+        session_by_id(hub, sid).get("status"),
+        "active",
+    )
+
+    # Deleting the bill in sales (TABLES-F20) is what lets the table go by hand.
+    hub.run("sales.order.void", {"order_id": oid})
+    hub.run("tables.sessions.close", {"session_id": sid, "order_id": oid})
+    hub.check("the table is free again", table_status(hub, tid), "available")
+    hub.check("the check is closed", session_by_id(hub, sid).get("status"), "closed")
+
+
 def test_parking_frees_the_table_without_closing_the_account(hub: Hub) -> None:
     print("\n6 · parking frees the table WITHOUT closing the account (ADR-0146)")
     tid = create_table(hub)
@@ -512,6 +564,7 @@ def main() -> int:
     test_charging_the_order_in_full_frees_the_table(hub, cash)
     test_a_partial_charge_leaves_the_table_occupied(hub, cash)
     test_voiding_a_partial_charge_keeps_the_party_seated(hub, cash)
+    test_closing_by_hand_refuses_a_table_whose_bill_is_still_open(hub)
     test_parking_frees_the_table_without_closing_the_account(hub)
     test_restoring_a_parked_check_occupies_its_new_table(hub)
     test_a_parked_account_holds_no_table_at_all(hub)
