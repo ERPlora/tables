@@ -596,7 +596,8 @@
           "query": "sales.order.get",
           "params": {
             "order_id": "payload.order_id"
-          }
+          },
+          "required": false
         }
       ],
       "handler": {

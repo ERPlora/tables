@@ -970,6 +970,33 @@ def check_declared_files_exist(m: dict) -> None:
 # ── Runner ───────────────────────────────────────────────────────────────────────────────
 
 
+# tables#124: a command `read` on ANOTHER module that is not in `depends_on` is an optional
+# capability (ADR-0127). The runtime already treats the object form without `required` as graceful,
+# but the toolkit contract gate only defers a read that says `"required": false` OUT LOUD — and the
+# module CI checks out this module alone, so the owner is never in its universe and the gate fails
+# («… llama a `sales`, que no está en depends_on»). Locally it passes because `sales` sits next to it.
+def check_cross_module_reads(m: dict) -> None:
+    me = m.get("module_id") or m.get("id")
+    deps = set(m.get("depends_on") or [])
+    for name, cmd in (m.get("commands") or {}).items():
+        for i, read in enumerate((cmd or {}).get("reads") or []):
+            if not isinstance(read, dict):
+                continue
+            query = read.get("query", "")
+            owner = query.split(".")[0]
+            if (
+                owner
+                and owner != me
+                and owner not in deps
+                and read.get("required") is not False
+            ):
+                failures.append(
+                    f"commands.{name}.reads[{i}]: `{query}` reads `{owner}`, which is not in "
+                    f'depends_on — declare `"required": false` explicitly or the module gate '
+                    f"(one module checked out) rejects the contract"
+                )
+
+
 def main() -> int:
     raw = MANIFEST_PATH.read_text()
     try:
@@ -983,6 +1010,7 @@ def main() -> int:
     check_navigation(manifest)
     check_sql_blocks(manifest)
     check_events_and_slots(manifest)
+    check_cross_module_reads(manifest)
     check_scheduled_tasks(manifest)
     check_setup(manifest)
     check_setup_locales(manifest)
