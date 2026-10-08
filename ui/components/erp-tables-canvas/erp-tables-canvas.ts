@@ -85,6 +85,10 @@ interface ErploraLike {
 const BOX = 72; // tamaño de la caja de mesa en px (se persiste como width/height)
 const DRAG_THRESHOLD = 5; // px: por debajo se considera CLIC (editar), por encima ARRASTRE (mover)
 const KEY_STEP = 8; // px moved per arrow key press (Shift = 4×) — tables#16
+// tables#131 — what a tile paints past its saved box: 2 px of border and .15rem/.1rem of padding on
+// each side (8.8 × 7.2 px at 16 px a rem). The plan holds the PAINTED tile whole, and a drag stops
+// with it inside: counted on the box alone, the far edge of the last tile was cut.
+const TILE_CHROME = 10;
 const SHAPES = ['square', 'round', 'rectangle'];
 const STATUSES = ['available', 'occupied', 'reserved', 'blocked'];
 // enum → clave i18n (el `value=` del enum NO se traduce; sí su etiqueta visible).
@@ -157,6 +161,23 @@ function boxOf(t: Pick<Table, 'width' | 'height'>): { w: number; h: number } {
   const w = Number(t.width) || 0;
   const h = Number(t.height) || 0;
   return { w: w >= MIN_BOX ? w : BOX, h: h >= MIN_BOX ? h : BOX };
+}
+
+/**
+ * tables#97, tables#131 — fades each edge of a sideways scroller (the zone strip, the plan window)
+ * that has something behind it. The classes go straight on the element (no Lit class binding): a
+ * bound `class` would wipe the ones Ionic sets on its host.
+ */
+function markHiddenEdges(el: HTMLElement | null): void {
+  if (!el) return;
+  const hidden = el.scrollWidth - el.clientWidth;
+  // Pixels past the LEFT edge. Right-to-left, scrollLeft runs from 0 (start, at the right) down to
+  // -hidden, so the left overflow is what is still left to scroll.
+  const rtl = getComputedStyle(el).direction === 'rtl';
+  const left = rtl ? hidden + el.scrollLeft : el.scrollLeft;
+  // 1 px of slack: a fractional scroll position must not leave a fade on an edge already reached.
+  el.classList.toggle('more-left', left > 1);
+  el.classList.toggle('more-right', left < hidden - 1);
 }
 
 /**
@@ -267,11 +288,28 @@ export class ErpTablesCanvas extends LitElement {
     .zonebar .flex { flex:1; }
     /* tables#97: only a TABLE owns the touch gesture (touch-action:none on .mesa, so it drags). The
        empty plan lets a vertical swipe scroll the page: on a phone the plan fills the screen, and
-       with touch-action:none everywhere the help line under it could never be scrolled into view. */
-    .canvas { position:relative; height:60vh; min-height:22rem; border:1px dashed var(--ion-border-color,#cfcabd); border-radius: var(--ok-radius, 14px); background:
+       with touch-action:none everywhere the help line under it could never be scrolled into view.
+       tables#131: .canvas is the WINDOW onto the plan and .plane the plan itself, as large as its
+       farthest table (planeSize). A plan laid out on a computer is wider than a phone: the window
+       scrolls sideways (a sideways swipe on the empty plan), and grows down with the plan, so the
+       page scrolls to its lowest table. Tables keep their real size, like Toast's pan or Odoo's
+       «full size» floor: scaled to fit, a 752 px row would shrink each table to a third. */
+    .canvas { position:relative; border:1px dashed var(--ion-border-color,#cfcabd); border-radius: var(--ok-radius, 14px);
+      overflow-x:auto; overflow-y:hidden; touch-action:pan-x pan-y; }
+    .plane { position:relative; min-width:100%; min-height:max(60vh, 22rem); background:
         repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px),
-        repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px);
-      overflow:hidden; touch-action:pan-y; }
+        repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,0,0,.04) 40px); }
+    /* tables#131: as on the zone strip (tables#97), each edge of the window with tables behind it
+       fades out — a hard cut read as «there are no more tables». updatePlanCue() sets the classes. */
+    .canvas.more-right {
+      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+      mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent); }
+    .canvas.more-left {
+      -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent);
+      mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent); }
+    .canvas.more-left.more-right {
+      -webkit-mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
+      mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent); }
     /* tables#53: el TAMAÑO ya no se clava aquí — lo pinta cada mesa con el suyo (estilo inline),
        porque la fila lo trae y tables.tables.move lo persiste. Se deja como respaldo para una
        mesa que no lo declare. */
@@ -340,6 +378,10 @@ export class ErpTablesCanvas extends LitElement {
   private dragStartX = 0;
   private dragStartY = 0;
   private dragMoved = false;
+  /** tables#131 — the plan's size when the drag started. While a table is dragged the plan never
+   *  shrinks below it: dragging the farthest table inwards would shrink the plan under the finger
+   *  and the browser would snap the scrolled window back. */
+  private dragFloor?: { w: number; h: number };
 
   // Re-render al cambiar el idioma del shell (ADR-0055): los textos del template (legend, sheets,
   // tooltips…) se re-evalúan con el nuevo `erplora.locale`.
@@ -372,6 +414,7 @@ export class ErpTablesCanvas extends LitElement {
     this.unsub?.();
     if (this.timer) clearInterval(this.timer);
     this.unwatchZoneStrip();
+    this.unwatchPlan();
   }
 
   /** tables#97 — the strip overflows only once Ionic has laid its buttons out (after the first
@@ -406,20 +449,40 @@ export class ErpTablesCanvas extends LitElement {
   /** Fades each edge of the zone strip that has zones behind it. The classes go straight on the
    *  element (no Lit class binding): a bound `class` would wipe the ones Ionic sets on its host. */
   private readonly updateZoneCue = (): void => {
-    const seg = this.renderRoot.querySelector<HTMLElement>('[data-testid="tables-floor-zones"]');
-    if (!seg) return;
-    const hidden = seg.scrollWidth - seg.clientWidth;
-    // Pixels of strip past the LEFT edge. Right-to-left, scrollLeft runs from 0 (start, at the
-    // right) down to -hidden, so the left overflow is what is still left to scroll.
-    const rtl = getComputedStyle(seg).direction === 'rtl';
-    const left = rtl ? hidden + seg.scrollLeft : seg.scrollLeft;
-    // 1 px of slack: a fractional scroll position must not leave a fade on an edge already reached.
-    seg.classList.toggle('more-left', left > 1);
-    seg.classList.toggle('more-right', left < hidden - 1);
+    markHiddenEdges(this.renderRoot.querySelector<HTMLElement>('[data-testid="tables-floor-zones"]'));
+  };
+
+  /** tables#131 — the plan window overflows once the browser lays it out, and whenever the screen,
+   *  the zone or a table moves its edges: watched like the zone strip, the window AND the plan. */
+  private planObserver?: ResizeObserver;
+  private observedPlan?: Element;
+
+  private watchPlan(): void {
+    const win = this.canvasEl();
+    if (win === this.observedPlan) return;
+    this.unwatchPlan();
+    if (win && typeof ResizeObserver !== 'undefined') {
+      this.planObserver = new ResizeObserver(this.updatePlanCue);
+      this.planObserver.observe(win);
+      const plane = this.planeEl();
+      if (plane) this.planObserver.observe(plane);
+      this.observedPlan = win;
+    }
+  }
+
+  private unwatchPlan(): void {
+    this.planObserver?.disconnect();
+    this.planObserver = undefined;
+    this.observedPlan = undefined;
+  }
+
+  private readonly updatePlanCue = (): void => {
+    markHiddenEdges(this.canvasEl());
   };
 
   protected updated(): void {
     this.watchZoneStrip();
+    this.watchPlan();
   }
 
   private async reload() {
@@ -478,11 +541,32 @@ export class ErpTablesCanvas extends LitElement {
     return this.renderRoot.querySelector('.canvas');
   }
 
+  /** tables#131 — the plan the tables are positioned in (it scrolls inside the .canvas window). */
+  private planeEl(): HTMLElement | null {
+    return this.renderRoot.querySelector('.plane');
+  }
+
+  /** tables#131 — the plan reaches the far edge of its farthest table and the bottom of its lowest
+   *  one (never smaller than the window: .plane has a min-width/min-height). */
+  private get planeSize(): { w: number; h: number } {
+    let w = this.dragFloor?.w ?? 0;
+    let h = this.dragFloor?.h ?? 0;
+    for (const t of this.tablesInZone) {
+      const box = boxOf(t);
+      w = Math.max(w, t.position_x + box.w + TILE_CHROME);
+      h = Math.max(h, t.position_y + box.h + TILE_CHROME);
+    }
+    return { w: Math.ceil(w), h: Math.ceil(h) };
+  }
+
   // ── Drag + clic-para-editar (pointer events) ────────────────────────────────────────────────
   private onPointerDown(t: Table, e: PointerEvent) {
-    const canvas = this.canvasEl();
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
+    const plane = this.planeEl();
+    if (!plane) return;
+    // tables#131: the plan, not its window — scrolled, a table's x is counted from the plan's own
+    // edge, which moves with the scroll (its rect.left goes negative).
+    const rect = plane.getBoundingClientRect();
+    this.dragFloor = this.planeSize;
     this.dragId = t.id;
     this.dragDX = e.clientX - rect.left - t.position_x;
     this.dragDY = e.clientY - rect.top - t.position_y;
@@ -498,13 +582,13 @@ export class ErpTablesCanvas extends LitElement {
     if (Math.abs(e.clientX - this.dragStartX) > DRAG_THRESHOLD || Math.abs(e.clientY - this.dragStartY) > DRAG_THRESHOLD) {
       this.dragMoved = true;
     }
-    const canvas = this.canvasEl();
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
+    const plane = this.planeEl();
+    if (!plane) return;
+    const rect = plane.getBoundingClientRect();
     const dragged = this.tables.find((t) => t.id === this.dragId);
     const box = dragged ? boxOf(dragged) : { w: BOX, h: BOX };
-    const maxX = Math.max(0, rect.width - box.w);
-    const maxY = Math.max(0, rect.height - box.h);
+    const maxX = Math.max(0, rect.width - box.w - TILE_CHROME);
+    const maxY = Math.max(0, rect.height - box.h - TILE_CHROME);
     const x = Math.min(maxX, Math.max(0, e.clientX - rect.left - this.dragDX));
     const y = Math.min(maxY, Math.max(0, e.clientY - rect.top - this.dragDY));
     this.tables = this.tables.map((t) => (t.id === this.dragId ? { ...t, position_x: x, position_y: y } : t));
@@ -513,6 +597,12 @@ export class ErpTablesCanvas extends LitElement {
   private async onPointerUp() {
     const id = this.dragId;
     this.dragId = undefined;
+    // tables#131: dropped, the plan fits the room again — dragFloor is no reactive state, so ask
+    // for the re-render that sizes it from the tables alone.
+    if (this.dragFloor) {
+      this.dragFloor = undefined;
+      this.requestUpdate();
+    }
     if (!id) return;
     const t = this.tables.find((m) => m.id === id);
     if (!t) return;
@@ -551,11 +641,11 @@ export class ErpTablesCanvas extends LitElement {
     const d = delta[e.key];
     if (!d) return;
     e.preventDefault();
-    // Clamp to the canvas only when it has a layout (no layout → no clamp, e.g. before first paint).
-    const rect = this.canvasEl()?.getBoundingClientRect();
+    // Clamp to the plan only when it has a layout (no layout → no clamp, e.g. before first paint).
+    const rect = this.planeEl()?.getBoundingClientRect();
     const box = boxOf(t);
-    const maxX = rect && rect.width > 0 ? Math.max(0, rect.width - box.w) : Number.POSITIVE_INFINITY;
-    const maxY = rect && rect.height > 0 ? Math.max(0, rect.height - box.h) : Number.POSITIVE_INFINITY;
+    const maxX = rect && rect.width > 0 ? Math.max(0, rect.width - box.w - TILE_CHROME) : Number.POSITIVE_INFINITY;
+    const maxY = rect && rect.height > 0 ? Math.max(0, rect.height - box.h - TILE_CHROME) : Number.POSITIVE_INFINITY;
     const x = Math.round(Math.min(maxX, Math.max(0, t.position_x + d[0])));
     const y = Math.round(Math.min(maxY, Math.max(0, t.position_y + d[1])));
     this.tables = this.tables.map((m) => (m.id === t.id ? { ...m, position_x: x, position_y: y } : m));
@@ -856,9 +946,11 @@ export class ErpTablesCanvas extends LitElement {
       ${this.sheetOpen ? nothing : this.renderError()}
 
       <div class="canvas"
+        @scroll=${this.updatePlanCue}
         @pointermove=${(e: PointerEvent) => this.onPointerMove(e)}
         @pointerup=${() => this.onPointerUp()}
         @pointercancel=${() => this.onPointerUp()}>
+        <div class="plane" style=${`width:${this.planeSize.w}px; height:${this.planeSize.h}px`}>
         ${this.tablesInZone.map((tb) => {
           const statusLabel = STATUS_KEY[tb.status] ? t(STATUS_KEY[tb.status]) : tb.status;
           const live = this.liveLine(tb, t, true);
@@ -895,6 +987,7 @@ export class ErpTablesCanvas extends LitElement {
         ${!this.loading && !this.zones.length ? html`<ok-empty-state data-testid="tables-floor-empty-zones" icon="grid-outline" message=${t('ui.createZoneToStart')}></ok-empty-state>` : nothing}
         ${!this.loading && this.zones.length && !this.tablesInZone.length ? html`<ok-empty-state data-testid="tables-floor-empty-tables" icon="square-outline" message=${t('ui.noTablesInZonePrompt')}></ok-empty-state>` : nothing}
         ${this.loading ? html`<div class="empty" data-testid="tables-floor-loading">${t('ui.loading')}</div>` : nothing}
+        </div>
       </div>
       <p class="hint">${t('ui.canvasHint')}</p>
 

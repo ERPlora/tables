@@ -41,8 +41,8 @@ Actor: responsable, administrador
 Pantalla: Plano de sala
 Pasos:
 1. En **Plano de sala**, elige la zona.
-2. Arrastra cada mesa a su sitio (el gesto lo coge solo la mesa; deslizar sobre el plano vacío mueve la página). Con teclado: tabula hasta la mesa y muévela con las flechas (8 px; con Mayúsculas, 32 px).
-3. Al soltar se guarda al momento; no hay botón de guardar. La mesa no sale del borde del plano.
+2. Arrastra cada mesa a su sitio (el gesto lo coge solo la mesa; deslizar sobre el plano vacío lo desplaza de lado o mueve la página). Con teclado: tabula hasta la mesa y muévela con las flechas (8 px; con Mayúsculas, 32 px). Las mesas tienen siempre su tamaño real: en un móvil o una tableta, un plano dibujado en el ordenador es más ancho que la pantalla y se desliza de lado hasta la mesa más lejana; hacia abajo, el plano crece hasta la mesa más baja y se llega bajando la página (tables#131).
+3. Al soltar se guarda al momento; no hay botón de guardar. La mesa no sale del borde del plano (con su borde pintado entero) y arrastrarla contra el borde no lo empuja; mientras se arrastra hacia dentro la mesa más lejana el plano no encoge bajo el dedo, y al soltarla se ajusta a la sala.
 4. Al recargar, cada mesa sigue donde se dejó. Las mesas que nadie ha colocado nunca (las que llegan de una plantilla o de versiones viejas) se reparten solas en rejilla, por zona, sin taparse.
 Entra: la posición nueva.
 Sale: la posición de la mesa (avisa: tables.table.updated).

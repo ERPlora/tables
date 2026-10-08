@@ -11,6 +11,11 @@ The visual editor of the room. Tables are boxes on a canvas, grouped by zone tab
 - On a phone the **zone tabs** scroll sideways; an edge that fades out means there are more zones
   that way. Swiping up or down on an **empty part of the plan** scrolls the page (only a table
   answers to dragging), so the help line under the plan can always be read.
+- Tables keep their **real size** on every screen. A plan laid out on a computer is wider than a
+  phone or a tablet: swipe sideways on an empty part of the plan to reach the tables on the right;
+  an edge that fades out means there are more tables that way. A plan taller than the screen grows
+  down, and the page scrolls to its lowest table (tables#131). Dragging a table against the edge of
+  the plan stops it there; it does not push the edge.
 - **Add a zone** or **add a table** from here.
 - The plan shows each table's live status by colour, including tables **held** for a booking. A
   held table adds the booking's name and time («Ana · 21:00»): a long name is cut with «…», the
