@@ -63,7 +63,9 @@ un responsable (TABLES-F02). Además, Mesas pone en **Ventas → Vender** la ven
 ### Plano de sala
 Menú **Mesas → Plano de sala**. Arriba, una sola fila: la tira de zonas (se desliza de lado en el
 móvil y se difumina por el borde cuando hay más zonas), un «+» («Añadir zona o mesa») y un lápiz
-(«Editar zona»). Debajo, el plano de la zona elegida: cada mesa es una baldosa con su número, su
+(«Editar zona»). Debajo, el plano de la zona elegida, con las mesas a su tamaño real: si no cabe
+de ancho (móvil, tableta) se desliza de lado y el borde con mesas detrás se difumina, como la tira
+de zonas; si no cabe de alto, crece y se baja la página. Cada mesa es una baldosa con su número, su
 estado escrito con su icono y color (Disponible, Ocupada, Reservada, Bloqueada), el aforo («4 pax»)
 o, si está ocupada, los comensales y los minutos que llevan («3 pax · 35 min») y quién la atiende; si
 tiene una reserva retenida, el nombre y la hora de la reserva («Cliente borrado» si se borraron

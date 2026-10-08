@@ -12,7 +12,7 @@ Estado: parcial — el plano no se actualiza solo cuando se sienta, se traslada 
 Actor: responsable, empleado, cajero
 Pantalla: Plano de sala
 Pasos:
-1. Abre **Mesas → Plano de sala** y elige la zona.
+1. Abre **Mesas → Plano de sala** y elige la zona. Se ven todas sus mesas, a su tamaño real: si el plano no cabe de ancho (móvil, tableta), el borde con mesas detrás se difumina y se desliza de lado hasta ellas; si no cabe de alto, se baja la página (tables#131).
 2. Cada mesa dice su estado escrito, con icono y color: Disponible, Ocupada, Reservada o Bloqueada.
 3. Una mesa ocupada dice los comensales y los minutos que llevan («3 pax · 35 min») y quién la atiende; los minutos avanzan solos cada 30 segundos. Una mesa con reserva retenida dice el nombre y la hora de la reserva.
 4. En «Elegir mesa» del TPV (se lee al abrir la ventana), cada mesa dice número, aforo, comensales sentados, estado y reserva, sin minutos ni camarero. El estado sale también en la columna Libres de **Zonas** y en el Estado de **Mesas** (estas dos se refrescan al abrir una mesa y al cerrarla a mano, no al cobrarla).
