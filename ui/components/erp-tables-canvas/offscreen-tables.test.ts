@@ -152,6 +152,35 @@ describe('moving a table the phone reaches by scrolling keeps it where it is (ta
     expect(x + 72 + PAINTED_W, 'the painted tile goes past the edge of the plan').toBeLessThanOrEqual(plane);
   });
 
+  it('while the farthest table is dragged inwards the plan keeps its size, and fits the room once dropped', async () => {
+    // Shrunk under the finger, the browser would snap the scrolled window back and the table would
+    // jump away from the finger.
+    const el = await mount();
+    phone(el);
+    const t5 = tile(el, 't5');
+    const plane = t5.parentElement!;
+    const before = parseFloat(plane.style.width);
+    t5.dispatchEvent(new PointerEvent('pointerdown', { clientX: 330, clientY: 170, pointerId: 1, bubbles: true }));
+    viewport(el).dispatchEvent(new PointerEvent('pointermove', { clientX: 230, clientY: 170, pointerId: 1, bubbles: true }));
+    await tick(el);
+    expect(el.tables.find((t) => t.id === 't5')!.position_x, 'the table follows the finger').toBe(580);
+    expect(parseFloat(plane.style.width), 'the plan shrank under the finger').toBe(before);
+    viewport(el).dispatchEvent(new PointerEvent('pointerup', { clientX: 230, clientY: 170, pointerId: 1, bubbles: true }));
+    await tick(el);
+    // Table 5 now ends the row at 580: 580 + 72 of box + 10 of painted border.
+    expect(parseFloat(plane.style.width), 'dropped, the plan ends at its farthest table again').toBe(580 + 72 + 10);
+  });
+
+  it('the arrow keys stop the farthest table with its painted edge inside the plan', async () => {
+    const el = await mount();
+    phone(el);
+    const edge = parseFloat(tile(el, 't5').parentElement!.style.width);
+    tile(el, 't5').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await tick(el);
+    const x = Number(commands.find((c) => c.name === 'tables.tables.move')!.payload.position_x);
+    expect(x + 72 + PAINTED_W, 'the painted tile goes past the edge of the plan').toBeLessThanOrEqual(edge);
+  });
+
   it('the arrow keys move the farthest table one step, not back into the first screen', async () => {
     const el = await mount();
     phone(el);
