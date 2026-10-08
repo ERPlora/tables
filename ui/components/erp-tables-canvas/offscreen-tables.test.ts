@@ -121,6 +121,18 @@ describe('every table of the zone can be reached on a narrow screen (tables#131)
     await tick(el);
     expect(parseFloat(plane.style.width)).toBeGreaterThanOrEqual(972 + PAINTED_W);
   });
+
+  it('the plan holds a table bigger than the default box whole (its own saved size, tables#53)', async () => {
+    const erp = (globalThis as Record<string, { queryAll: unknown }>).erplora;
+    erp.queryAll = async (name: string) =>
+      name === 'tables.zones.list'
+        ? ZONES
+        : TABLES.map((t) => (t.id === 't5' ? { ...t, width: 120 } : t.id === 't6' ? { ...t, height: 120 } : { ...t }));
+    const el = await mount();
+    const plane = tile(el, 't5').parentElement!;
+    expect(parseFloat(plane.style.width), 'a 120 px table at the far right is cut').toBeGreaterThanOrEqual(680 + 120 + PAINTED_W);
+    expect(parseFloat(plane.style.height), 'a 120 px tall table at the bottom is cut').toBeGreaterThanOrEqual(520 + 120 + PAINTED_H);
+  });
 });
 
 describe('moving a table the phone reaches by scrolling keeps it where it is (tables#131)', () => {
@@ -285,6 +297,29 @@ describe('the plan says there are more tables past the edge (tables#131)', () =>
       layOut(win, { scrollWidth: 343, scrollLeft: 0 });
       onPlane.forEach((w) => w.cb());
       expect(cues(win), 'the plan fits now: no edge fades').toEqual({ left: false, right: false });
+    } finally {
+      g.ResizeObserver = original;
+    }
+  });
+
+  it('leaving the plan stops watching it', async () => {
+    const watchers: Array<{ targets: Element[]; disconnected: boolean }> = [];
+    const g = globalThis as Record<string, unknown>;
+    const original = g.ResizeObserver;
+    g.ResizeObserver = class {
+      private rec: { targets: Element[]; disconnected: boolean };
+      constructor() { this.rec = { targets: [], disconnected: false }; watchers.push(this.rec); }
+      observe(target: Element) { this.rec.targets.push(target); }
+      unobserve() {}
+      disconnect() { this.rec.disconnected = true; }
+    };
+    try {
+      const el = await mount();
+      const win = viewport(el);
+      expect(watchers.some((w) => w.targets.includes(win)), 'nobody watches the plan window').toBe(true);
+      el.remove();
+      const still = watchers.filter((w) => !w.disconnected && w.targets.includes(win));
+      expect(still.length, 'the plan window is still watched after leaving the screen').toBe(0);
     } finally {
       g.ResizeObserver = original;
     }

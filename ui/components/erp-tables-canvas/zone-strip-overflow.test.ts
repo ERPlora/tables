@@ -216,8 +216,9 @@ describe('the empty plan lets the page scroll, so the help line under it can be 
     const tile = el.shadowRoot.querySelector<HTMLElement>('[data-testid="tables-floor-tile-t1"]');
     expect(canvas && tile).toBeTruthy();
     // tables#131 added pan-x (a sideways swipe scrolls a plan wider than the phone); the vertical
-    // swipe still belongs to the page.
-    expect(getComputedStyle(canvas as HTMLElement).touchAction).toMatch(/(^|\s)pan-y(\s|$)/);
+    // swipe still belongs to the page. Exact, as before: any other gesture let in (pinch-zoom…) is
+    // a gesture taken from the table drag.
+    expect(getComputedStyle(canvas as HTMLElement).touchAction).toBe('pan-x pan-y');
     expect(getComputedStyle(tile as HTMLElement).touchAction).toBe('none');
   });
 
