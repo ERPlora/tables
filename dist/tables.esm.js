@@ -2225,6 +2225,7 @@ function minutesSince(iso, now) {
 var BOX = 72;
 var DRAG_THRESHOLD = 5;
 var KEY_STEP = 8;
+var TILE_CHROME = 10;
 var SHAPES = ["square", "round", "rectangle"];
 var STATUSES = ["available", "occupied", "reserved", "blocked"];
 var STATUS_KEY = {
@@ -2559,8 +2560,8 @@ var ErpTablesCanvas = class extends i3 {
     let h4 = this.dragFloor?.h ?? 0;
     for (const t5 of this.tablesInZone) {
       const box = boxOf(t5);
-      w2 = Math.max(w2, t5.position_x + box.w);
-      h4 = Math.max(h4, t5.position_y + box.h);
+      w2 = Math.max(w2, t5.position_x + box.w + TILE_CHROME);
+      h4 = Math.max(h4, t5.position_y + box.h + TILE_CHROME);
     }
     return { w: Math.ceil(w2), h: Math.ceil(h4) };
   }
@@ -2589,8 +2590,8 @@ var ErpTablesCanvas = class extends i3 {
     const rect = plane.getBoundingClientRect();
     const dragged = this.tables.find((t5) => t5.id === this.dragId);
     const box = dragged ? boxOf(dragged) : { w: BOX, h: BOX };
-    const maxX = Math.max(0, rect.width - box.w);
-    const maxY = Math.max(0, rect.height - box.h);
+    const maxX = Math.max(0, rect.width - box.w - TILE_CHROME);
+    const maxY = Math.max(0, rect.height - box.h - TILE_CHROME);
     const x2 = Math.min(maxX, Math.max(0, e5.clientX - rect.left - this.dragDX));
     const y3 = Math.min(maxY, Math.max(0, e5.clientY - rect.top - this.dragDY));
     this.tables = this.tables.map((t5) => t5.id === this.dragId ? { ...t5, position_x: x2, position_y: y3 } : t5);
@@ -2634,8 +2635,8 @@ var ErpTablesCanvas = class extends i3 {
     e5.preventDefault();
     const rect = this.planeEl()?.getBoundingClientRect();
     const box = boxOf(t5);
-    const maxX = rect && rect.width > 0 ? Math.max(0, rect.width - box.w) : Number.POSITIVE_INFINITY;
-    const maxY = rect && rect.height > 0 ? Math.max(0, rect.height - box.h) : Number.POSITIVE_INFINITY;
+    const maxX = rect && rect.width > 0 ? Math.max(0, rect.width - box.w - TILE_CHROME) : Number.POSITIVE_INFINITY;
+    const maxY = rect && rect.height > 0 ? Math.max(0, rect.height - box.h - TILE_CHROME) : Number.POSITIVE_INFINITY;
     const x2 = Math.round(Math.min(maxX, Math.max(0, t5.position_x + d3[0])));
     const y3 = Math.round(Math.min(maxY, Math.max(0, t5.position_y + d3[1])));
     this.tables = this.tables.map((m4) => m4.id === t5.id ? { ...m4, position_x: x2, position_y: y3 } : m4);

@@ -85,6 +85,10 @@ interface ErploraLike {
 const BOX = 72; // tamaño de la caja de mesa en px (se persiste como width/height)
 const DRAG_THRESHOLD = 5; // px: por debajo se considera CLIC (editar), por encima ARRASTRE (mover)
 const KEY_STEP = 8; // px moved per arrow key press (Shift = 4×) — tables#16
+// tables#131 — what a tile paints past its saved box: 2 px of border and .15rem/.1rem of padding on
+// each side (8.8 × 7.2 px at 16 px a rem). The plan holds the PAINTED tile whole, and a drag stops
+// with it inside: counted on the box alone, the far edge of the last tile was cut.
+const TILE_CHROME = 10;
 const SHAPES = ['square', 'round', 'rectangle'];
 const STATUSES = ['available', 'occupied', 'reserved', 'blocked'];
 // enum → clave i18n (el `value=` del enum NO se traduce; sí su etiqueta visible).
@@ -549,8 +553,8 @@ export class ErpTablesCanvas extends LitElement {
     let h = this.dragFloor?.h ?? 0;
     for (const t of this.tablesInZone) {
       const box = boxOf(t);
-      w = Math.max(w, t.position_x + box.w);
-      h = Math.max(h, t.position_y + box.h);
+      w = Math.max(w, t.position_x + box.w + TILE_CHROME);
+      h = Math.max(h, t.position_y + box.h + TILE_CHROME);
     }
     return { w: Math.ceil(w), h: Math.ceil(h) };
   }
@@ -583,8 +587,8 @@ export class ErpTablesCanvas extends LitElement {
     const rect = plane.getBoundingClientRect();
     const dragged = this.tables.find((t) => t.id === this.dragId);
     const box = dragged ? boxOf(dragged) : { w: BOX, h: BOX };
-    const maxX = Math.max(0, rect.width - box.w);
-    const maxY = Math.max(0, rect.height - box.h);
+    const maxX = Math.max(0, rect.width - box.w - TILE_CHROME);
+    const maxY = Math.max(0, rect.height - box.h - TILE_CHROME);
     const x = Math.min(maxX, Math.max(0, e.clientX - rect.left - this.dragDX));
     const y = Math.min(maxY, Math.max(0, e.clientY - rect.top - this.dragDY));
     this.tables = this.tables.map((t) => (t.id === this.dragId ? { ...t, position_x: x, position_y: y } : t));
@@ -635,8 +639,8 @@ export class ErpTablesCanvas extends LitElement {
     // Clamp to the plan only when it has a layout (no layout → no clamp, e.g. before first paint).
     const rect = this.planeEl()?.getBoundingClientRect();
     const box = boxOf(t);
-    const maxX = rect && rect.width > 0 ? Math.max(0, rect.width - box.w) : Number.POSITIVE_INFINITY;
-    const maxY = rect && rect.height > 0 ? Math.max(0, rect.height - box.h) : Number.POSITIVE_INFINITY;
+    const maxX = rect && rect.width > 0 ? Math.max(0, rect.width - box.w - TILE_CHROME) : Number.POSITIVE_INFINITY;
+    const maxY = rect && rect.height > 0 ? Math.max(0, rect.height - box.h - TILE_CHROME) : Number.POSITIVE_INFINITY;
     const x = Math.round(Math.min(maxX, Math.max(0, t.position_x + d[0])));
     const y = Math.round(Math.min(maxY, Math.max(0, t.position_y + d[1])));
     this.tables = this.tables.map((m) => (m.id === t.id ? { ...m, position_x: x, position_y: y } : m));

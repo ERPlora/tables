@@ -21,6 +21,10 @@ const TABLES = [
 ];
 const FAR_RIGHT = 680 + 72;
 const FAR_DOWN = 520 + 72;
+// A tile PAINTS more than its saved 72 px box: 2 px of border and .15rem/.1rem of padding on each
+// side (8.8 px wide and 7.2 px tall at 16 px a rem). The plan has to hold the painted tile whole.
+const PAINTED_W = 9;
+const PAINTED_H = 8;
 
 let commands: { name: string; payload: Record<string, unknown> }[] = [];
 
@@ -75,7 +79,9 @@ function phone(el: Canvas, scrolled = 400) {
   const win = viewport(el);
   win.getBoundingClientRect = () => rect(16, 100, 343, 400);
   const plane = tile(el, 't1').parentElement!;
-  if (plane !== win) plane.getBoundingClientRect = () => rect(16 - scrolled, 100, FAR_RIGHT, FAR_DOWN);
+  if (plane !== win) {
+    plane.getBoundingClientRect = () => rect(16 - scrolled, 100, parseFloat(plane.style.width), parseFloat(plane.style.height));
+  }
 }
 
 function rule(el: Canvas, selector: string): string {
@@ -102,8 +108,8 @@ describe('every table of the zone can be reached on a narrow screen (tables#131)
     const el = await mount();
     const plane = tile(el, 't5').parentElement!;
     expect(plane, 'tables painted straight in the window: the window is all the plan there is').not.toBe(viewport(el));
-    expect(parseFloat(plane.style.width), 'width of the plan').toBeGreaterThanOrEqual(FAR_RIGHT);
-    expect(parseFloat(plane.style.height), 'height of the plan').toBeGreaterThanOrEqual(FAR_DOWN);
+    expect(parseFloat(plane.style.width), 'width of the plan: the farthest tile, border included').toBeGreaterThanOrEqual(FAR_RIGHT + PAINTED_W);
+    expect(parseFloat(plane.style.height), 'height of the plan: the lowest tile, border included').toBeGreaterThanOrEqual(FAR_DOWN + PAINTED_H);
   });
 
   it('the plan grows when a table is moved past it, and never shrinks below its window', async () => {
@@ -112,7 +118,7 @@ describe('every table of the zone can be reached on a narrow screen (tables#131)
     expect(rule(el, '.plane'), 'an emptier zone still fills the window').toMatch(/min-width\s*:\s*100%/);
     el.tables = el.tables.map((t) => (t.id === 't5' ? { ...t, position_x: 900 } : t));
     await tick(el);
-    expect(parseFloat(plane.style.width)).toBeGreaterThanOrEqual(972);
+    expect(parseFloat(plane.style.width)).toBeGreaterThanOrEqual(972 + PAINTED_W);
   });
 });
 
@@ -132,7 +138,7 @@ describe('moving a table the phone reaches by scrolling keeps it where it is (ta
     expect(move!.payload.position_y).toBe(40);
   });
 
-  it('it still does not leave the plan: dragged right, the farthest table stops at the edge', async () => {
+  it('it still does not leave the plan: dragged right, the farthest table stops with its painted edge inside', async () => {
     const el = await mount();
     phone(el);
     const t5 = tile(el, 't5');
@@ -140,7 +146,10 @@ describe('moving a table the phone reaches by scrolling keeps it where it is (ta
     viewport(el).dispatchEvent(new PointerEvent('pointermove', { clientX: 360, clientY: 170, pointerId: 1, bubbles: true }));
     viewport(el).dispatchEvent(new PointerEvent('pointerup', { clientX: 360, clientY: 170, pointerId: 1, bubbles: true }));
     await tick(el);
-    expect(commands.find((c) => c.name === 'tables.tables.move')!.payload.position_x).toBe(680);
+    const x = Number(commands.find((c) => c.name === 'tables.tables.move')!.payload.position_x);
+    const plane = parseFloat(tile(el, 't5').parentElement!.style.width);
+    expect(x, 'the table did not move right at all').toBeGreaterThanOrEqual(680);
+    expect(x + 72 + PAINTED_W, 'the painted tile goes past the edge of the plan').toBeLessThanOrEqual(plane);
   });
 
   it('the arrow keys move the farthest table one step, not back into the first screen', async () => {
