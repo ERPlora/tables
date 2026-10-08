@@ -597,7 +597,12 @@ export class ErpTablesCanvas extends LitElement {
   private async onPointerUp() {
     const id = this.dragId;
     this.dragId = undefined;
-    this.dragFloor = undefined;
+    // tables#131: dropped, the plan fits the room again — dragFloor is no reactive state, so ask
+    // for the re-render that sizes it from the tables alone.
+    if (this.dragFloor) {
+      this.dragFloor = undefined;
+      this.requestUpdate();
+    }
     if (!id) return;
     const t = this.tables.find((m) => m.id === id);
     if (!t) return;
